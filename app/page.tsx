@@ -1140,6 +1140,9 @@ export default function LectureVaultApp() {
             availableLectures={state.lectures.filter(
               (lecture) => lecture.courseId === selectedExam.courseId
             )}
+            courses={state.courses}
+            mediaItems={state.mediaItems}
+            concepts={state.concepts}
             courseLabel={courseLabel}
             onAdd={addLectureToExam}
             onRemove={removeLectureFromExam}
@@ -1443,6 +1446,9 @@ function ExamDetail({
   exam,
   lectures,
   availableLectures,
+  courses,
+  mediaItems,
+  concepts,
   courseLabel,
   onAdd,
   onRemove,
@@ -1453,6 +1459,9 @@ function ExamDetail({
   exam: ExamWorkspace;
   lectures: Lecture[];
   availableLectures: Lecture[];
+  courses: Course[];
+  mediaItems: MediaItem[];
+  concepts: ExtractedConcept[];
   courseLabel: (id: string) => string;
   onAdd: (lectureId: string, examId?: string) => void;
   onRemove: (lectureId: string) => void;
@@ -1460,10 +1469,129 @@ function ExamDetail({
   onDelete: () => void;
   onOpenLecture: (lectureId: string) => void;
 }) {
+  const [explorerQuery, setExplorerQuery] = useState("");
+  const selectedIds = new Set(lectures.map((lecture) => lecture.id));
+  const normalizedQuery = explorerQuery.trim().toLowerCase();
+  const visibleCourses = courses.filter(
+    (course) =>
+      course.id === exam.courseId ||
+      availableLectures.some((lecture) => lecture.courseId === course.id)
+  );
+  const filteredLectures = availableLectures.filter((lecture) => {
+    const haystack = [
+      lecture.title,
+      lecture.summary,
+      lecture.date,
+      courseLabel(lecture.courseId),
+      mediaItems
+        .filter((item) => item.lectureId === lecture.id)
+        .map((item) => item.name)
+        .join(" ")
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(normalizedQuery);
+  });
+
   return (
-    <section className="detail-grid">
+    <section className="exam-builder-layout">
+      <aside className="panel archive-explorer" aria-label="Archive explorer">
+        <div className="section-heading">
+          <div>
+            <span className="pill">Archive</span>
+            <h3>File Explorer</h3>
+          </div>
+        </div>
+        <label>
+          Filter materials
+          <input
+            value={explorerQuery}
+            onChange={(event) => setExplorerQuery(event.target.value)}
+            placeholder="Lecture, media file, date, concept..."
+          />
+        </label>
+
+        <div className="explorer-tree">
+          {visibleCourses.map((course) => {
+            const courseLectures = filteredLectures.filter(
+              (lecture) => lecture.courseId === course.id
+            );
+
+            if (!courseLectures.length) {
+              return null;
+            }
+
+            return (
+              <details key={course.id} open>
+                <summary>
+                  <span className="folder-icon" aria-hidden="true" />
+                  <strong>{course.code}</strong>
+                  <small>{courseLectures.length}</small>
+                </summary>
+                <div className="explorer-children">
+                  {courseLectures.map((lecture) => {
+                    const lectureMedia = mediaItems.filter(
+                      (item) => item.lectureId === lecture.id
+                    );
+                    const lectureConcepts = concepts.filter(
+                      (concept) => concept.lectureId === lecture.id
+                    );
+
+                    return (
+                      <div
+                        className={
+                          selectedIds.has(lecture.id)
+                            ? "explorer-item selected"
+                            : "explorer-item"
+                        }
+                        draggable
+                        key={lecture.id}
+                        onDragStart={(event) => {
+                          event.dataTransfer.effectAllowed = "copy";
+                          event.dataTransfer.setData(
+                            "text/lecture-id",
+                            lecture.id
+                          );
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => onAdd(lecture.id, exam.id)}
+                        >
+                          <span className="file-icon" aria-hidden="true" />
+                          <span>
+                            <strong>{lecture.title}</strong>
+                            <small>{lecture.date}</small>
+                          </span>
+                        </button>
+                        <div className="explorer-meta">
+                          {lectureMedia.map((item) => (
+                            <span key={item.id}>
+                              {item.kind === "image"
+                                ? "Image"
+                                : item.kind === "video"
+                                  ? "Video"
+                                  : item.kind === "audio"
+                                    ? "Audio"
+                                    : "Doc"}
+                              : {item.name}
+                            </span>
+                          ))}
+                          <span>{lectureConcepts.length} concepts</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </details>
+            );
+          })}
+        </div>
+      </aside>
+
       <article
-        className="panel detail-main drop-target"
+        className="panel detail-main exam-dropbox"
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
@@ -1481,9 +1609,19 @@ function ExamDetail({
           <span>{exam.startsOn || "No date"}</span>
         </div>
         <p>
-          This workspace stores references to archive items. Delete the
-          workspace or remove items without deleting original media.
+          Drag lectures from the file explorer into this exam box. Items here
+          are references to the archive, so removing them does not delete
+          original media.
         </p>
+
+        <div className="drop-instructions">
+          <strong>Drop archive lectures here</strong>
+          <span>
+            {lectures.length
+              ? `${lectures.length} selected source${lectures.length === 1 ? "" : "s"}`
+              : "No sources selected yet"}
+          </span>
+        </div>
 
         <div className="exam-items">
           {lectures.map((lecture) => (
@@ -1514,19 +1652,29 @@ function ExamDetail({
         </div>
       </article>
 
-      <aside className="panel side-panel">
-        <h3>Add Course Materials</h3>
-        {availableLectures.map((lecture) => (
-          <button
-            className="row-button"
-            key={lecture.id}
-            type="button"
-            onClick={() => onAdd(lecture.id, exam.id)}
-          >
-            <strong>{lecture.title}</strong>
-            <span>{lecture.date}</span>
-          </button>
-        ))}
+      <aside className="panel side-panel source-inspector">
+        <h3>Selected Sources</h3>
+        {lectures.map((lecture) => {
+          const lectureMedia = mediaItems.filter(
+            (item) => item.lectureId === lecture.id
+          );
+
+          return (
+            <div className="source-card" key={lecture.id}>
+              <strong>{lecture.title}</strong>
+              <span>{lecture.date}</span>
+              <small>
+                {lectureMedia.length} media item
+                {lectureMedia.length === 1 ? "" : "s"}
+              </small>
+            </div>
+          );
+        })}
+        {!lectures.length ? (
+          <p className="empty">
+            Sources added to the exam workspace will appear here.
+          </p>
+        ) : null}
       </aside>
     </section>
   );
