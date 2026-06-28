@@ -292,6 +292,20 @@ function fileKind(file: File): MediaItem["kind"] {
   return "document";
 }
 
+function fileKey(file: File) {
+  return [file.name, file.size, file.lastModified].join("-");
+}
+
+function formatFileSize(bytes: number) {
+  const megabytes = bytes / (1024 * 1024);
+
+  if (megabytes >= 1) {
+    return `${megabytes.toFixed(1)} MB`;
+  }
+
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
 function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -726,6 +740,37 @@ export default function LectureVaultApp() {
     setStatus("Demo data restored.");
   }
 
+  function addCaptureFiles(files: File[]) {
+    if (!files.length) {
+      return;
+    }
+
+    setCaptureFiles((current) => {
+      const existingKeys = new Set(current.map(fileKey));
+      const next = [...current];
+
+      for (const file of files) {
+        const key = fileKey(file);
+
+        if (!existingKeys.has(key)) {
+          next.push(file);
+          existingKeys.add(key);
+        }
+      }
+
+      return next;
+    });
+    setStatus(
+      `${files.length} media file${files.length === 1 ? "" : "s"} queued for this lecture.`
+    );
+  }
+
+  function removeCaptureFile(key: string) {
+    setCaptureFiles((current) =>
+      current.filter((file) => fileKey(file) !== key)
+    );
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -984,22 +1029,76 @@ export default function LectureVaultApp() {
               </label>
             </div>
 
-            <label className="dropzone">
+            <label
+              className="dropzone"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                addCaptureFiles(Array.from(event.dataTransfer.files || []));
+              }}
+            >
               <span>Audio, video, whiteboard images, or related media</span>
               <input
                 type="file"
                 multiple
                 accept="audio/*,video/*,image/*,.pdf,.txt"
-                onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                  setCaptureFiles(Array.from(event.target.files || []))
-                }
+                onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                  addCaptureFiles(Array.from(event.target.files || []));
+                  event.target.value = "";
+                }}
               />
               <strong>
                 {captureFiles.length
-                  ? `${captureFiles.length} file${captureFiles.length === 1 ? "" : "s"} selected`
+                  ? `${captureFiles.length} media file${captureFiles.length === 1 ? "" : "s"} attached`
                   : "Choose files"}
               </strong>
+              <small>
+                Add audio, video, board photos, PDFs, or notes in multiple
+                passes before saving one lecture.
+              </small>
             </label>
+
+            {captureFiles.length ? (
+              <div className="capture-media-panel">
+                <div className="section-heading">
+                  <div>
+                    <span className="pill">Aggregation Sources</span>
+                    <h3>Attached Media</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCaptureFiles([])}
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <div className="capture-media-list">
+                  {captureFiles.map((file) => {
+                    const key = fileKey(file);
+                    const kind = fileKind(file);
+
+                    return (
+                      <div className="capture-media-item" key={key}>
+                        <span className="media-kind">{kind}</span>
+                        <div>
+                          <strong>{file.name}</strong>
+                          <small>
+                            {formatFileSize(file.size)} -{" "}
+                            {file.type || "unknown type"}
+                          </small>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeCaptureFile(key)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
 
             <label>
               Transcript or rough notes
