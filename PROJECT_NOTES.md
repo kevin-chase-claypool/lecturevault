@@ -66,6 +66,17 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-05 - Course-Aware Archive Tree and Lecture Deletion
+
+- Changed the archive tree to show every course as a top-level navigation group instead of only showing folders for the currently selected course.
+- Added per-course `Unfiled` rows and folder groups so lectures from separate courses are easier to distinguish.
+- Restricted drag/drop into `Unfiled` so a lecture can only be dropped into the matching course group.
+- Added individual archive item deletion from lecture cards and the selected lecture panel.
+- Deleting an archive item removes its lecture record, transcript, media, extracted concepts, exam workspace references, and stale study guide figure/source references.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-05 - Data Flow Consistency Fixes
 
 - Changed app state initialization to load from `localStorage` immediately instead of writing demo state during initial hydration.

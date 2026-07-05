@@ -378,6 +378,17 @@ label {
   gap: 6px;
 }
 
+.course-folder-group {
+  display: grid;
+  gap: 6px;
+}
+
+.course-folder-group + .course-folder-group {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
 .archive-folder-tree button {
   display: grid;
   grid-template-columns: 20px minmax(0, 1fr) auto;
@@ -392,6 +403,11 @@ label {
   border-color: #8dbab4;
   background: #ecfaf7;
   color: #07564e;
+}
+
+.archive-folder-tree .course-node {
+  background: #f7f9fb;
+  font-weight: 900;
 }
 
 .archive-folder-tree button span:nth-child(2) {
