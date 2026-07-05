@@ -808,6 +808,16 @@ label {
   margin-bottom: 0;
 }
 
+.token-usage {
+  border: 1px solid #b5ded8;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #ecfaf7;
+  color: #07564e;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
 .source-inspector {
   position: sticky;
   top: 18px;

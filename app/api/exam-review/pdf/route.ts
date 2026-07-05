@@ -190,13 +190,13 @@ function buildHtml({
     body {
       color: #142033;
       font-family: Arial, Helvetica, sans-serif;
-      font-size: 11.5pt;
+      font-size: 8pt;
       line-height: 1.5;
       margin: 0;
     }
     h1 {
       border-bottom: 2px solid #172033;
-      font-size: 24pt;
+      font-size: 17pt;
       line-height: 1.1;
       margin: 0 0 0.2in;
       padding-bottom: 0.12in;
@@ -204,19 +204,19 @@ function buildHtml({
     h2 {
       break-after: avoid;
       color: #172033;
-      font-size: 17pt;
+      font-size: 12pt;
       margin: 0.3in 0 0.08in;
     }
     h3, h4, h5 {
       break-after: avoid;
       color: #344054;
-      font-size: 12.5pt;
+      font-size: 9pt;
       margin: 0.2in 0 0.05in;
     }
     p { margin: 0 0 0.1in; }
     ul { margin: 0.04in 0 0.14in 0.22in; padding-left: 0.18in; }
     li { margin: 0.04in 0; }
-    .meta { color: #526071; font-size: 10pt; margin: -0.1in 0 0.22in; }
+    .meta { color: #526071; font-size: 7pt; margin: -0.1in 0 0.22in; }
     .math-block { margin: 0.14in 0; overflow-wrap: anywhere; }
     figure { break-inside: avoid; margin: 0.25in 0; page-break-inside: avoid; }
     figure img {
@@ -231,7 +231,7 @@ function buildHtml({
       color: #526071;
       padding: 0.16in;
     }
-    figcaption { color: #526071; font-size: 9.5pt; margin-top: 0.06in; }
+    figcaption { color: #526071; font-size: 6.7pt; margin-top: 0.06in; }
   </style>
 </head>
 <body>

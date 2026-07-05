@@ -89,7 +89,14 @@ type StudyGuide = {
   figures?: ReviewFigure[];
   instructions?: string;
   generatedBy?: "openai" | "local-fallback";
+  usage?: TokenUsage | null;
   createdAt: string;
+};
+
+type TokenUsage = {
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
 };
 
 type ReviewFigure = {
@@ -112,6 +119,10 @@ type VaultState = {
 };
 
 const STORAGE_KEY = "lecturevault-state-v1";
+const MAX_INLINE_IMAGE_DIMENSION = 1600;
+const INLINE_IMAGE_QUALITY = 0.78;
+const SAMPLE_GAUSS_BOARD_DATA_URL =
+  "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%221200%22%20height%3D%22800%22%20viewBox%3D%220%200%201200%20800%22%3E%3Crect%20width%3D%221200%22%20height%3D%22800%22%20fill%3D%22%23f8fafc%22/%3E%3Crect%20x%3D%2260%22%20y%3D%2250%22%20width%3D%221080%22%20height%3D%22700%22%20rx%3D%2224%22%20fill%3D%22%23ffffff%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%224%22/%3E%3Ctext%20x%3D%22100%22%20y%3D%22120%22%20font-family%3D%22Arial%22%20font-size%3D%2252%22%20font-weight%3D%22700%22%20fill%3D%22%231e293b%22%3EGauss%27s%20Law%3C/text%3E%3Ctext%20x%3D%22100%22%20y%3D%22205%22%20font-family%3D%22Arial%22%20font-size%3D%2246%22%20fill%3D%22%231e293b%22%3EFlux%3A%20Phi_E%20%3D%20%E2%88%AE%20E%20%C2%B7%20dA%20%3D%20Q_enc%20/%20epsilon_0%3C/text%3E%3Ccircle%20cx%3D%22770%22%20cy%3D%22420%22%20r%3D%22172%22%20fill%3D%22none%22%20stroke%3D%22%232563eb%22%20stroke-width%3D%226%22/%3E%3Ccircle%20cx%3D%22770%22%20cy%3D%22420%22%20r%3D%2222%22%20fill%3D%22%23ef4444%22/%3E%3Ctext%20x%3D%22748%22%20y%3D%22438%22%20font-family%3D%22Arial%22%20font-size%3D%2242%22%20font-weight%3D%22700%22%20fill%3D%22%23ffffff%22%3E%2B%3C/text%3E%3Cpath%20d%3D%22M770%20420%20L770%20205%20M770%20420%20L985%20420%20M770%20420%20L618%20268%20M770%20420%20L922%20572%20M770%20420%20L618%20572%22%20stroke%3D%22%230f766e%22%20stroke-width%3D%225%22%20stroke-linecap%3D%22round%22/%3E%3Ctext%20x%3D%22975%22%20y%3D%22395%22%20font-family%3D%22Arial%22%20font-size%3D%2236%22%20fill%3D%22%230f766e%22%3EE%20radial%3C/text%3E%3Ctext%20x%3D%22100%22%20y%3D%22325%22%20font-family%3D%22Arial%22%20font-size%3D%2238%22%20fill%3D%22%231e293b%22%3EChoose%20a%20Gaussian%20surface%20that%20matches%20symmetry.%3C/text%3E%3Ctext%20x%3D%22100%22%20y%3D%22385%22%20font-family%3D%22Arial%22%20font-size%3D%2238%22%20fill%3D%22%231e293b%22%3ESphere%3A%20E%20is%20constant%20on%20surface.%3C/text%3E%3Ctext%20x%3D%22100%22%20y%3D%22445%22%20font-family%3D%22Arial%22%20font-size%3D%2238%22%20fill%3D%22%231e293b%22%3EThen%3A%20E%284%CF%80r%5E2%29%20%3D%20Q_enc%20/%20epsilon_0%3C/text%3E%3C/svg%3E";
 
 const emptyState: VaultState = {
   courses: [],
@@ -178,6 +189,7 @@ const sampleState: VaultState = {
       name: "gauss-board.jpg",
       mimeType: "image/jpeg",
       size: 940000,
+      dataUrl: SAMPLE_GAUSS_BOARD_DATA_URL,
       createdAt: new Date().toISOString()
     }
   ],
@@ -317,6 +329,36 @@ function formatFileSize(bytes: number) {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
+function formatTokenUsage(usage?: TokenUsage | null) {
+  if (!usage) {
+    return "";
+  }
+
+  return [
+    typeof usage.total_tokens === "number"
+      ? `${usage.total_tokens.toLocaleString()} total`
+      : "",
+    typeof usage.input_tokens === "number"
+      ? `${usage.input_tokens.toLocaleString()} input`
+      : "",
+    typeof usage.output_tokens === "number"
+      ? `${usage.output_tokens.toLocaleString()} output`
+      : ""
+  ]
+    .filter(Boolean)
+    .join(" / ");
+}
+
+function embeddedDataUrlForMedia(item: MediaItem) {
+  if (item.dataUrl) {
+    return item.dataUrl;
+  }
+
+  return item.id === "media-gauss-board" || item.name === "gauss-board.jpg"
+    ? SAMPLE_GAUSS_BOARD_DATA_URL
+    : undefined;
+}
+
 function buildReviewFigures(lectures: Lecture[], mediaItems: MediaItem[]) {
   let index = 0;
 
@@ -331,9 +373,56 @@ function buildReviewFigures(lectures: Lecture[], mediaItems: MediaItem[]) {
         lectureId: item.lectureId,
         lectureTitle: lecture?.title || "Untitled lecture",
         name: item.name || `Board image ${index}`,
-        dataUrl: item.dataUrl
+        dataUrl: embeddedDataUrlForMedia(item)
       };
     });
+}
+
+function loadImageFromFile(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error(`Could not read ${file.name}.`));
+    };
+    image.src = url;
+  });
+}
+
+async function imageFileToInlineDataUrl(file: File) {
+  const image = await loadImageFromFile(file);
+  const scale = Math.min(
+    1,
+    MAX_INLINE_IMAGE_DIMENSION /
+      Math.max(image.naturalWidth, image.naturalHeight)
+  );
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    return readFileAsDataUrl(file);
+  }
+
+  context.drawImage(image, 0, 0, width, height);
+  return canvas.toDataURL("image/jpeg", INLINE_IMAGE_QUALITY);
+}
+
+async function fileToMediaDataUrl(file: File) {
+  if (file.type.startsWith("image/")) {
+    return imageFileToInlineDataUrl(file);
+  }
+
+  return file.size <= 8 * 1024 * 1024 ? readFileAsDataUrl(file) : undefined;
 }
 
 function readFileAsDataUrl(file: File) {
@@ -593,7 +682,6 @@ export default function LectureVaultApp() {
     const mediaItems: MediaItem[] = [];
 
     for (const file of captureFiles) {
-      const shouldInline = file.size <= 8 * 1024 * 1024;
       mediaItems.push({
         id: uid("media"),
         lectureId,
@@ -601,7 +689,7 @@ export default function LectureVaultApp() {
         name: file.name,
         mimeType: file.type || "application/octet-stream",
         size: file.size,
-        dataUrl: shouldInline ? await readFileAsDataUrl(file) : undefined,
+        dataUrl: await fileToMediaDataUrl(file),
         createdAt
       });
     }
@@ -763,6 +851,11 @@ export default function LectureVaultApp() {
     const selectedMediaItems = state.mediaItems.filter((item) =>
       sourceLectureIds.includes(item.lectureId)
     );
+    const reviewMediaItems = selectedMediaItems.map((item) =>
+      item.kind === "image"
+        ? { ...item, dataUrl: embeddedDataUrlForMedia(item) }
+        : item
+    );
 
     try {
       const response = await fetch("/api/exam-review", {
@@ -777,12 +870,13 @@ export default function LectureVaultApp() {
           lectures: selectedExamLectures,
           transcripts: selectedTranscripts,
           concepts: selectedConcepts,
-          mediaItems: selectedMediaItems
+          mediaItems: reviewMediaItems
         })
       });
       const data = (await response.json()) as {
         text?: string;
         figures?: ReviewFigure[];
+        usage?: TokenUsage | null;
         generatedBy?: "openai" | "local-fallback";
         error?: string;
       };
@@ -799,9 +893,10 @@ export default function LectureVaultApp() {
         sourceLectureIds,
         figures: data.figures?.length
           ? data.figures
-          : buildReviewFigures(selectedExamLectures, selectedMediaItems),
+          : buildReviewFigures(selectedExamLectures, reviewMediaItems),
         instructions: examInstructions,
         generatedBy: data.generatedBy || "openai",
+        usage: data.usage || null,
         createdAt: new Date().toISOString()
       };
 
@@ -818,7 +913,9 @@ export default function LectureVaultApp() {
       setStatus(
         data.generatedBy === "local-fallback"
           ? "Review generated locally because OPENAI_API_KEY is not configured."
-          : "AI exam review generated from selected workspace materials."
+          : `AI exam review generated from selected workspace materials${
+              formatTokenUsage(data.usage) ? ` (${formatTokenUsage(data.usage)})` : ""
+            }.`
       );
     } catch (error) {
       const message =
@@ -1995,6 +2092,11 @@ function ExamDetail({
               </div>
               <span>{new Date(selectedGuide.createdAt).toLocaleString()}</span>
             </div>
+            {selectedGuide.usage ? (
+              <div className="token-usage">
+                AI token usage: {formatTokenUsage(selectedGuide.usage)}
+              </div>
+            ) : null}
             <pre className="guide-preview compact">{selectedGuide.content}</pre>
           </section>
         ) : null}
@@ -2074,6 +2176,11 @@ function StudyGuidePreview({
             <h3>{guide.title}</h3>
           </div>
         </div>
+        {guide.usage ? (
+          <div className="token-usage">
+            AI token usage: {formatTokenUsage(guide.usage)}
+          </div>
+        ) : null}
         <pre className="guide-preview">{guide.content}</pre>
       </article>
       <aside className="panel side-panel">
