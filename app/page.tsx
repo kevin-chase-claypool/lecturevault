@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import katex from "katex";
 
 type Screen =
   | "dashboard"
@@ -186,7 +187,7 @@ const sampleState: VaultState = {
       title: "Gradient and Directional Derivatives",
       date: "2026-09-08",
       summary:
-        "Directional rate of change, gradient vector meaning, level curves, and worked optimization examples.",
+        "Directional rate of change $D_{\\mathbf{u}} f=\\nabla f\\cdot \\mathbf{u}$, gradient vector meaning, level curves, and worked optimization examples.",
       createdAt: new Date().toISOString()
     },
     {
@@ -196,7 +197,7 @@ const sampleState: VaultState = {
       title: "Gauss's Law",
       date: "2026-09-10",
       summary:
-        "Electric flux, symmetry choices, closed surfaces, and field calculations for spheres and cylinders.",
+        "Electric flux $\\Phi_E=\\oint \\mathbf{E}\\cdot d\\mathbf{A}$, symmetry choices, closed surfaces, and field calculations for spheres and cylinders.",
       createdAt: new Date().toISOString()
     }
   ],
@@ -227,14 +228,14 @@ const sampleState: VaultState = {
       lectureId: "lecture-gradient",
       mediaItemId: "media-gradient-audio",
       text:
-        "The directional derivative measures how a function changes as you move from a point in a chosen direction. The gradient points in the direction of steepest increase and is perpendicular to level curves. To compute it, take the dot product of the gradient with a unit direction vector.",
+        "The directional derivative $D_{\\mathbf{u}} f=\\nabla f\\cdot \\mathbf{u}$ measures how a function changes as you move from a point in a chosen direction. The gradient points in the direction of steepest increase and is perpendicular to level curves. To compute it, take the dot product of the gradient with a unit direction vector.",
       segments: [
         {
           id: "seg-gradient-1",
           startSeconds: 0,
           endSeconds: 48,
           text:
-            "The directional derivative measures how a function changes as you move from a point in a chosen direction."
+            "The directional derivative $D_{\\mathbf{u}} f=\\nabla f\\cdot \\mathbf{u}$ measures how a function changes as you move from a point in a chosen direction."
         },
         {
           id: "seg-gradient-2",
@@ -258,14 +259,14 @@ const sampleState: VaultState = {
       lectureId: "lecture-gauss",
       mediaItemId: "media-gauss-board",
       text:
-        "Gauss's law relates electric flux through a closed surface to enclosed charge. Pick Gaussian surfaces that match symmetry. Spherical charge distributions use spheres; line charges use cylinders.",
+        "Gauss's law $\\oint \\mathbf{E}\\cdot d\\mathbf{A}=Q_{enc}/\\epsilon_0$ relates electric flux through a closed surface to enclosed charge. Pick Gaussian surfaces that match symmetry. Spherical charge distributions use spheres; line charges use cylinders.",
       segments: [
         {
           id: "seg-gauss-1",
           startSeconds: 0,
           endSeconds: 55,
           text:
-            "Gauss's law relates electric flux through a closed surface to enclosed charge."
+            "Gauss's law $\\oint \\mathbf{E}\\cdot d\\mathbf{A}=Q_{enc}/\\epsilon_0$ relates electric flux through a closed surface to enclosed charge."
         },
         {
           id: "seg-gauss-2",
@@ -375,6 +376,76 @@ function formatTokenUsage(usage?: TokenUsage | null) {
   ]
     .filter(Boolean)
     .join(" / ");
+}
+
+function renderMathMarkup(text: string) {
+  const parts: Array<{ content: string; display: boolean; math: boolean }> = [];
+  const pattern = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\$[^$\n]+?\$|\\\([^)]*?\\\))/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({
+        content: text.slice(lastIndex, match.index),
+        display: false,
+        math: false
+      });
+    }
+
+    const raw = match[0];
+    const display = raw.startsWith("$$") || raw.startsWith("\\[");
+    const content = raw.startsWith("$$")
+      ? raw.slice(2, -2)
+      : raw.startsWith("\\[")
+        ? raw.slice(2, -2)
+        : raw.startsWith("\\(")
+          ? raw.slice(2, -2)
+          : raw.slice(1, -1);
+
+    try {
+      parts.push({
+        content: katex.renderToString(content.trim(), {
+          displayMode: display,
+          throwOnError: false
+        }),
+        display,
+        math: true
+      });
+    } catch {
+      parts.push({ content: raw, display: false, math: false });
+    }
+
+    lastIndex = match.index + raw.length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push({
+      content: text.slice(lastIndex),
+      display: false,
+      math: false
+    });
+  }
+
+  return parts.length ? parts : [{ content: text, display: false, math: false }];
+}
+
+function MathPreview({ text }: { text: string }) {
+  return (
+    <>
+      {renderMathMarkup(text).map((part, index) =>
+        part.math ? (
+          <span
+            className={part.display ? "math-block" : "math-inline"}
+            dangerouslySetInnerHTML={{ __html: part.content }}
+            key={`${part.content}-${index}`}
+          />
+        ) : (
+          <span key={`${part.content}-${index}`}>{part.content}</span>
+        )
+      )}
+    </>
+  );
 }
 
 function embeddedDataUrlForMedia(item: MediaItem) {
@@ -958,7 +1029,7 @@ export default function LectureVaultApp() {
     }
 
     const confirmed = window.confirm(
-      `Delete "${lecture.title}" from the archive? This removes its transcript, media, concepts, and exam workspace references.`
+      `Delete "${lecture.title}" from the archive? This removes its transcript, media, concepts, and exam basket references.`
     );
 
     if (!confirmed) {
@@ -1113,7 +1184,7 @@ export default function LectureVaultApp() {
     }));
     setSelectedExamId(exam.id);
     setExamForm((current) => ({ ...current, name: "", startsOn: "" }));
-    setStatus(`Created ${exam.name}. Use Exam Builder to add archive sources.`);
+    setStatus(`Created ${exam.name}. Add archive sources to the exam basket.`);
     setScreen("exam");
   }
 
@@ -1122,7 +1193,7 @@ export default function LectureVaultApp() {
     const lecture = state.lectures.find((item) => item.id === lectureId);
 
     if (!exam) {
-      setStatus("Create an exam workspace first.");
+      setStatus("Create an exam basket first.");
       return;
     }
 
@@ -1132,7 +1203,7 @@ export default function LectureVaultApp() {
     }
 
     if (lecture.courseId !== exam.courseId) {
-      setStatus("Exam workspaces can only use lectures from the same course.");
+      setStatus("Exam baskets can only use lectures from the same course.");
       return;
     }
 
@@ -1141,7 +1212,7 @@ export default function LectureVaultApp() {
     );
 
     if (alreadyAdded) {
-      setStatus("That lecture is already in this exam workspace.");
+      setStatus("That lecture is already in this exam basket.");
       return;
     }
 
@@ -1157,7 +1228,7 @@ export default function LectureVaultApp() {
         ...current.examItems
       ]
     }));
-    setStatus("Added lecture reference to exam workspace. Original media stayed in the archive.");
+    setStatus("Added lecture reference to exam basket. Original media stayed in the archive.");
   }
 
   function setExamBuilderCourse(courseId: string) {
@@ -1202,12 +1273,12 @@ export default function LectureVaultApp() {
     event.preventDefault();
 
     if (!examForm.name.trim()) {
-      setStatus("Name the exam workspace before creating it.");
+      setStatus("Name the exam basket before creating it.");
       return;
     }
 
     if (!builderSelectedLectures.length) {
-      setStatus("Select archive materials before creating the exam workspace.");
+      setStatus("Select archive materials before creating the exam basket.");
       return;
     }
 
@@ -1255,7 +1326,7 @@ export default function LectureVaultApp() {
           )
       )
     }));
-    setStatus("Removed from exam workspace. Archive item was not changed.");
+    setStatus("Removed from exam basket. Archive item was not changed.");
   }
 
   function deleteExam(examId: string) {
@@ -1288,7 +1359,7 @@ export default function LectureVaultApp() {
     }
 
     setIsReviewGenerating(true);
-    setStatus("Generating AI exam review from selected workspace materials...");
+    setStatus("Generating AI exam review from selected basket materials...");
 
     const sourceLectureIds = selectedExamLectures.map((lecture) => lecture.id);
     const selectedTranscripts = state.transcripts.filter((transcript) =>
@@ -1362,7 +1433,7 @@ export default function LectureVaultApp() {
       setStatus(
         data.generatedBy === "local-fallback"
           ? "Review generated locally because OPENAI_API_KEY is not configured."
-          : `AI exam review generated from selected workspace materials${
+          : `AI exam review generated from selected basket materials${
               formatTokenUsage(data.usage) ? ` (${formatTokenUsage(data.usage)})` : ""
             }.`
       );
@@ -1512,8 +1583,8 @@ export default function LectureVaultApp() {
             ["courses", "Courses"],
             ["archive", "Archive"],
             ["capture", "Upload / Record"],
-            ["builder", "Exam Builder"],
-            ["exams", "Exam Workspaces"]
+            ["builder", "New Exam Basket"],
+            ["exams", "Exam Baskets"]
           ].map(([id, label]) => (
             <button
               key={id}
@@ -1527,7 +1598,7 @@ export default function LectureVaultApp() {
         </nav>
         <div className="sidebar-note">
           <strong>{state.lectures.length}</strong> archived items
-          <span>{state.exams.length} exam workspaces</span>
+          <span>{state.exams.length} exam baskets</span>
         </div>
       </aside>
 
@@ -1766,7 +1837,9 @@ export default function LectureVaultApp() {
                     <strong>{selectedArchiveLecture.title}</strong>
                     <span>{courseLabel(selectedArchiveLecture.courseId)}</span>
                     <small>{selectedArchiveLecture.date}</small>
-                    <p>{selectedArchiveLecture.summary}</p>
+                    <p>
+                      <MathPreview text={selectedArchiveLecture.summary} />
+                    </p>
                     <div className="button-row stacked">
                       <button
                         type="button"
@@ -1973,7 +2046,7 @@ export default function LectureVaultApp() {
                     ...current,
                     transcript:
                       current.transcript ||
-                      "Today we introduced the main definition, worked through an example, and identified common exam mistakes. The key formula should be memorized and practiced with two problem types."
+                      "Today we introduced the main definition, worked through an example, and identified common exam mistakes. Use inline math like $F=ma$ or display math like $$E=mc^2$$ when formulas matter."
                   }))
                 }
               >
@@ -2045,7 +2118,9 @@ export default function LectureVaultApp() {
                       <div>
                         <span className="pill">{courseLabel(lecture.courseId)}</span>
                         <h3>{lecture.title}</h3>
-                        <p>{lecture.summary}</p>
+                        <p>
+                          <MathPreview text={lecture.summary} />
+                        </p>
                       </div>
                       <div className="card-meta">
                         <span>{lecture.date}</span>
@@ -2106,7 +2181,7 @@ export default function LectureVaultApp() {
                   </div>
                 </div>
                 <label>
-                  Workspace name
+                  Basket name
                   <input
                     value={examForm.name}
                     onChange={(event) =>
@@ -2152,7 +2227,7 @@ export default function LectureVaultApp() {
                 </div>
                 <div className="button-row stacked">
                   <button className="primary" type="submit">
-                    Create Exam Workspace
+                    Create Exam Basket
                   </button>
                   <button
                     type="button"
@@ -2170,7 +2245,7 @@ export default function LectureVaultApp() {
         {screen === "exams" ? (
           <section className="content-grid">
             <form className="panel form-panel" onSubmit={createExam}>
-              <h3>Create Exam Workspace</h3>
+              <h3>Create Empty Exam Basket</h3>
               <label>
                 Course
                 <select
@@ -2190,7 +2265,7 @@ export default function LectureVaultApp() {
                 </select>
               </label>
               <label>
-                Workspace name
+                Basket name
                 <input
                   value={examForm.name}
                   onChange={(event) =>
@@ -2216,12 +2291,12 @@ export default function LectureVaultApp() {
                 />
               </label>
               <button className="primary" type="submit">
-                Create Workspace
+                Create Basket
               </button>
             </form>
 
             <section className="panel list-panel">
-              <h3>Exam Workspace List</h3>
+              <h3>Exam Basket List</h3>
               {state.exams.map((exam) => (
                 <button
                   className="row-button"
@@ -2300,9 +2375,9 @@ function screenTitle(screen: Screen) {
     archive: "Lecture/media archive",
     lecture: "Lecture detail",
     capture: "Upload or record lecture",
-    builder: "Exam builder",
-    exams: "Exam workspace list",
-    exam: "Exam workspace detail",
+    builder: "New exam basket",
+    exams: "Exam basket list",
+    exam: "Exam basket",
     guide: "Study guide preview"
   };
   return titles[screen];
@@ -2341,7 +2416,7 @@ function Dashboard({
         </div>
         <div className="metric">
           <strong>{state.exams.length}</strong>
-          <span>Exam workspaces</span>
+          <span>Exam baskets</span>
         </div>
       </div>
 
@@ -2361,14 +2436,14 @@ function Dashboard({
 
         <section className="panel">
           <div className="section-heading">
-            <h3>Exam Builder</h3>
+            <h3>Exam Basket</h3>
             <button type="button" onClick={() => setScreen("builder")}>
               Build
             </button>
           </div>
           <p>
-            Build exam workspaces from selected courses, folders, and lectures
-            in the permanent archive.
+            Collect lecture sources from the archive, then generate a single
+            AI review and PDF.
           </p>
         </section>
       </div>
@@ -2393,7 +2468,7 @@ function Dashboard({
           ))}
         </section>
         <section className="panel list-panel">
-          <h3>Active Exam Workspaces</h3>
+          <h3>Active Exam Baskets</h3>
           {activeExams.map((exam) => (
             <button
               key={exam.id}
@@ -2571,7 +2646,9 @@ function LectureCard({
       <div>
         <span className="pill">{courseLabel(lecture.courseId)}</span>
         <h3>{lecture.title}</h3>
-        <p>{lecture.summary}</p>
+        <p>
+          <MathPreview text={lecture.summary} />
+        </p>
       </div>
       <div className="card-meta">
         <span>{lecture.date}</span>
@@ -2584,7 +2661,7 @@ function LectureCard({
         </button>
         {onAdd ? (
           <button type="button" onClick={onAdd}>
-            Add to Exam
+          Add to Basket
           </button>
         ) : null}
         <button className="danger" type="button" onClick={onDelete}>
@@ -2632,7 +2709,9 @@ function LectureDetail({
           </div>
           <span>{lecture.date}</span>
         </div>
-        <p>{lecture.summary}</p>
+        <p>
+          <MathPreview text={lecture.summary} />
+        </p>
 
         <h4>Transcript</h4>
         <div className="transcript-box">
@@ -2641,14 +2720,24 @@ function LectureDetail({
               <a href={`#${segment.id}`}>
                 {formatSeconds(segment.startSeconds)}
               </a>{" "}
-              {segment.text}
+              <MathPreview text={segment.text} />
             </p>
           )) || "No transcript yet."}
+        </div>
+        <h4>KaTeX Preview</h4>
+        <div className="math-preview-panel">
+          <MathPreview
+            text={
+              transcript?.text ||
+              lecture.summary ||
+              "No transcript or summary math to preview."
+            }
+          />
         </div>
       </article>
 
       <aside className="panel side-panel">
-        <h3>Add to Exam Workspace</h3>
+        <h3>Add to Exam Basket</h3>
         <select
           value={targetExamId}
           onChange={(event) => setTargetExamId(event.target.value)}
@@ -2668,7 +2757,7 @@ function LectureDetail({
         </button>
         {!matchingExams.length ? (
           <p className="empty">
-            Create an exam workspace for this course before adding references.
+            Create an exam basket for this course before adding references.
           </p>
         ) : null}
 
@@ -2899,7 +2988,7 @@ function ExamDetail({
           <span>{exam.startsOn || "No date"}</span>
         </div>
         <p>
-          Drag lectures from the file explorer into this exam box. Items here
+          Drag lectures from the file explorer into this exam basket. Items here
           are references to the archive, so removing them does not delete
           original media.
         </p>
@@ -3025,7 +3114,7 @@ function ExamDetail({
             Download Review PDF
           </button>
           <button className="danger" type="button" onClick={onDelete}>
-            Delete Workspace
+            Delete Basket
           </button>
         </div>
       </article>
@@ -3057,7 +3146,7 @@ function ExamDetail({
         })}
         {!lectures.length ? (
           <p className="empty">
-            Sources added to the exam workspace will appear here.
+            Sources added to the exam basket will appear here.
           </p>
         ) : null}
       </aside>

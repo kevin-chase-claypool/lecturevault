@@ -6,12 +6,12 @@ Update this file after every code change. Keep it current with what changed, why
 
 ## Product Goal
 
-LectureVault is a transcription-first lecture archive with exam workspaces. The intended workflow is:
+LectureVault is a transcription-first lecture archive with exam baskets. The intended workflow is:
 
 1. Capture or upload lecture material.
 2. Archive the lecture, transcript, concepts, and media permanently.
-3. Create an exam workspace.
-4. Add selected archived lectures/media into that exam workspace.
+3. Add selected archived lectures/media into an exam basket.
+4. Use the basket as the active review preparation surface.
 5. Run a distinct AI aggregation pass over only the selected exam materials.
 6. Preview a focused exam review.
 7. Download a KaTeX-rendered PDF with formulas, source references, and board figures.
@@ -22,7 +22,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 - App: Next.js app in `LectureVault/`.
 - Storage: browser `localStorage` under `lecturevault-state-v1`.
-- Archive data model: courses, lectures, media items, transcripts, extracted concepts, exam workspaces, workspace items, and generated study guides.
+- Archive data model: courses, lectures, media items, transcripts, extracted concepts, exam baskets, basket source references, and generated study guides.
 - Exam review route: `app/api/exam-review/route.ts`.
 - PDF route: `app/api/exam-review/pdf/route.ts`.
 - Main UI: `app/page.tsx`.
@@ -33,7 +33,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 Lecture-level AI and exam-level AI should remain separate.
 
 - Lecture-level AI: transcribes/cleans/extracts concepts for one archived lecture. This is still mostly MVP/local behavior.
-- Exam-level AI: aggregates selected exam workspace materials into a review. This is implemented through `/api/exam-review`.
+- Exam-level AI: aggregates selected exam basket materials into a review. This is implemented through `/api/exam-review`.
 
 The exam review route should not re-transcribe media. It should use saved transcripts, concepts, media references, and user exam instructions.
 
@@ -65,6 +65,18 @@ https://production-sfo.browserless.io/pdf
 ```
 
 ## Recent Changes
+
+### 2026-07-05 - Exam Basket Language and Archive KaTeX Preview
+
+- Updated the user-facing workflow language from exam workspace/builder toward `Exam Basket`.
+- The basket is now framed as the active selected-source collection that can generate the AI review and PDF.
+- Updated visible navigation, dashboard copy, basket creation labels, deletion labels, and add/remove messages.
+- Added KaTeX rendering for archive lecture summaries and transcript previews.
+- Added a dedicated `KaTeX Preview` panel in lecture detail so formulas in archived transcript text can be inspected before adding sources to a basket.
+- Added formula examples to demo lecture summaries/transcripts and the draft transcript helper.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
 
 ### 2026-07-05 - Dedicated Exam Builder Workflow
 

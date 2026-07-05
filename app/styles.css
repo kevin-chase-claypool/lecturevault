@@ -541,6 +541,32 @@ label {
   text-decoration: none;
 }
 
+.math-inline {
+  display: inline;
+}
+
+.math-block {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 10px 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: #eef7f5;
+}
+
+.math-preview-panel {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfefe;
+  color: var(--text);
+  line-height: 1.6;
+}
+
 .media-item,
 .concept-list div,
 .exam-item,
