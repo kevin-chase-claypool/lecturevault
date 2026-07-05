@@ -97,7 +97,7 @@ type ReviewFigure = {
   lectureId: string;
   lectureTitle: string;
   name: string;
-  dataUrl: string;
+  dataUrl?: string;
 };
 
 type VaultState = {
@@ -315,6 +315,25 @@ function formatFileSize(bytes: number) {
   }
 
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function buildReviewFigures(lectures: Lecture[], mediaItems: MediaItem[]) {
+  let index = 0;
+
+  return mediaItems
+    .filter((item) => item.kind === "image")
+    .map((item) => {
+      const lecture = lectures.find((entry) => entry.id === item.lectureId);
+      index += 1;
+
+      return {
+        label: `Fig. ${index}`,
+        lectureId: item.lectureId,
+        lectureTitle: lecture?.title || "Untitled lecture",
+        name: item.name || `Board image ${index}`,
+        dataUrl: item.dataUrl
+      };
+    });
 }
 
 function readFileAsDataUrl(file: File) {
@@ -778,7 +797,9 @@ export default function LectureVaultApp() {
         title: `${selectedExam.name} Exam Review`,
         content: data.text,
         sourceLectureIds,
-        figures: data.figures || [],
+        figures: data.figures?.length
+          ? data.figures
+          : buildReviewFigures(selectedExamLectures, selectedMediaItems),
         instructions: examInstructions,
         generatedBy: data.generatedBy || "openai",
         createdAt: new Date().toISOString()
@@ -818,6 +839,15 @@ export default function LectureVaultApp() {
     setStatus("Rendering exam review PDF with KaTeX...");
 
     try {
+      const sourceLectureIds = selectedExamLectures.map((lecture) => lecture.id);
+      const selectedMediaItems = state.mediaItems.filter((item) =>
+        sourceLectureIds.includes(item.lectureId)
+      );
+      const currentFigures = buildReviewFigures(
+        selectedExamLectures,
+        selectedMediaItems
+      );
+      const figures = currentFigures.length ? currentFigures : guide.figures || [];
       const response = await fetch("/api/exam-review/pdf", {
         method: "POST",
         headers: {
@@ -827,7 +857,7 @@ export default function LectureVaultApp() {
           title: guide.title,
           courseName: courseLabel(selectedExam.courseId),
           review: guide.content,
-          figures: guide.figures || []
+          figures
         })
       });
 

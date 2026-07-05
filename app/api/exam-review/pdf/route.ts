@@ -139,15 +139,13 @@ function renderReviewMarkdown(markdown: string) {
 }
 
 function figureHtml(figures: ReviewFigure[]) {
-  const usable = figures.filter((figure) => cleanString(figure.dataUrl));
-
-  if (!usable.length) {
+  if (!figures.length) {
     return "";
   }
 
   return `<section class="figures">
     <h2>Board Figure Appendix</h2>
-    ${usable
+    ${figures
       .map((figure) => {
         const caption = `${cleanString(figure.label) || "Fig."}: ${
           cleanString(figure.name) || "Board image"
@@ -156,9 +154,13 @@ function figureHtml(figures: ReviewFigure[]) {
             ? ` from ${cleanString(figure.lectureTitle)}`
             : ""
         }`;
+        const dataUrl = cleanString(figure.dataUrl);
+        const imageMarkup = dataUrl.startsWith("data:image/")
+          ? `<img src="${escapeHtml(dataUrl)}" alt="${escapeHtml(caption)}" />`
+          : `<div class="missing-figure">Image file was not embedded in the archive. The reference is preserved for source review.</div>`;
 
         return `<figure>
-          <img src="${escapeHtml(cleanString(figure.dataUrl))}" alt="${escapeHtml(caption)}" />
+          ${imageMarkup}
           <figcaption>${escapeHtml(caption)}</figcaption>
         </figure>`;
       })
@@ -223,6 +225,11 @@ function buildHtml({
       max-height: 8in;
       max-width: 100%;
       object-fit: contain;
+    }
+    .missing-figure {
+      border: 1px dashed #98a2b3;
+      color: #526071;
+      padding: 0.16in;
     }
     figcaption { color: #526071; font-size: 9.5pt; margin-top: 0.06in; }
   </style>

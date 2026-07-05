@@ -46,7 +46,7 @@ type ExamReviewFigure = {
   lectureId: string;
   lectureTitle: string;
   name: string;
-  dataUrl: string;
+  dataUrl?: string;
 };
 
 function jsonError(message: string, status: number) {
@@ -84,11 +84,7 @@ function buildFigures(
   let index = 0;
 
   return mediaItems
-    .filter(
-      (item) =>
-        item.kind === "image" &&
-        cleanString(item.dataUrl).startsWith("data:image/")
-    )
+    .filter((item) => item.kind === "image")
     .map((item) => {
       const lecture = lectures.find((entry) => entry.id === item.lectureId);
       index += 1;
@@ -98,7 +94,7 @@ function buildFigures(
         lectureId: cleanString(item.lectureId),
         lectureTitle: cleanString(lecture?.title) || "Untitled lecture",
         name: cleanString(item.name) || `Board image ${index}`,
-        dataUrl: cleanString(item.dataUrl)
+        dataUrl: cleanString(item.dataUrl) || undefined
       };
     });
 }
@@ -301,7 +297,9 @@ export async function POST(request: Request) {
     }
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const imageInputs = figures.slice(0, MAX_IMAGE_INPUTS);
+    const imageInputs = figures
+      .filter((figure) => cleanString(figure.dataUrl).startsWith("data:image/"))
+      .slice(0, MAX_IMAGE_INPUTS);
     const content: ResponseInputMessageContentList = [
       {
         type: "input_text",
@@ -331,6 +329,8 @@ export async function POST(request: Request) {
         "Prioritize high-yield concepts, formulas, assumptions, worked problem patterns, common mistakes, and practice steps.",
         "Use LaTeX math with \\(...\\) for inline math and complete \\[ equation \\] blocks for display math.",
         "Reference useful images by the provided labels such as Fig. 1 and Fig. 2.",
+        "The Figure-Guided Review section must list every provided figure label, explain what it appears to support if visible, and say when an image is available only as archive metadata.",
+        "The Source Map must include figure labels next to the lecture that provided them.",
         "Include these top-level Markdown headings in order: ## Study Guide Overview, ## High-Yield Concepts, ## Formula Sheet, ## Worked Problems and Patterns, ## Figure-Guided Review, ## Common Mistakes, ## Practice Checklist, ## Source Map."
       ].join(" "),
       input: [{ role: "user", content }]
