@@ -461,6 +461,11 @@ label {
   line-height: 1.45;
 }
 
+.lecture-card.selected {
+  border-color: #8dbab4;
+  background: #f2fbf9;
+}
+
 .pill {
   display: inline-flex;
   max-width: 100%;
@@ -926,6 +931,12 @@ label {
 
 .source-card small {
   font-weight: 800;
+}
+
+.source-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
 }
 
 .guide-preview {

@@ -66,6 +66,20 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-05 - Dedicated Exam Builder Workflow
+
+- Added a dedicated `Exam Builder` screen between the archive and exam workspace detail.
+- Exam Builder lets the user choose a course, browse that course's archive tree, search visible materials, select lectures into an exam basket, and create an exam workspace from those selected sources.
+- Removed the archive-folder-name inference flow from the app logic:
+  - moving lectures between archive folders no longer adds/removes exam workspace sources
+  - saving a lecture to an archive folder no longer adds it to an exam workspace
+  - creating an exam workspace no longer creates a matching archive folder
+- Archive is now permanent organization only; Exam Builder is the explicit source-selection workflow.
+- Exam workspace detail remains the review-generation and PDF-download workflow.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-05 - Explicit Archive Folder and Workspace Linking
 
 - Clarified the archive tree so only same-course folders with a matching exam workspace are labeled as `workspace`.

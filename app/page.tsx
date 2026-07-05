@@ -8,6 +8,7 @@ type Screen =
   | "archive"
   | "lecture"
   | "capture"
+  | "builder"
   | "exams"
   | "exam"
   | "guide";
@@ -437,27 +438,6 @@ function folderLectureCount(
     .length;
 }
 
-function normalizedWorkspaceName(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function matchingExamForArchiveFolder(
-  folder: ArchiveFolder,
-  exams: ExamWorkspace[]
-) {
-  const folderName = normalizedWorkspaceName(folder.name);
-
-  return exams.find(
-    (exam) =>
-      exam.courseId === folder.courseId &&
-      normalizedWorkspaceName(exam.name) === folderName
-  );
-}
-
-function isExamLikeFolderName(value: string) {
-  return /\b(exam|midterm|final|quiz|test)\b/i.test(value);
-}
-
 function examItemExists(
   examItems: ExamWorkspaceItem[],
   examWorkspaceId: string,
@@ -467,35 +447,6 @@ function examItemExists(
     (item) =>
       item.examWorkspaceId === examWorkspaceId && item.lectureId === lectureId
   );
-}
-
-function pendingExamBucketLinks(state: VaultState) {
-  return state.lectures.flatMap((lecture) => {
-    if (!lecture.folderId) {
-      return [];
-    }
-
-    const folder = state.archiveFolders.find(
-      (item) => item.id === lecture.folderId
-    );
-    const exam = folder
-      ? matchingExamForArchiveFolder(folder, state.exams)
-      : undefined;
-
-    if (
-      !exam ||
-      examItemExists(state.examItems, exam.id, lecture.id)
-    ) {
-      return [];
-    }
-
-    return [
-      {
-        examWorkspaceId: exam.id,
-        lectureId: lecture.id
-      }
-    ];
-  });
 }
 
 function archiveLecturesForLocation(
@@ -741,6 +692,10 @@ export default function LectureVaultApp() {
     name: "",
     startsOn: ""
   });
+  const [builderCourseId, setBuilderCourseId] = useState("course-calculus");
+  const [builderFolderId, setBuilderFolderId] = useState("all");
+  const [builderQuery, setBuilderQuery] = useState("");
+  const [builderSelectedLectureIds, setBuilderSelectedLectureIds] = useState<string[]>([]);
   const [examInstructions, setExamInstructions] = useState(
     "Prioritize high-yield concepts, formulas, worked problem patterns, common mistakes, and a practice checklist."
   );
@@ -758,40 +713,6 @@ export default function LectureVaultApp() {
     }
   }, [state]);
 
-  useEffect(() => {
-    const missingLinks = pendingExamBucketLinks(state);
-
-    if (!missingLinks.length) {
-      return;
-    }
-
-    setState((current) => {
-      const currentMissingLinks = pendingExamBucketLinks(current);
-
-      if (!currentMissingLinks.length) {
-        return current;
-      }
-
-      const createdAt = new Date().toISOString();
-
-      return {
-        ...current,
-        examItems: [
-          ...currentMissingLinks.map((link) => ({
-            id: uid("exam-item"),
-            examWorkspaceId: link.examWorkspaceId,
-            lectureId: link.lectureId,
-            addedAt: createdAt
-          })),
-          ...current.examItems
-        ]
-      };
-    });
-    setStatus(
-      `Synced ${missingLinks.length} archive bucket item${missingLinks.length === 1 ? "" : "s"} into matching exam workspace.`
-    );
-  }, [state.archiveFolders, state.examItems, state.exams, state.lectures]);
-
   const selectedCourse = state.courses.find(
     (course) => course.id === selectedCourseId
   );
@@ -802,15 +723,6 @@ export default function LectureVaultApp() {
   const selectedGuide = state.studyGuides.find(
     (guide) => guide.id === selectedGuideId
   );
-  const selectedArchiveFolder = state.archiveFolders.find(
-    (folder) => folder.id === selectedArchiveFolderId
-  );
-  const selectedArchiveFolderExam = selectedArchiveFolder
-    ? matchingExamForArchiveFolder(selectedArchiveFolder, state.exams)
-    : undefined;
-  const canCreateLinkedWorkspace =
-    Boolean(selectedArchiveFolder) && !selectedArchiveFolderExam;
-
   const archiveLectures = useMemo(() => {
     const term = query.trim().toLowerCase();
 
@@ -843,6 +755,34 @@ export default function LectureVaultApp() {
   const selectedArchiveLecture = archiveLectures.find(
     (lecture) => lecture.id === selectedLectureId
   );
+  const builderLectures = useMemo(() => {
+    const term = builderQuery.trim().toLowerCase();
+
+    return archiveLecturesForLocation(
+      state,
+      builderCourseId,
+      builderFolderId
+    ).filter((lecture) => {
+      const transcript = state.transcripts.find(
+        (item) => item.lectureId === lecture.id
+      );
+      const mediaNames = state.mediaItems
+        .filter((item) => item.lectureId === lecture.id)
+        .map((item) => item.name)
+        .join(" ");
+
+      return [lecture.title, lecture.summary, lecture.date, transcript?.text, mediaNames]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(term);
+    });
+  }, [builderCourseId, builderFolderId, builderQuery, state]);
+  const builderSelectedLectures = builderSelectedLectureIds
+    .map((id) => state.lectures.find((lecture) => lecture.id === id))
+    .filter((lecture): lecture is Lecture =>
+      Boolean(lecture && lecture.courseId === builderCourseId)
+    );
 
   useEffect(() => {
     if (
@@ -857,6 +797,19 @@ export default function LectureVaultApp() {
       setSelectedArchiveFolderId("all");
     }
   }, [selectedArchiveFolderId, selectedCourseId, state.archiveFolders]);
+
+  useEffect(() => {
+    if (
+      builderFolderId !== "all" &&
+      builderFolderId !== "unfiled" &&
+      !state.archiveFolders.some(
+        (folder) =>
+          folder.id === builderFolderId && folder.courseId === builderCourseId
+      )
+    ) {
+      setBuilderFolderId("all");
+    }
+  }, [builderCourseId, builderFolderId, state.archiveFolders]);
 
   useEffect(() => {
     if (screen !== "archive") {
@@ -1057,83 +1010,13 @@ export default function LectureVaultApp() {
       return;
     }
 
-    const matchingExam = folder
-      ? matchingExamForArchiveFolder(folder, state.exams)
-      : undefined;
-    const previousFolder = lecture.folderId
-      ? state.archiveFolders.find((item) => item.id === lecture.folderId)
-      : undefined;
-    const previousMatchingExam = previousFolder
-      ? matchingExamForArchiveFolder(previousFolder, state.exams)
-      : undefined;
-    const wasAlreadyInExam = matchingExam
-      ? examItemExists(state.examItems, matchingExam.id, lectureId)
-      : false;
-    const isLeavingExamBucket =
-      previousMatchingExam &&
-      previousMatchingExam.id !== matchingExam?.id;
-
-    setState((current) => {
-      const currentLecture = current.lectures.find((item) => item.id === lectureId);
-      const previousFolder = currentLecture?.folderId
-        ? current.archiveFolders.find((item) => item.id === currentLecture.folderId)
-        : undefined;
-      const previousMatchingExam = previousFolder
-        ? matchingExamForArchiveFolder(previousFolder, current.exams)
-        : undefined;
-      const currentFolder = folderId
-        ? current.archiveFolders.find((item) => item.id === folderId)
-        : undefined;
-      const currentMatchingExam = currentFolder
-        ? matchingExamForArchiveFolder(currentFolder, current.exams)
-        : undefined;
-      const shouldRemovePreviousExamItem =
-        previousMatchingExam &&
-        previousMatchingExam.id !== currentMatchingExam?.id;
-      const examItemsAfterRemoval = shouldRemovePreviousExamItem
-        ? current.examItems.filter(
-            (item) =>
-              !(
-                item.examWorkspaceId === previousMatchingExam.id &&
-                item.lectureId === lectureId
-              )
-          )
-        : current.examItems;
-      const shouldAddExamItem = currentMatchingExam
-        ? !examItemExists(examItemsAfterRemoval, currentMatchingExam.id, lectureId)
-        : false;
-
-      return {
-        ...current,
-        lectures: current.lectures.map((lecture) =>
-          lecture.id === lectureId ? { ...lecture, folderId } : lecture
-        ),
-        examItems: currentMatchingExam && shouldAddExamItem
-          ? [
-              {
-                id: uid("exam-item"),
-                examWorkspaceId: currentMatchingExam.id,
-                lectureId,
-                addedAt: new Date().toISOString()
-              },
-              ...examItemsAfterRemoval
-            ]
-          : examItemsAfterRemoval
-      };
-    });
-
-    if (matchingExam && !wasAlreadyInExam) {
-      setSelectedExamId(matchingExam.id);
-      setStatus(`Moved lecture into ${folder?.name} and added it to ${matchingExam.name}.`);
-    } else if (matchingExam) {
-      setStatus(`Moved lecture into ${folder?.name}. It was already in ${matchingExam.name}.`);
-    } else if (isLeavingExamBucket) {
-      setStatus(
-        `Moved lecture out of ${previousFolder?.name}. It was removed from ${previousMatchingExam.name}.`
-      );
-    } else {
-      setStatus(folderId ? "Moved lecture into folder." : "Moved lecture to Unfiled.");
-    }
+    setState((current) => ({
+      ...current,
+      lectures: current.lectures.map((lecture) =>
+        lecture.id === lectureId ? { ...lecture, folderId } : lecture
+      )
+    }));
+    setStatus(folderId ? "Moved lecture into archive folder." : "Moved lecture to Unfiled.");
   }
 
   async function saveCapture(event: FormEvent) {
@@ -1190,33 +1073,13 @@ export default function LectureVaultApp() {
       createdAt
     };
 
-    setState((current) => {
-      const assignedFolder = assignedFolderId
-        ? current.archiveFolders.find((item) => item.id === assignedFolderId)
-        : undefined;
-      const matchingExam = assignedFolder
-        ? matchingExamForArchiveFolder(assignedFolder, current.exams)
-        : undefined;
-
-      return {
-        ...current,
-        lectures: [lecture, ...current.lectures],
-        mediaItems: [...mediaItems, ...current.mediaItems],
-        transcripts: [transcript, ...current.transcripts],
-        concepts: [...extractConcepts(lectureId, transcript), ...current.concepts],
-        examItems: matchingExam
-          ? [
-              {
-                id: uid("exam-item"),
-                examWorkspaceId: matchingExam.id,
-                lectureId,
-                addedAt: createdAt
-              },
-              ...current.examItems
-            ]
-          : current.examItems
-      };
-    });
+    setState((current) => ({
+      ...current,
+      lectures: [lecture, ...current.lectures],
+      mediaItems: [...mediaItems, ...current.mediaItems],
+      transcripts: [transcript, ...current.transcripts],
+      concepts: [...extractConcepts(lectureId, transcript), ...current.concepts]
+    }));
     setSelectedLectureId(lectureId);
     setCaptureFiles([]);
     setCaptureForm((current) => ({
@@ -1225,22 +1088,7 @@ export default function LectureVaultApp() {
       transcript: "",
       summary: ""
     }));
-    const assignedFolder = assignedFolderId
-      ? state.archiveFolders.find((item) => item.id === assignedFolderId)
-      : undefined;
-    const assignedExam = assignedFolder
-      ? matchingExamForArchiveFolder(assignedFolder, state.exams)
-      : undefined;
-
-    if (assignedExam) {
-      setSelectedExamId(assignedExam.id);
-    }
-
-    setStatus(
-      assignedExam
-        ? `Saved ${title} and added it to ${assignedExam.name}.`
-        : `Saved ${title} to the permanent archive.`
-    );
+    setStatus(`Saved ${title} to the permanent archive.`);
     setScreen("lecture");
   }
 
@@ -1259,107 +1107,13 @@ export default function LectureVaultApp() {
       createdAt
     };
 
-    setState((current) => {
-      const matchingFolderExists = current.archiveFolders.some(
-        (folder) =>
-          folder.courseId === exam.courseId &&
-          !folder.parentId &&
-          normalizedWorkspaceName(folder.name) ===
-            normalizedWorkspaceName(exam.name)
-      );
-
-      return {
-        ...current,
-        archiveFolders: matchingFolderExists
-          ? current.archiveFolders
-          : [
-              {
-                id: uid("folder"),
-                courseId: exam.courseId,
-                name: exam.name,
-                createdAt
-              },
-              ...current.archiveFolders
-            ],
-        exams: [exam, ...current.exams]
-      };
-    });
+    setState((current) => ({
+      ...current,
+      exams: [exam, ...current.exams]
+    }));
     setSelectedExamId(exam.id);
     setExamForm((current) => ({ ...current, name: "", startsOn: "" }));
-    setStatus(`Created ${exam.name} and its matching archive bucket.`);
-    setScreen("exam");
-  }
-
-  function createLinkedWorkspaceFromSelectedFolder() {
-    const folder = state.archiveFolders.find(
-      (item) => item.id === selectedArchiveFolderId
-    );
-
-    if (!folder) {
-      setStatus("Select an archive folder to link to a workspace.");
-      return;
-    }
-
-    const existingExam = matchingExamForArchiveFolder(folder, state.exams);
-
-    if (existingExam) {
-      setSelectedExamId(existingExam.id);
-      setStatus(`${folder.name} is already linked to ${existingExam.name}.`);
-      setScreen("exam");
-      return;
-    }
-
-    const createdAt = new Date().toISOString();
-    const exam: ExamWorkspace = {
-      id: uid("exam"),
-      courseId: folder.courseId,
-      name: folder.name,
-      startsOn: "",
-      createdAt
-    };
-
-    setState((current) => {
-      const currentFolder = current.archiveFolders.find(
-        (item) => item.id === folder.id
-      );
-
-      if (!currentFolder) {
-        return current;
-      }
-
-      const currentExistingExam = matchingExamForArchiveFolder(
-        currentFolder,
-        current.exams
-      );
-
-      if (currentExistingExam) {
-        return current;
-      }
-
-      const folderIds = folderDescendantIds(current.archiveFolders, currentFolder.id);
-      const linkedLectures = current.lectures.filter(
-        (lecture) =>
-          lecture.courseId === currentFolder.courseId &&
-          lecture.folderId &&
-          folderIds.has(lecture.folderId)
-      );
-
-      return {
-        ...current,
-        exams: [exam, ...current.exams],
-        examItems: [
-          ...linkedLectures.map((lecture) => ({
-            id: uid("exam-item"),
-            examWorkspaceId: exam.id,
-            lectureId: lecture.id,
-            addedAt: createdAt
-          })),
-          ...current.examItems
-        ]
-      };
-    });
-    setSelectedExamId(exam.id);
-    setStatus(`Created ${exam.name} workspace from the selected archive folder.`);
+    setStatus(`Created ${exam.name}. Use Exam Builder to add archive sources.`);
     setScreen("exam");
   }
 
@@ -1406,28 +1160,84 @@ export default function LectureVaultApp() {
     setStatus("Added lecture reference to exam workspace. Original media stayed in the archive.");
   }
 
-  function addLectureToCourseExam(lectureId: string) {
+  function setExamBuilderCourse(courseId: string) {
+    setBuilderCourseId(courseId);
+    setBuilderFolderId("all");
+    setBuilderSelectedLectureIds((current) =>
+      current.filter((id) =>
+        state.lectures.some(
+          (lecture) => lecture.id === id && lecture.courseId === courseId
+        )
+      )
+    );
+    setExamForm((current) => ({ ...current, courseId }));
+  }
+
+  function toggleBuilderLecture(lectureId: string) {
     const lecture = state.lectures.find((item) => item.id === lectureId);
 
-    if (!lecture) {
-      setStatus("Could not find that lecture in the archive.");
+    if (!lecture || lecture.courseId !== builderCourseId) {
       return;
     }
 
-    const targetExam =
-      selectedExam?.courseId === lecture.courseId
-        ? selectedExam
-        : state.exams.find((exam) => exam.courseId === lecture.courseId);
+    setBuilderSelectedLectureIds((current) =>
+      current.includes(lectureId)
+        ? current.filter((id) => id !== lectureId)
+        : [...current, lectureId]
+    );
+  }
 
-    if (!targetExam) {
-      setStatus(
-        "Create or link an exam workspace for this course before adding the lecture."
-      );
+  function addBuilderVisibleLectures() {
+    setBuilderSelectedLectureIds((current) => {
+      const next = new Set(current);
+      for (const lecture of builderLectures) {
+        next.add(lecture.id);
+      }
+      return Array.from(next);
+    });
+    setStatus("Added visible archive materials to the exam builder.");
+  }
+
+  function createWorkspaceFromBuilder(event: FormEvent) {
+    event.preventDefault();
+
+    if (!examForm.name.trim()) {
+      setStatus("Name the exam workspace before creating it.");
       return;
     }
 
-    setSelectedExamId(targetExam.id);
-    addLectureToExam(lectureId, targetExam.id);
+    if (!builderSelectedLectures.length) {
+      setStatus("Select archive materials before creating the exam workspace.");
+      return;
+    }
+
+    const createdAt = new Date().toISOString();
+    const exam: ExamWorkspace = {
+      id: uid("exam"),
+      courseId: builderCourseId,
+      name: examForm.name.trim(),
+      startsOn: examForm.startsOn,
+      createdAt
+    };
+
+    setState((current) => ({
+      ...current,
+      exams: [exam, ...current.exams],
+      examItems: [
+        ...builderSelectedLectures.map((lecture) => ({
+          id: uid("exam-item"),
+          examWorkspaceId: exam.id,
+          lectureId: lecture.id,
+          addedAt: createdAt
+        })),
+        ...current.examItems
+      ]
+    }));
+    setSelectedExamId(exam.id);
+    setExamForm((current) => ({ ...current, name: "", startsOn: "" }));
+    setBuilderSelectedLectureIds([]);
+    setStatus(`Created ${exam.name} from ${builderSelectedLectures.length} archive source${builderSelectedLectures.length === 1 ? "" : "s"}.`);
+    setScreen("exam");
   }
 
   function removeLectureFromExam(lectureId: string) {
@@ -1443,27 +1253,9 @@ export default function LectureVaultApp() {
             item.examWorkspaceId === selectedExam.id &&
             item.lectureId === lectureId
           )
-      ),
-      lectures: current.lectures.map((lecture) => {
-        if (lecture.id !== lectureId || !lecture.folderId) {
-          return lecture;
-        }
-
-        const folder = current.archiveFolders.find(
-          (item) => item.id === lecture.folderId
-        );
-        const matchingExam = folder
-          ? matchingExamForArchiveFolder(folder, current.exams)
-          : undefined;
-
-        return matchingExam?.id === selectedExam.id
-          ? { ...lecture, folderId: undefined }
-          : lecture;
-      })
+      )
     }));
-    setStatus(
-      "Removed from exam workspace. Archive item was kept and moved out of the matching exam bucket."
-    );
+    setStatus("Removed from exam workspace. Archive item was not changed.");
   }
 
   function deleteExam(examId: string) {
@@ -1720,6 +1512,7 @@ export default function LectureVaultApp() {
             ["courses", "Courses"],
             ["archive", "Archive"],
             ["capture", "Upload / Record"],
+            ["builder", "Exam Builder"],
             ["exams", "Exam Workspaces"]
           ].map(([id, label]) => (
             <button
@@ -1911,20 +1704,11 @@ export default function LectureVaultApp() {
                   >
                     Delete
                   </button>
-                  <button
-                    className="wide"
-                    type="button"
-                    onClick={createLinkedWorkspaceFromSelectedFolder}
-                    disabled={!canCreateLinkedWorkspace}
-                  >
-                    Create linked workspace
-                  </button>
                 </div>
                 <ArchiveFolderTree
                   courses={state.courses}
                   folders={state.archiveFolders}
                   lectures={state.lectures}
-                  exams={state.exams}
                   selectedCourseId={selectedCourseId}
                   selectedFolderId={selectedArchiveFolderId}
                   onSelectCourse={selectArchiveCourse}
@@ -1963,7 +1747,6 @@ export default function LectureVaultApp() {
                         setSelectedLectureId(lecture.id);
                         setScreen("lecture");
                       }}
-                      onAdd={() => addLectureToCourseExam(lecture.id)}
                       onDelete={() => deleteLectureFromArchive(lecture.id)}
                     />
                   ))}
@@ -1993,12 +1776,6 @@ export default function LectureVaultApp() {
                         }}
                       >
                         Open detail
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => addLectureToCourseExam(selectedArchiveLecture.id)}
-                      >
-                        Add to course exam
                       </button>
                       <button
                         className="danger"
@@ -2206,6 +1983,190 @@ export default function LectureVaultApp() {
           </form>
         ) : null}
 
+        {screen === "builder" ? (
+          <section className="exam-builder-layout">
+            <aside className="panel archive-folder-panel">
+              <div className="section-heading">
+                <div>
+                  <span className="pill">Archive</span>
+                  <h3>Course Tree</h3>
+                </div>
+              </div>
+              <label>
+                Course
+                <select
+                  value={builderCourseId}
+                  onChange={(event) => setExamBuilderCourse(event.target.value)}
+                >
+                  {state.courses.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.code} {course.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <ArchiveFolderTree
+                courses={state.courses.filter(
+                  (course) => course.id === builderCourseId
+                )}
+                folders={state.archiveFolders}
+                lectures={state.lectures}
+                selectedCourseId={builderCourseId}
+                selectedFolderId={builderFolderId}
+                onSelectCourse={setExamBuilderCourse}
+                onSelectFolder={setBuilderFolderId}
+                onDropLecture={() => undefined}
+              />
+            </aside>
+
+            <section className="archive-list-panel">
+              <div className="toolbar">
+                <label>
+                  Search selected course materials
+                  <input
+                    value={builderQuery}
+                    onChange={(event) => setBuilderQuery(event.target.value)}
+                    placeholder="Lecture, formula, media name, transcript..."
+                  />
+                </label>
+                <button type="button" onClick={addBuilderVisibleLectures}>
+                  Add visible
+                </button>
+              </div>
+              <div className="lecture-grid compact">
+                {builderLectures.map((lecture) => {
+                  const selected = builderSelectedLectureIds.includes(lecture.id);
+
+                  return (
+                    <article
+                      className={selected ? "lecture-card selected" : "lecture-card"}
+                      key={lecture.id}
+                    >
+                      <div>
+                        <span className="pill">{courseLabel(lecture.courseId)}</span>
+                        <h3>{lecture.title}</h3>
+                        <p>{lecture.summary}</p>
+                      </div>
+                      <div className="card-meta">
+                        <span>{lecture.date}</span>
+                        <span>
+                          {
+                            state.mediaItems.filter(
+                              (item) => item.lectureId === lecture.id
+                            ).length
+                          }{" "}
+                          media
+                        </span>
+                        <span>
+                          {
+                            state.concepts.filter(
+                              (concept) => concept.lectureId === lecture.id
+                            ).length
+                          }{" "}
+                          concepts
+                        </span>
+                      </div>
+                      <div className="button-row">
+                        <button
+                          className={selected ? "primary" : ""}
+                          type="button"
+                          onClick={() => toggleBuilderLecture(lecture.id)}
+                        >
+                          {selected ? "Selected" : "Select"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedLectureId(lecture.id);
+                            setScreen("lecture");
+                          }}
+                        >
+                          Open
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+                {!builderLectures.length ? (
+                  <p className="empty panel">
+                    No archive materials match this course, folder, and search.
+                  </p>
+                ) : null}
+              </div>
+            </section>
+
+            <aside className="panel side-panel source-inspector">
+              <form onSubmit={createWorkspaceFromBuilder}>
+                <div className="section-heading">
+                  <div>
+                    <span className="pill">
+                      {builderSelectedLectures.length} selected
+                    </span>
+                    <h3>Exam Basket</h3>
+                  </div>
+                </div>
+                <label>
+                  Workspace name
+                  <input
+                    value={examForm.name}
+                    onChange={(event) =>
+                      setExamForm((current) => ({
+                        ...current,
+                        name: event.target.value
+                      }))
+                    }
+                    placeholder="Exam 1, Midterm, Final"
+                  />
+                </label>
+                <label>
+                  Exam date
+                  <input
+                    type="date"
+                    value={examForm.startsOn}
+                    onChange={(event) =>
+                      setExamForm((current) => ({
+                        ...current,
+                        startsOn: event.target.value
+                      }))
+                    }
+                  />
+                </label>
+                <div className="source-list">
+                  {builderSelectedLectures.map((lecture) => (
+                    <div className="source-card" key={lecture.id}>
+                      <strong>{lecture.title}</strong>
+                      <span>{lecture.date}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleBuilderLecture(lecture.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  {!builderSelectedLectures.length ? (
+                    <p className="empty">
+                      Select lectures from the organized archive to build this exam.
+                    </p>
+                  ) : null}
+                </div>
+                <div className="button-row stacked">
+                  <button className="primary" type="submit">
+                    Create Exam Workspace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBuilderSelectedLectureIds([])}
+                    disabled={!builderSelectedLectureIds.length}
+                  >
+                    Clear Basket
+                  </button>
+                </div>
+              </form>
+            </aside>
+          </section>
+        ) : null}
+
         {screen === "exams" ? (
           <section className="content-grid">
             <form className="panel form-panel" onSubmit={createExam}>
@@ -2339,6 +2300,7 @@ function screenTitle(screen: Screen) {
     archive: "Lecture/media archive",
     lecture: "Lecture detail",
     capture: "Upload or record lecture",
+    builder: "Exam builder",
     exams: "Exam workspace list",
     exam: "Exam workspace detail",
     guide: "Study guide preview"
@@ -2400,13 +2362,13 @@ function Dashboard({
         <section className="panel">
           <div className="section-heading">
             <h3>Exam Builder</h3>
-            <button type="button" onClick={() => setScreen("exams")}>
-              Organize
+            <button type="button" onClick={() => setScreen("builder")}>
+              Build
             </button>
           </div>
           <p>
-            Exam workspaces are filtered collections. Removing or deleting an
-            exam never deletes the original lecture media.
+            Build exam workspaces from selected courses, folders, and lectures
+            in the permanent archive.
           </p>
         </section>
       </div>
@@ -2457,7 +2419,6 @@ function ArchiveFolderTree({
   courses,
   folders,
   lectures,
-  exams,
   selectedCourseId,
   selectedFolderId,
   onSelectCourse,
@@ -2467,7 +2428,6 @@ function ArchiveFolderTree({
   courses: Course[];
   folders: ArchiveFolder[];
   lectures: Lecture[];
-  exams: ExamWorkspace[];
   selectedCourseId: string;
   selectedFolderId: string;
   onSelectCourse: (courseId: string) => void;
@@ -2502,12 +2462,6 @@ function ArchiveFolderTree({
     const courseFolders = folders.filter((item) => item.courseId === folder.courseId);
     const childFolders = courseFolders.filter((item) => item.parentId === folder.id);
     const count = folderLectureCount(folders, lectures, folder.id);
-    const matchingExam = matchingExamForArchiveFolder(folder, exams);
-    const folderLabel = matchingExam
-      ? `${folder.name} workspace`
-      : isExamLikeFolderName(folder.name)
-        ? `${folder.name} folder`
-        : folder.name;
 
     return (
       <div className="folder-node" key={folder.id}>
@@ -2524,7 +2478,7 @@ function ArchiveFolderTree({
           onDrop={(event) => dropOnFolder(event, folder.id)}
         >
           <span className="folder-icon" aria-hidden="true" />
-          <span>{folderLabel}</span>
+          <span>{folder.name}</span>
           <small>{count}</small>
         </button>
         {childFolders.map((child) => renderFolder(child, depth + 1))}
@@ -2603,7 +2557,7 @@ function LectureCard({
   mediaCount: number;
   conceptCount: number;
   onOpen: () => void;
-  onAdd: () => void;
+  onAdd?: () => void;
   onDelete: () => void;
 }) {
   return (
@@ -2628,9 +2582,11 @@ function LectureCard({
         <button type="button" onClick={onOpen}>
           Open
         </button>
-        <button type="button" onClick={onAdd}>
-          Add to Exam
-        </button>
+        {onAdd ? (
+          <button type="button" onClick={onAdd}>
+            Add to Exam
+          </button>
+        ) : null}
         <button className="danger" type="button" onClick={onDelete}>
           Delete
         </button>
