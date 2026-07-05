@@ -78,6 +78,21 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-05 - Course Deletion
+
+- Added explicit `Delete course` controls to the Courses list.
+- Course rows now separate `Open archive` from destructive course deletion.
+- Deleting a course confirms the cascade and removes:
+  - course archive folders
+  - course lectures
+  - related media, transcripts, and extracted concepts
+  - related exam baskets and basket references
+  - generated reviews for deleted baskets
+- Selection state is reset to the next available course/lecture/basket after deletion.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-05 - Password Gate and Persistent Device Login
 
 - Added password authentication with a persistent 30-day signed httpOnly session cookie.

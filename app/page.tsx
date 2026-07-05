@@ -969,6 +969,94 @@ export default function LectureVaultApp() {
     setStatus(`Created ${course.code}.`);
   }
 
+  function deleteCourse(courseId: string) {
+    const course = state.courses.find((item) => item.id === courseId);
+
+    if (!course) {
+      setStatus("Could not find that course.");
+      return;
+    }
+
+    const lectureCount = state.lectures.filter(
+      (lecture) => lecture.courseId === courseId
+    ).length;
+    const examCount = state.exams.filter((exam) => exam.courseId === courseId)
+      .length;
+    const confirmed = window.confirm(
+      `Delete ${course.code} ${course.name}? This removes ${lectureCount} archived lecture item${lectureCount === 1 ? "" : "s"}, related media/transcripts/concepts, ${examCount} exam basket${examCount === 1 ? "" : "s"}, and generated reviews for this course.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const deletedLectureIds = new Set(
+      state.lectures
+        .filter((lecture) => lecture.courseId === courseId)
+        .map((lecture) => lecture.id)
+    );
+    const deletedExamIds = new Set(
+      state.exams
+        .filter((exam) => exam.courseId === courseId)
+        .map((exam) => exam.id)
+    );
+    const nextCourse = state.courses.find((item) => item.id !== courseId);
+    const nextCourseId = nextCourse?.id || "";
+    const nextLecture = state.lectures.find(
+      (lecture) => lecture.courseId !== courseId
+    );
+    const nextExam = state.exams.find((exam) => exam.courseId !== courseId);
+
+    setState((current) => ({
+      ...current,
+      courses: current.courses.filter((item) => item.id !== courseId),
+      archiveFolders: current.archiveFolders.filter(
+        (folder) => folder.courseId !== courseId
+      ),
+      lectures: current.lectures.filter((lecture) => lecture.courseId !== courseId),
+      mediaItems: current.mediaItems.filter(
+        (item) => !deletedLectureIds.has(item.lectureId)
+      ),
+      transcripts: current.transcripts.filter(
+        (transcript) => !deletedLectureIds.has(transcript.lectureId)
+      ),
+      concepts: current.concepts.filter(
+        (concept) => !deletedLectureIds.has(concept.lectureId)
+      ),
+      exams: current.exams.filter((exam) => exam.courseId !== courseId),
+      examItems: current.examItems.filter(
+        (item) =>
+          !deletedExamIds.has(item.examWorkspaceId) &&
+          !deletedLectureIds.has(item.lectureId)
+      ),
+      studyGuides: current.studyGuides
+        .filter((guide) => !deletedExamIds.has(guide.examWorkspaceId))
+        .map((guide) => ({
+          ...guide,
+          sourceLectureIds: guide.sourceLectureIds.filter(
+            (id) => !deletedLectureIds.has(id)
+          ),
+          figures: guide.figures?.filter(
+            (figure) => !deletedLectureIds.has(figure.lectureId)
+          )
+        }))
+    }));
+
+    setSelectedCourseId(nextCourseId);
+    setSelectedArchiveFolderId("all");
+    setSelectedLectureId(nextLecture?.id || "");
+    setSelectedExamId(nextExam?.id || "");
+    setSelectedGuideId("");
+    setBuilderCourseId(nextCourseId);
+    setBuilderFolderId("all");
+    setBuilderSelectedLectureIds((current) =>
+      current.filter((id) => !deletedLectureIds.has(id))
+    );
+    setCaptureForm((current) => ({ ...current, courseId: nextCourseId }));
+    setExamForm((current) => ({ ...current, courseId: nextCourseId }));
+    setStatus(`Deleted ${course.code} and its related archive and basket data.`);
+  }
+
   function addArchiveFolder(event: FormEvent) {
     event.preventDefault();
     const name = archiveFolderName.trim();
@@ -1787,28 +1875,46 @@ export default function LectureVaultApp() {
             <section className="panel list-panel">
               <h3>Course List</h3>
               {state.courses.map((course) => (
-                <button
-                  className="row-button"
+                <div
+                  className="row-card"
                   key={course.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedCourseId(course.id);
-                    setScreen("archive");
-                  }}
                 >
-                  <strong>{course.code}</strong>
-                  <span>{course.name}</span>
-                  <small>
-                    {course.term} -{" "}
-                    {
-                      state.lectures.filter(
-                        (lecture) => lecture.courseId === course.id
-                      ).length
-                    }{" "}
-                    items
-                  </small>
-                </button>
+                  <div>
+                    <strong>{course.code}</strong>
+                    <span>{course.name}</span>
+                    <small>
+                      {course.term} -{" "}
+                      {
+                        state.lectures.filter(
+                          (lecture) => lecture.courseId === course.id
+                        ).length
+                      }{" "}
+                      items
+                    </small>
+                  </div>
+                  <div className="button-row">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCourseId(course.id);
+                        setScreen("archive");
+                      }}
+                    >
+                      Open archive
+                    </button>
+                    <button
+                      className="danger"
+                      type="button"
+                      onClick={() => deleteCourse(course.id)}
+                    >
+                      Delete course
+                    </button>
+                  </div>
+                </div>
               ))}
+              {!state.courses.length ? (
+                <p className="empty">No courses yet. Add a course to start archiving lectures.</p>
+              ) : null}
             </section>
           </section>
         ) : null}

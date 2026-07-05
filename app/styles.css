@@ -573,6 +573,29 @@ label {
   text-align: left;
 }
 
+.row-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface);
+}
+
+.row-card > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.row-card span,
+.row-card small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .row-button span,
 .row-button small {
   min-width: 0;
@@ -1099,6 +1122,10 @@ label {
   .source-inspector {
     position: static;
     max-height: none;
+  }
+
+  .row-card {
+    grid-template-columns: 1fr;
   }
 }
 
