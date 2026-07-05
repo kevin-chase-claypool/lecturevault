@@ -736,6 +736,7 @@ function loadState(): VaultState {
 
 export default function LectureVaultApp() {
   const [state, setState] = useState<VaultState>(() => loadState());
+  const [authStatus, setAuthStatus] = useState<"checking" | "ready" | "locked" | "setup">("checking");
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [selectedCourseId, setSelectedCourseId] = useState("course-calculus");
   const [selectedLectureId, setSelectedLectureId] = useState("lecture-gradient");
@@ -771,6 +772,42 @@ export default function LectureVaultApp() {
     "Prioritize high-yield concepts, formulas, worked problem patterns, common mistakes, and a practice checklist."
   );
   const [isReviewGenerating, setIsReviewGenerating] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function checkSession() {
+      try {
+        const response = await fetch("/api/auth/session", {
+          credentials: "include"
+        });
+        const data = (await response.json()) as {
+          authenticated?: boolean;
+          configured?: boolean;
+        };
+
+        if (!active) {
+          return;
+        }
+
+        if (!data.configured) {
+          setAuthStatus("setup");
+        } else {
+          setAuthStatus(data.authenticated ? "ready" : "locked");
+        }
+      } catch {
+        if (active) {
+          setAuthStatus("locked");
+        }
+      }
+    }
+
+    void checkSession();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -1597,6 +1634,31 @@ export default function LectureVaultApp() {
     setSelectedLectureId(nextLectures[0]?.id || "");
   }
 
+  async function logout() {
+    await fetch("/api/auth/logout", {
+      credentials: "include",
+      method: "POST"
+    });
+    setAuthStatus("locked");
+  }
+
+  if (authStatus === "checking") {
+    return <AuthShell title="Checking access..." />;
+  }
+
+  if (authStatus === "setup") {
+    return (
+      <AuthShell
+        title="Set an app password"
+        message="LECTUREVAULT_APP_PASSWORD is not configured. Add it to Vercel environment variables so this app can protect your OpenAI API key."
+      />
+    );
+  }
+
+  if (authStatus === "locked") {
+    return <LoginGate onAuthenticated={() => setAuthStatus("ready")} />;
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -1653,6 +1715,9 @@ export default function LectureVaultApp() {
             </button>
             <button type="button" onClick={resetDemo}>
               Reset Demo
+            </button>
+            <button type="button" onClick={() => void logout()}>
+              Log out
             </button>
           </div>
         </header>
@@ -2427,6 +2492,86 @@ function screenTitle(screen: Screen) {
     guide: "Study guide preview"
   };
   return titles[screen];
+}
+
+function AuthShell({
+  title,
+  message = "Loading LectureVault."
+}: {
+  title: string;
+  message?: string;
+}) {
+  return (
+    <main className="auth-page">
+      <section className="auth-card">
+        <div className="mark">LV</div>
+        <h1>{title}</h1>
+        <p>{message}</p>
+      </section>
+    </main>
+  );
+}
+
+function LoginGate({ onAuthenticated }: { onAuthenticated: () => void }) {
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  async function login(event: FormEvent) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        body: JSON.stringify({ password }),
+        credentials: "include",
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      });
+      const data = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Could not sign in.");
+      }
+
+      setPassword("");
+      onAuthenticated();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not sign in.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="auth-page">
+      <form className="auth-card" onSubmit={login}>
+        <div className="mark">LV</div>
+        <h1>LectureVault</h1>
+        <p>
+          Enter the app password to use the lecture archive, exam basket, AI
+          review generation, and PDF download.
+        </p>
+        <label>
+          App password
+          <input
+            autoComplete="current-password"
+            autoFocus
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </label>
+        {error ? <p className="auth-error">{error}</p> : null}
+        <button className="primary" type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Signing in..." : "Sign in"}
+        </button>
+      </form>
+    </main>
+  );
 }
 
 function Dashboard({

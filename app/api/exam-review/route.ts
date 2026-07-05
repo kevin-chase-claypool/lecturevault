@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { ResponseInputMessageContentList } from "openai/resources/responses/responses";
+import { requireAuthenticatedRequest } from "../../../lib/auth";
 
 export const runtime = "nodejs";
 
@@ -250,6 +251,12 @@ function buildLocalFallback({
 }
 
 export async function POST(request: Request) {
+  const authError = requireAuthenticatedRequest(request);
+
+  if (authError) {
+    return authError;
+  }
+
   try {
     const body = (await request.json()) as {
       examName?: string;

@@ -45,6 +45,18 @@ Required for real AI aggregation:
 OPENAI_API_KEY
 ```
 
+Required to protect the app:
+
+```text
+LECTUREVAULT_APP_PASSWORD
+```
+
+Optional session signing override:
+
+```text
+LECTUREVAULT_AUTH_SECRET
+```
+
 Optional model override:
 
 ```text
@@ -65,6 +77,19 @@ https://production-sfo.browserless.io/pdf
 ```
 
 ## Recent Changes
+
+### 2026-07-05 - Password Gate and Persistent Device Login
+
+- Added password authentication with a persistent 30-day signed httpOnly session cookie.
+- Added `/api/auth/login`, `/api/auth/session`, and `/api/auth/logout`.
+- Added a client login gate before the app loads.
+- Added a top-bar `Log out` action.
+- Protected the OpenAI exam review route and Browserless PDF route so they require an authenticated session before using server-side API keys.
+- Requires `LECTUREVAULT_APP_PASSWORD` in deployment environment variables.
+- Optional `LECTUREVAULT_AUTH_SECRET` can be set to decouple session signing from other server secrets.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
 
 ### 2026-07-05 - Shopping Cart Exam Basket Interaction
 

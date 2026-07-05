@@ -1,4 +1,5 @@
 import katex from "katex";
+import { requireAuthenticatedRequest } from "../../../../lib/auth";
 
 export const runtime = "nodejs";
 
@@ -259,6 +260,12 @@ function browserlessPdfUrl() {
 }
 
 export async function POST(request: Request) {
+  const authError = requireAuthenticatedRequest(request);
+
+  if (authError) {
+    return authError;
+  }
+
   const browserlessUrl = browserlessPdfUrl();
 
   if (!browserlessUrl) {
