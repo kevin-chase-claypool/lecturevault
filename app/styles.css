@@ -223,6 +223,10 @@ label {
   justify-content: start;
 }
 
+.button-row.stacked {
+  grid-auto-flow: row;
+}
+
 .primary {
   border-color: var(--primary);
   background: var(--primary);
@@ -341,10 +345,80 @@ label {
   align-items: end;
 }
 
+.archive-organizer {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.32fr) minmax(360px, 1fr) 300px;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.archive-folder-panel {
+  position: sticky;
+  top: 18px;
+  display: grid;
+  gap: 10px;
+  max-height: calc(100dvh - 44px);
+  overflow: auto;
+}
+
+.folder-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.folder-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.archive-folder-tree {
+  display: grid;
+  gap: 6px;
+}
+
+.archive-folder-tree button {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 42px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.archive-folder-tree button.active {
+  border-color: #8dbab4;
+  background: #ecfaf7;
+  color: #07564e;
+}
+
+.archive-folder-tree button span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archive-folder-tree small {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.archive-list-panel {
+  display: grid;
+  gap: 12px;
+}
+
 .lecture-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
+}
+
+.lecture-grid.compact {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
 }
 
 .lecture-card {
@@ -872,6 +946,7 @@ label {
 
   .detail-grid,
   .exam-builder-layout,
+  .archive-organizer,
   .content-grid,
   .dashboard-grid,
   .metric-grid,
@@ -886,6 +961,7 @@ label {
   }
 
   .archive-explorer,
+  .archive-folder-panel,
   .source-inspector {
     position: static;
     max-height: none;

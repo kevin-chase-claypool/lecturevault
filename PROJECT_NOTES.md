@@ -66,6 +66,26 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-05 - Archive Folder Tree Organization
+
+- Added an `ArchiveFolder` model to the localStorage state.
+- Added optional `folderId` assignment on lectures.
+- Replaced the flat archive grid with a responsive archive organizer:
+  - folder tree
+  - folder contents
+  - selected lecture inspector
+- Added folder actions:
+  - add folder/subfolder
+  - rename folder
+  - delete folder without deleting lectures
+  - drag lectures/transcriptions into folders
+  - move lectures back to `Unfiled`
+- Selecting a parent folder includes nested folder contents.
+- Added sample `Exam 1` folders for demo courses.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-05 - Image Embedding, Smaller PDF Text, Token Usage
 
 - Compressed future uploaded images into embeddable JPEG data URLs.
@@ -102,6 +122,7 @@ https://production-sfo.browserless.io/pdf
 
 - Lecture transcription is not fully implemented yet. Current capture uses pasted transcript text or a placeholder.
 - Data is stored in browser `localStorage`, so it does not sync across devices and can be cleared by the browser.
+- Archive folders are currently local-only and stored in `localStorage`.
 - Existing media records that only contain metadata cannot recover original image pixels. Users must re-upload those images after the image embedding fix.
 - PDF image embedding depends on image data being stored in `MediaItem.dataUrl`.
 - Browserless is required for PDF output in deployed environments.
@@ -128,6 +149,16 @@ For workflow changes, manually verify:
 7. Download Review PDF.
 8. Confirm PDF text size, equations, source map, and figure appendix.
 9. Confirm embedded images render when image data exists.
+
+For archive organization changes, manually verify:
+
+1. Open the archive.
+2. Add a folder.
+3. Add a subfolder.
+4. Drag a lecture card into a folder.
+5. Select parent and child folders and confirm contents update.
+6. Rename a folder.
+7. Delete a folder and confirm lectures remain archived.
 
 ## Next Priorities
 

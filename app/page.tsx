@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from "react";
 
 type Screen =
   | "dashboard"
@@ -23,9 +23,18 @@ type Course = {
 type Lecture = {
   id: string;
   courseId: string;
+  folderId?: string;
   title: string;
   date: string;
   summary: string;
+  createdAt: string;
+};
+
+type ArchiveFolder = {
+  id: string;
+  courseId: string;
+  parentId?: string;
+  name: string;
   createdAt: string;
 };
 
@@ -109,6 +118,7 @@ type ReviewFigure = {
 
 type VaultState = {
   courses: Course[];
+  archiveFolders: ArchiveFolder[];
   lectures: Lecture[];
   mediaItems: MediaItem[];
   transcripts: Transcript[];
@@ -126,6 +136,7 @@ const SAMPLE_GAUSS_BOARD_DATA_URL =
 
 const emptyState: VaultState = {
   courses: [],
+  archiveFolders: [],
   lectures: [],
   mediaItems: [],
   transcripts: [],
@@ -152,10 +163,25 @@ const sampleState: VaultState = {
       createdAt: new Date().toISOString()
     }
   ],
+  archiveFolders: [
+    {
+      id: "folder-calculus-exam-1",
+      courseId: "course-calculus",
+      name: "Exam 1",
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "folder-physics-exam-1",
+      courseId: "course-physics",
+      name: "Exam 1",
+      createdAt: new Date().toISOString()
+    }
+  ],
   lectures: [
     {
       id: "lecture-gradient",
       courseId: "course-calculus",
+      folderId: "folder-calculus-exam-1",
       title: "Gradient and Directional Derivatives",
       date: "2026-09-08",
       summary:
@@ -165,6 +191,7 @@ const sampleState: VaultState = {
     {
       id: "lecture-gauss",
       courseId: "course-physics",
+      folderId: "folder-physics-exam-1",
       title: "Gauss's Law",
       date: "2026-09-10",
       summary:
@@ -378,6 +405,38 @@ function buildReviewFigures(lectures: Lecture[], mediaItems: MediaItem[]) {
     });
 }
 
+function folderDescendantIds(folders: ArchiveFolder[], folderId: string) {
+  const ids = new Set<string>();
+  const stack = [folderId];
+
+  while (stack.length) {
+    const current = stack.pop();
+
+    if (!current || ids.has(current)) {
+      continue;
+    }
+
+    ids.add(current);
+    for (const folder of folders) {
+      if (folder.parentId === current) {
+        stack.push(folder.id);
+      }
+    }
+  }
+
+  return ids;
+}
+
+function folderLectureCount(
+  folders: ArchiveFolder[],
+  lectures: Lecture[],
+  folderId: string
+) {
+  const ids = folderDescendantIds(folders, folderId);
+  return lectures.filter((lecture) => lecture.folderId && ids.has(lecture.folderId))
+    .length;
+}
+
 function loadImageFromFile(file: File) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
@@ -557,7 +616,13 @@ function loadState(): VaultState {
   }
 
   try {
-    return { ...emptyState, ...JSON.parse(raw) };
+    const parsed = { ...emptyState, ...JSON.parse(raw) } as VaultState;
+    return {
+      ...parsed,
+      archiveFolders: Array.isArray(parsed.archiveFolders)
+        ? parsed.archiveFolders
+        : []
+    };
   } catch {
     return sampleState;
   }
@@ -570,8 +635,10 @@ export default function LectureVaultApp() {
   const [selectedLectureId, setSelectedLectureId] = useState("lecture-gradient");
   const [selectedExamId, setSelectedExamId] = useState("exam-1");
   const [selectedGuideId, setSelectedGuideId] = useState("");
+  const [selectedArchiveFolderId, setSelectedArchiveFolderId] = useState("all");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("Local archive ready.");
+  const [archiveFolderName, setArchiveFolderName] = useState("");
   const [courseForm, setCourseForm] = useState({
     code: "",
     name: "",
@@ -616,18 +683,30 @@ export default function LectureVaultApp() {
 
   const archiveLectures = useMemo(() => {
     const term = query.trim().toLowerCase();
+    const selectedFolderIds =
+      selectedArchiveFolderId === "all" || selectedArchiveFolderId === "unfiled"
+        ? new Set<string>()
+        : folderDescendantIds(state.archiveFolders, selectedArchiveFolderId);
+
     return state.lectures.filter((lecture) => {
+      const matchesCourse = lecture.courseId === selectedCourseId;
+      const matchesFolder =
+        selectedArchiveFolderId === "all"
+          ? true
+          : selectedArchiveFolderId === "unfiled"
+            ? !lecture.folderId
+            : Boolean(lecture.folderId && selectedFolderIds.has(lecture.folderId));
       const course = state.courses.find((item) => item.id === lecture.courseId);
       const transcript = state.transcripts.find(
         (item) => item.lectureId === lecture.id
       );
-      return [lecture.title, lecture.summary, lecture.date, course?.name, course?.code, transcript?.text]
+      return matchesCourse && matchesFolder && [lecture.title, lecture.summary, lecture.date, course?.name, course?.code, transcript?.text]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
         .includes(term);
     });
-  }, [query, state]);
+  }, [query, selectedArchiveFolderId, selectedCourseId, state]);
 
   const selectedExamLectures = selectedExam
     ? state.examItems
@@ -637,6 +716,20 @@ export default function LectureVaultApp() {
         )
         .filter((lecture): lecture is Lecture => Boolean(lecture))
     : [];
+
+  useEffect(() => {
+    if (
+      selectedArchiveFolderId !== "all" &&
+      selectedArchiveFolderId !== "unfiled" &&
+      !state.archiveFolders.some(
+        (folder) =>
+          folder.id === selectedArchiveFolderId &&
+          folder.courseId === selectedCourseId
+      )
+    ) {
+      setSelectedArchiveFolderId("all");
+    }
+  }, [selectedArchiveFolderId, selectedCourseId, state.archiveFolders]);
   const selectedExamGuide = selectedExam
     ? state.studyGuides.find(
         (guide) => guide.examWorkspaceId === selectedExam.id
@@ -669,6 +762,105 @@ export default function LectureVaultApp() {
     setCourseForm({ code: "", name: "", term: "" });
     setSelectedCourseId(course.id);
     setStatus(`Created ${course.code}.`);
+  }
+
+  function addArchiveFolder(event: FormEvent) {
+    event.preventDefault();
+    const name = archiveFolderName.trim();
+
+    if (!name) {
+      setStatus("Name the folder before adding it.");
+      return;
+    }
+
+    const parentId =
+      selectedArchiveFolderId === "all" || selectedArchiveFolderId === "unfiled"
+        ? undefined
+        : selectedArchiveFolderId;
+    const folder: ArchiveFolder = {
+      id: uid("folder"),
+      courseId: selectedCourseId,
+      parentId,
+      name,
+      createdAt: new Date().toISOString()
+    };
+
+    setState((current) => ({
+      ...current,
+      archiveFolders: [...current.archiveFolders, folder]
+    }));
+    setArchiveFolderName("");
+    setSelectedArchiveFolderId(folder.id);
+    setStatus(`Added folder "${name}".`);
+  }
+
+  function renameArchiveFolder() {
+    const folder = state.archiveFolders.find(
+      (item) => item.id === selectedArchiveFolderId
+    );
+
+    if (!folder) {
+      setStatus("Select a folder to rename.");
+      return;
+    }
+
+    const nextName = window.prompt("Rename folder", folder.name)?.trim();
+
+    if (!nextName || nextName === folder.name) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      archiveFolders: current.archiveFolders.map((item) =>
+        item.id === folder.id ? { ...item, name: nextName } : item
+      )
+    }));
+    setStatus(`Renamed folder to "${nextName}".`);
+  }
+
+  function deleteArchiveFolder() {
+    const folder = state.archiveFolders.find(
+      (item) => item.id === selectedArchiveFolderId
+    );
+
+    if (!folder) {
+      setStatus("Select a folder to delete.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete folder "${folder.name}"? Lectures will stay archived and move to the parent folder.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const parentId = folder.parentId;
+    setState((current) => ({
+      ...current,
+      archiveFolders: current.archiveFolders
+        .filter((item) => item.id !== folder.id)
+        .map((item) =>
+          item.parentId === folder.id ? { ...item, parentId } : item
+        ),
+      lectures: current.lectures.map((lecture) =>
+        lecture.folderId === folder.id ? { ...lecture, folderId: parentId } : lecture
+      )
+    }));
+    setSelectedArchiveFolderId(parentId || "all");
+    setStatus(`Deleted folder "${folder.name}". Archive items were not deleted.`);
+  }
+
+  function moveLectureToFolder(lectureId: string, folderId?: string) {
+    setState((current) => ({
+      ...current,
+      lectures: current.lectures.map((lecture) =>
+        lecture.id === lectureId ? { ...lecture, folderId } : lecture
+      )
+    }));
+    setStatus(folderId ? "Moved lecture into folder." : "Moved lecture to Unfiled.");
   }
 
   async function saveCapture(event: FormEvent) {
@@ -706,6 +898,12 @@ export default function LectureVaultApp() {
     const lecture: Lecture = {
       id: lectureId,
       courseId: captureForm.courseId,
+      folderId:
+        captureForm.courseId === selectedCourseId &&
+        selectedArchiveFolderId !== "all" &&
+        selectedArchiveFolderId !== "unfiled"
+          ? selectedArchiveFolderId
+          : undefined,
       title,
       date: captureForm.date,
       summary:
@@ -988,6 +1186,7 @@ export default function LectureVaultApp() {
   function resetDemo() {
     setState(sampleState);
     setSelectedCourseId("course-calculus");
+    setSelectedArchiveFolderId("all");
     setSelectedLectureId("lecture-gradient");
     setSelectedExamId("exam-1");
     setSelectedGuideId("");
@@ -1179,7 +1378,10 @@ export default function LectureVaultApp() {
               </label>
               <select
                 value={selectedCourseId}
-                onChange={(event) => setSelectedCourseId(event.target.value)}
+                onChange={(event) => {
+                  setSelectedCourseId(event.target.value);
+                  setSelectedArchiveFolderId("all");
+                }}
               >
                 {state.courses.map((course) => (
                   <option key={course.id} value={course.id}>
@@ -1189,29 +1391,131 @@ export default function LectureVaultApp() {
               </select>
             </div>
 
-            <div className="lecture-grid">
-              {archiveLectures.map((lecture) => (
-                <LectureCard
-                  key={lecture.id}
-                  lecture={lecture}
-                  courseLabel={courseLabel}
-                  mediaCount={
-                    state.mediaItems.filter(
-                      (item) => item.lectureId === lecture.id
-                    ).length
-                  }
-                  conceptCount={
-                    state.concepts.filter(
-                      (concept) => concept.lectureId === lecture.id
-                    ).length
-                  }
-                  onOpen={() => {
-                    setSelectedLectureId(lecture.id);
-                    setScreen("lecture");
-                  }}
-                  onAdd={() => addLectureToExam(lecture.id)}
+            <div className="archive-organizer">
+              <aside className="panel archive-folder-panel">
+                <div className="section-heading">
+                  <div>
+                    <span className="pill">Folders</span>
+                    <h3>Archive Tree</h3>
+                  </div>
+                </div>
+                <form className="folder-form" onSubmit={addArchiveFolder}>
+                  <input
+                    value={archiveFolderName}
+                    onChange={(event) => setArchiveFolderName(event.target.value)}
+                    placeholder={
+                      selectedArchiveFolderId === "all" ||
+                      selectedArchiveFolderId === "unfiled"
+                        ? "New folder"
+                        : "New subfolder"
+                    }
+                  />
+                  <button type="submit">Add</button>
+                </form>
+                <div className="folder-actions">
+                  <button
+                    type="button"
+                    onClick={renameArchiveFolder}
+                    disabled={
+                      selectedArchiveFolderId === "all" ||
+                      selectedArchiveFolderId === "unfiled"
+                    }
+                  >
+                    Rename
+                  </button>
+                  <button
+                    className="danger"
+                    type="button"
+                    onClick={deleteArchiveFolder}
+                    disabled={
+                      selectedArchiveFolderId === "all" ||
+                      selectedArchiveFolderId === "unfiled"
+                    }
+                  >
+                    Delete
+                  </button>
+                </div>
+                <ArchiveFolderTree
+                  folders={state.archiveFolders.filter(
+                    (folder) => folder.courseId === selectedCourseId
+                  )}
+                  lectures={state.lectures.filter(
+                    (lecture) => lecture.courseId === selectedCourseId
+                  )}
+                  selectedFolderId={selectedArchiveFolderId}
+                  onSelect={setSelectedArchiveFolderId}
+                  onDropLecture={moveLectureToFolder}
                 />
-              ))}
+              </aside>
+
+              <section className="archive-list-panel">
+                <div className="section-heading">
+                  <div>
+                    <span className="pill">
+                      {archiveLectures.length} item
+                      {archiveLectures.length === 1 ? "" : "s"}
+                    </span>
+                    <h3>Folder Contents</h3>
+                  </div>
+                </div>
+                <div className="lecture-grid compact">
+                  {archiveLectures.map((lecture) => (
+                    <LectureCard
+                      key={lecture.id}
+                      lecture={lecture}
+                      courseLabel={courseLabel}
+                      mediaCount={
+                        state.mediaItems.filter(
+                          (item) => item.lectureId === lecture.id
+                        ).length
+                      }
+                      conceptCount={
+                        state.concepts.filter(
+                          (concept) => concept.lectureId === lecture.id
+                        ).length
+                      }
+                      onOpen={() => {
+                        setSelectedLectureId(lecture.id);
+                      }}
+                      onAdd={() => addLectureToExam(lecture.id)}
+                    />
+                  ))}
+                  {!archiveLectures.length ? (
+                    <p className="empty panel">
+                      No lectures in this folder yet. Drag archive cards into
+                      folders to organize them.
+                    </p>
+                  ) : null}
+                </div>
+              </section>
+
+              <aside className="panel side-panel">
+                <h3>Selected Lecture</h3>
+                {selectedLecture ? (
+                  <>
+                    <strong>{selectedLecture.title}</strong>
+                    <span>{courseLabel(selectedLecture.courseId)}</span>
+                    <small>{selectedLecture.date}</small>
+                    <p>{selectedLecture.summary}</p>
+                    <div className="button-row stacked">
+                      <button
+                        type="button"
+                        onClick={() => setScreen("lecture")}
+                      >
+                        Open detail
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => addLectureToExam(selectedLecture.id)}
+                      >
+                        Add to current exam
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="empty">Select an archive item to inspect it.</p>
+                )}
+              </aside>
             </div>
           </section>
         ) : null}
@@ -1649,6 +1953,86 @@ function Dashboard({
         </section>
       </div>
     </section>
+  );
+}
+
+function ArchiveFolderTree({
+  folders,
+  lectures,
+  selectedFolderId,
+  onSelect,
+  onDropLecture
+}: {
+  folders: ArchiveFolder[];
+  lectures: Lecture[];
+  selectedFolderId: string;
+  onSelect: (folderId: string) => void;
+  onDropLecture: (lectureId: string, folderId?: string) => void;
+}) {
+  const rootFolders = folders.filter((folder) => !folder.parentId);
+  const unfiledCount = lectures.filter((lecture) => !lecture.folderId).length;
+
+  function allowDrop(event: DragEvent) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }
+
+  function dropOnFolder(event: DragEvent, folderId?: string) {
+    event.preventDefault();
+    const lectureId = event.dataTransfer.getData("text/lecture-id");
+
+    if (lectureId) {
+      onDropLecture(lectureId, folderId);
+    }
+  }
+
+  function renderFolder(folder: ArchiveFolder, depth = 0) {
+    const childFolders = folders.filter((item) => item.parentId === folder.id);
+    const count = folderLectureCount(folders, lectures, folder.id);
+
+    return (
+      <div className="folder-node" key={folder.id}>
+        <button
+          className={selectedFolderId === folder.id ? "active" : ""}
+          style={{ paddingLeft: `${12 + depth * 16}px` }}
+          type="button"
+          onClick={() => onSelect(folder.id)}
+          onDragOver={allowDrop}
+          onDrop={(event) => dropOnFolder(event, folder.id)}
+        >
+          <span className="folder-icon" aria-hidden="true" />
+          <span>{folder.name}</span>
+          <small>{count}</small>
+        </button>
+        {childFolders.map((child) => renderFolder(child, depth + 1))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="archive-folder-tree">
+      <button
+        className={selectedFolderId === "all" ? "active" : ""}
+        type="button"
+        onClick={() => onSelect("all")}
+      >
+        <span className="folder-icon" aria-hidden="true" />
+        <span>All course materials</span>
+        <small>{lectures.length}</small>
+      </button>
+      <button
+        className={selectedFolderId === "unfiled" ? "active" : ""}
+        type="button"
+        onClick={() => onSelect("unfiled")}
+        onDragOver={allowDrop}
+        onDrop={(event) => dropOnFolder(event)}
+      >
+        <span className="folder-icon" aria-hidden="true" />
+        <span>Unfiled</span>
+        <small>{unfiledCount}</small>
+      </button>
+      {rootFolders.map((folder) => renderFolder(folder))}
+    </div>
   );
 }
 
