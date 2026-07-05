@@ -66,6 +66,19 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-05 - Exam Bucket to Workspace Sync
+
+- Linked archive folders whose names match exam workspace names in the same course to the corresponding exam workspace.
+- Moving a lecture into an exam-named archive bucket now adds that lecture as an exam workspace source.
+- Moving a lecture out of an exam-named archive bucket now removes that bucket-created workspace source reference.
+- Existing localStorage data is reconciled on load so lectures already sitting in matching exam buckets are added to the matching workspace.
+- Creating a new exam workspace now creates a matching top-level archive bucket when one does not already exist.
+- Removing a lecture from an exam workspace now moves it out of the matching exam bucket so it does not immediately sync back in.
+- Archive tree labels matching exam buckets as workspace-linked.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-05 - Course-Aware Archive Tree and Lecture Deletion
 
 - Changed the archive tree to show every course as a top-level navigation group instead of only showing folders for the currently selected course.

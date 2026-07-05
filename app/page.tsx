@@ -437,6 +437,63 @@ function folderLectureCount(
     .length;
 }
 
+function normalizedWorkspaceName(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function matchingExamForArchiveFolder(
+  folder: ArchiveFolder,
+  exams: ExamWorkspace[]
+) {
+  const folderName = normalizedWorkspaceName(folder.name);
+
+  return exams.find(
+    (exam) =>
+      exam.courseId === folder.courseId &&
+      normalizedWorkspaceName(exam.name) === folderName
+  );
+}
+
+function examItemExists(
+  examItems: ExamWorkspaceItem[],
+  examWorkspaceId: string,
+  lectureId: string
+) {
+  return examItems.some(
+    (item) =>
+      item.examWorkspaceId === examWorkspaceId && item.lectureId === lectureId
+  );
+}
+
+function pendingExamBucketLinks(state: VaultState) {
+  return state.lectures.flatMap((lecture) => {
+    if (!lecture.folderId) {
+      return [];
+    }
+
+    const folder = state.archiveFolders.find(
+      (item) => item.id === lecture.folderId
+    );
+    const exam = folder
+      ? matchingExamForArchiveFolder(folder, state.exams)
+      : undefined;
+
+    if (
+      !exam ||
+      examItemExists(state.examItems, exam.id, lecture.id)
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        examWorkspaceId: exam.id,
+        lectureId: lecture.id
+      }
+    ];
+  });
+}
+
 function loadImageFromFile(file: File) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
@@ -673,6 +730,40 @@ export default function LectureVaultApp() {
       setStatus(`Archive save failed: ${message}`);
     }
   }, [state]);
+
+  useEffect(() => {
+    const missingLinks = pendingExamBucketLinks(state);
+
+    if (!missingLinks.length) {
+      return;
+    }
+
+    setState((current) => {
+      const currentMissingLinks = pendingExamBucketLinks(current);
+
+      if (!currentMissingLinks.length) {
+        return current;
+      }
+
+      const createdAt = new Date().toISOString();
+
+      return {
+        ...current,
+        examItems: [
+          ...currentMissingLinks.map((link) => ({
+            id: uid("exam-item"),
+            examWorkspaceId: link.examWorkspaceId,
+            lectureId: link.lectureId,
+            addedAt: createdAt
+          })),
+          ...current.examItems
+        ]
+      };
+    });
+    setStatus(
+      `Synced ${missingLinks.length} archive bucket item${missingLinks.length === 1 ? "" : "s"} into matching exam workspace.`
+    );
+  }, [state.archiveFolders, state.examItems, state.exams, state.lectures]);
 
   const selectedCourse = state.courses.find(
     (course) => course.id === selectedCourseId
@@ -918,13 +1009,83 @@ export default function LectureVaultApp() {
       return;
     }
 
-    setState((current) => ({
-      ...current,
-      lectures: current.lectures.map((lecture) =>
-        lecture.id === lectureId ? { ...lecture, folderId } : lecture
-      )
-    }));
-    setStatus(folderId ? "Moved lecture into folder." : "Moved lecture to Unfiled.");
+    const matchingExam = folder
+      ? matchingExamForArchiveFolder(folder, state.exams)
+      : undefined;
+    const previousFolder = lecture.folderId
+      ? state.archiveFolders.find((item) => item.id === lecture.folderId)
+      : undefined;
+    const previousMatchingExam = previousFolder
+      ? matchingExamForArchiveFolder(previousFolder, state.exams)
+      : undefined;
+    const wasAlreadyInExam = matchingExam
+      ? examItemExists(state.examItems, matchingExam.id, lectureId)
+      : false;
+    const isLeavingExamBucket =
+      previousMatchingExam &&
+      previousMatchingExam.id !== matchingExam?.id;
+
+    setState((current) => {
+      const currentLecture = current.lectures.find((item) => item.id === lectureId);
+      const previousFolder = currentLecture?.folderId
+        ? current.archiveFolders.find((item) => item.id === currentLecture.folderId)
+        : undefined;
+      const previousMatchingExam = previousFolder
+        ? matchingExamForArchiveFolder(previousFolder, current.exams)
+        : undefined;
+      const currentFolder = folderId
+        ? current.archiveFolders.find((item) => item.id === folderId)
+        : undefined;
+      const currentMatchingExam = currentFolder
+        ? matchingExamForArchiveFolder(currentFolder, current.exams)
+        : undefined;
+      const shouldRemovePreviousExamItem =
+        previousMatchingExam &&
+        previousMatchingExam.id !== currentMatchingExam?.id;
+      const examItemsAfterRemoval = shouldRemovePreviousExamItem
+        ? current.examItems.filter(
+            (item) =>
+              !(
+                item.examWorkspaceId === previousMatchingExam.id &&
+                item.lectureId === lectureId
+              )
+          )
+        : current.examItems;
+      const shouldAddExamItem = currentMatchingExam
+        ? !examItemExists(examItemsAfterRemoval, currentMatchingExam.id, lectureId)
+        : false;
+
+      return {
+        ...current,
+        lectures: current.lectures.map((lecture) =>
+          lecture.id === lectureId ? { ...lecture, folderId } : lecture
+        ),
+        examItems: currentMatchingExam && shouldAddExamItem
+          ? [
+              {
+                id: uid("exam-item"),
+                examWorkspaceId: currentMatchingExam.id,
+                lectureId,
+                addedAt: new Date().toISOString()
+              },
+              ...examItemsAfterRemoval
+            ]
+          : examItemsAfterRemoval
+      };
+    });
+
+    if (matchingExam && !wasAlreadyInExam) {
+      setSelectedExamId(matchingExam.id);
+      setStatus(`Moved lecture into ${folder?.name} and added it to ${matchingExam.name}.`);
+    } else if (matchingExam) {
+      setStatus(`Moved lecture into ${folder?.name}. It was already in ${matchingExam.name}.`);
+    } else if (isLeavingExamBucket) {
+      setStatus(
+        `Moved lecture out of ${previousFolder?.name}. It was removed from ${previousMatchingExam.name}.`
+      );
+    } else {
+      setStatus(folderId ? "Moved lecture into folder." : "Moved lecture to Unfiled.");
+    }
   }
 
   async function saveCapture(event: FormEvent) {
@@ -959,15 +1120,17 @@ export default function LectureVaultApp() {
       createdAt
     };
 
+    const assignedFolderId =
+      captureForm.courseId === selectedCourseId &&
+      selectedArchiveFolderId !== "all" &&
+      selectedArchiveFolderId !== "unfiled"
+        ? selectedArchiveFolderId
+        : undefined;
+
     const lecture: Lecture = {
       id: lectureId,
       courseId: captureForm.courseId,
-      folderId:
-        captureForm.courseId === selectedCourseId &&
-        selectedArchiveFolderId !== "all" &&
-        selectedArchiveFolderId !== "unfiled"
-          ? selectedArchiveFolderId
-          : undefined,
+      folderId: assignedFolderId,
       title,
       date: captureForm.date,
       summary:
@@ -979,13 +1142,33 @@ export default function LectureVaultApp() {
       createdAt
     };
 
-    setState((current) => ({
-      ...current,
-      lectures: [lecture, ...current.lectures],
-      mediaItems: [...mediaItems, ...current.mediaItems],
-      transcripts: [transcript, ...current.transcripts],
-      concepts: [...extractConcepts(lectureId, transcript), ...current.concepts]
-    }));
+    setState((current) => {
+      const assignedFolder = assignedFolderId
+        ? current.archiveFolders.find((item) => item.id === assignedFolderId)
+        : undefined;
+      const matchingExam = assignedFolder
+        ? matchingExamForArchiveFolder(assignedFolder, current.exams)
+        : undefined;
+
+      return {
+        ...current,
+        lectures: [lecture, ...current.lectures],
+        mediaItems: [...mediaItems, ...current.mediaItems],
+        transcripts: [transcript, ...current.transcripts],
+        concepts: [...extractConcepts(lectureId, transcript), ...current.concepts],
+        examItems: matchingExam
+          ? [
+              {
+                id: uid("exam-item"),
+                examWorkspaceId: matchingExam.id,
+                lectureId,
+                addedAt: createdAt
+              },
+              ...current.examItems
+            ]
+          : current.examItems
+      };
+    });
     setSelectedLectureId(lectureId);
     setCaptureFiles([]);
     setCaptureForm((current) => ({
@@ -994,7 +1177,22 @@ export default function LectureVaultApp() {
       transcript: "",
       summary: ""
     }));
-    setStatus(`Saved ${title} to the permanent archive.`);
+    const assignedFolder = assignedFolderId
+      ? state.archiveFolders.find((item) => item.id === assignedFolderId)
+      : undefined;
+    const assignedExam = assignedFolder
+      ? matchingExamForArchiveFolder(assignedFolder, state.exams)
+      : undefined;
+
+    if (assignedExam) {
+      setSelectedExamId(assignedExam.id);
+    }
+
+    setStatus(
+      assignedExam
+        ? `Saved ${title} and added it to ${assignedExam.name}.`
+        : `Saved ${title} to the permanent archive.`
+    );
     setScreen("lecture");
   }
 
@@ -1004,21 +1202,43 @@ export default function LectureVaultApp() {
       return;
     }
 
+    const createdAt = new Date().toISOString();
     const exam: ExamWorkspace = {
       id: uid("exam"),
       courseId: examForm.courseId,
       name: examForm.name.trim(),
       startsOn: examForm.startsOn,
-      createdAt: new Date().toISOString()
+      createdAt
     };
 
-    setState((current) => ({
-      ...current,
-      exams: [exam, ...current.exams]
-    }));
+    setState((current) => {
+      const matchingFolderExists = current.archiveFolders.some(
+        (folder) =>
+          folder.courseId === exam.courseId &&
+          !folder.parentId &&
+          normalizedWorkspaceName(folder.name) ===
+            normalizedWorkspaceName(exam.name)
+      );
+
+      return {
+        ...current,
+        archiveFolders: matchingFolderExists
+          ? current.archiveFolders
+          : [
+              {
+                id: uid("folder"),
+                courseId: exam.courseId,
+                name: exam.name,
+                createdAt
+              },
+              ...current.archiveFolders
+            ],
+        exams: [exam, ...current.exams]
+      };
+    });
     setSelectedExamId(exam.id);
     setExamForm((current) => ({ ...current, name: "", startsOn: "" }));
-    setStatus(`Created ${exam.name}.`);
+    setStatus(`Created ${exam.name} and its matching archive bucket.`);
     setScreen("exam");
   }
 
@@ -1078,9 +1298,27 @@ export default function LectureVaultApp() {
             item.examWorkspaceId === selectedExam.id &&
             item.lectureId === lectureId
           )
-      )
+      ),
+      lectures: current.lectures.map((lecture) => {
+        if (lecture.id !== lectureId || !lecture.folderId) {
+          return lecture;
+        }
+
+        const folder = current.archiveFolders.find(
+          (item) => item.id === lecture.folderId
+        );
+        const matchingExam = folder
+          ? matchingExamForArchiveFolder(folder, current.exams)
+          : undefined;
+
+        return matchingExam?.id === selectedExam.id
+          ? { ...lecture, folderId: undefined }
+          : lecture;
+      })
     }));
-    setStatus("Removed from exam workspace only. Archive item was not deleted.");
+    setStatus(
+      "Removed from exam workspace. Archive item was kept and moved out of the matching exam bucket."
+    );
   }
 
   function deleteExam(examId: string) {
@@ -1530,6 +1768,7 @@ export default function LectureVaultApp() {
                   courses={state.courses}
                   folders={state.archiveFolders}
                   lectures={state.lectures}
+                  exams={state.exams}
                   selectedCourseId={selectedCourseId}
                   selectedFolderId={selectedArchiveFolderId}
                   onSelectCourse={selectArchiveCourse}
@@ -2059,6 +2298,7 @@ function ArchiveFolderTree({
   courses,
   folders,
   lectures,
+  exams,
   selectedCourseId,
   selectedFolderId,
   onSelectCourse,
@@ -2068,6 +2308,7 @@ function ArchiveFolderTree({
   courses: Course[];
   folders: ArchiveFolder[];
   lectures: Lecture[];
+  exams: ExamWorkspace[];
   selectedCourseId: string;
   selectedFolderId: string;
   onSelectCourse: (courseId: string) => void;
@@ -2102,6 +2343,7 @@ function ArchiveFolderTree({
     const courseFolders = folders.filter((item) => item.courseId === folder.courseId);
     const childFolders = courseFolders.filter((item) => item.parentId === folder.id);
     const count = folderLectureCount(folders, lectures, folder.id);
+    const matchingExam = matchingExamForArchiveFolder(folder, exams);
 
     return (
       <div className="folder-node" key={folder.id}>
@@ -2118,7 +2360,7 @@ function ArchiveFolderTree({
           onDrop={(event) => dropOnFolder(event, folder.id)}
         >
           <span className="folder-icon" aria-hidden="true" />
-          <span>{folder.name}</span>
+          <span>{matchingExam ? `${folder.name} workspace` : folder.name}</span>
           <small>{count}</small>
         </button>
         {childFolders.map((child) => renderFolder(child, depth + 1))}
