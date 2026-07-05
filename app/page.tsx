@@ -86,7 +86,18 @@ type StudyGuide = {
   title: string;
   content: string;
   sourceLectureIds: string[];
+  figures?: ReviewFigure[];
+  instructions?: string;
+  generatedBy?: "openai" | "local-fallback";
   createdAt: string;
+};
+
+type ReviewFigure = {
+  label: string;
+  lectureId: string;
+  lectureTitle: string;
+  name: string;
+  dataUrl: string;
 };
 
 type VaultState = {
@@ -471,6 +482,10 @@ export default function LectureVaultApp() {
     name: "",
     startsOn: ""
   });
+  const [examInstructions, setExamInstructions] = useState(
+    "Prioritize high-yield concepts, formulas, worked problem patterns, common mistakes, and a practice checklist."
+  );
+  const [isReviewGenerating, setIsReviewGenerating] = useState(false);
 
   useEffect(() => {
     setState(loadState());
@@ -514,6 +529,11 @@ export default function LectureVaultApp() {
         )
         .filter((lecture): lecture is Lecture => Boolean(lecture))
     : [];
+  const selectedExamGuide = selectedExam
+    ? state.studyGuides.find(
+        (guide) => guide.examWorkspaceId === selectedExam.id
+      )
+    : undefined;
 
   function courseLabel(courseId: string) {
     const course = state.courses.find((item) => item.id === courseId);
@@ -701,34 +721,141 @@ export default function LectureVaultApp() {
     );
   }
 
-  function generateGuide() {
+  async function generateGuide() {
     if (!selectedExam) {
       return;
     }
 
-    const sourceLectureIds = selectedExamLectures.map((lecture) => lecture.id);
-    const guide: StudyGuide = {
-      id: uid("guide"),
-      examWorkspaceId: selectedExam.id,
-      title: `${selectedExam.name} Study Guide`,
-      content: buildStudyGuide(
-        selectedExam,
-        selectedExamLectures,
-        state.transcripts,
-        state.concepts,
-        courseLabel(selectedExam.courseId)
-      ),
-      sourceLectureIds,
-      createdAt: new Date().toISOString()
-    };
+    if (!selectedExamLectures.length) {
+      setStatus("Add archive materials before generating an exam review.");
+      return;
+    }
 
-    setState((current) => ({
-      ...current,
-      studyGuides: [guide, ...current.studyGuides]
-    }));
-    setSelectedGuideId(guide.id);
-    setStatus("Study guide generated from selected exam materials only.");
-    setScreen("guide");
+    setIsReviewGenerating(true);
+    setStatus("Generating AI exam review from selected workspace materials...");
+
+    const sourceLectureIds = selectedExamLectures.map((lecture) => lecture.id);
+    const selectedTranscripts = state.transcripts.filter((transcript) =>
+      sourceLectureIds.includes(transcript.lectureId)
+    );
+    const selectedConcepts = state.concepts.filter((concept) =>
+      sourceLectureIds.includes(concept.lectureId)
+    );
+    const selectedMediaItems = state.mediaItems.filter((item) =>
+      sourceLectureIds.includes(item.lectureId)
+    );
+
+    try {
+      const response = await fetch("/api/exam-review", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          examName: selectedExam.name,
+          courseName: courseLabel(selectedExam.courseId),
+          instructions: examInstructions,
+          lectures: selectedExamLectures,
+          transcripts: selectedTranscripts,
+          concepts: selectedConcepts,
+          mediaItems: selectedMediaItems
+        })
+      });
+      const data = (await response.json()) as {
+        text?: string;
+        figures?: ReviewFigure[];
+        generatedBy?: "openai" | "local-fallback";
+        error?: string;
+      };
+
+      if (!response.ok || !data.text) {
+        throw new Error(data.error || "Could not generate exam review.");
+      }
+
+      const guide: StudyGuide = {
+        id: uid("guide"),
+        examWorkspaceId: selectedExam.id,
+        title: `${selectedExam.name} Exam Review`,
+        content: data.text,
+        sourceLectureIds,
+        figures: data.figures || [],
+        instructions: examInstructions,
+        generatedBy: data.generatedBy || "openai",
+        createdAt: new Date().toISOString()
+      };
+
+      setState((current) => ({
+        ...current,
+        studyGuides: [
+          guide,
+          ...current.studyGuides.filter(
+            (item) => item.examWorkspaceId !== selectedExam.id
+          )
+        ]
+      }));
+      setSelectedGuideId(guide.id);
+      setStatus(
+        data.generatedBy === "local-fallback"
+          ? "Review generated locally because OPENAI_API_KEY is not configured."
+          : "AI exam review generated from selected workspace materials."
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not generate exam review.";
+      setStatus(message);
+    } finally {
+      setIsReviewGenerating(false);
+    }
+  }
+
+  async function downloadExamReviewPdf(guide = selectedExamGuide) {
+    if (!selectedExam || !guide) {
+      setStatus("Generate an exam review before downloading the PDF.");
+      return;
+    }
+
+    setIsReviewGenerating(true);
+    setStatus("Rendering exam review PDF with KaTeX...");
+
+    try {
+      const response = await fetch("/api/exam-review/pdf", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          title: guide.title,
+          courseName: courseLabel(selectedExam.courseId),
+          review: guide.content,
+          figures: guide.figures || []
+        })
+      });
+
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string };
+        throw new Error(data.error || "Could not render exam review PDF.");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${selectedExam.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "exam-review"}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setStatus("Exam review PDF downloaded.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not render exam review PDF.";
+      setStatus(message);
+    } finally {
+      setIsReviewGenerating(false);
+    }
   }
 
   function resetDemo() {
@@ -1242,10 +1369,16 @@ export default function LectureVaultApp() {
             courses={state.courses}
             mediaItems={state.mediaItems}
             concepts={state.concepts}
+            transcripts={state.transcripts}
+            selectedGuide={selectedExamGuide}
+            instructions={examInstructions}
+            isGenerating={isReviewGenerating}
             courseLabel={courseLabel}
+            onInstructionsChange={setExamInstructions}
             onAdd={addLectureToExam}
             onRemove={removeLectureFromExam}
             onGenerate={generateGuide}
+            onDownloadPdf={downloadExamReviewPdf}
             onDelete={() => deleteExam(selectedExam.id)}
             onOpenLecture={(lectureId) => {
               setSelectedLectureId(lectureId);
@@ -1548,10 +1681,16 @@ function ExamDetail({
   courses,
   mediaItems,
   concepts,
+  transcripts,
+  selectedGuide,
+  instructions,
+  isGenerating,
   courseLabel,
+  onInstructionsChange,
   onAdd,
   onRemove,
   onGenerate,
+  onDownloadPdf,
   onDelete,
   onOpenLecture
 }: {
@@ -1561,10 +1700,16 @@ function ExamDetail({
   courses: Course[];
   mediaItems: MediaItem[];
   concepts: ExtractedConcept[];
+  transcripts: Transcript[];
+  selectedGuide?: StudyGuide;
+  instructions: string;
+  isGenerating: boolean;
   courseLabel: (id: string) => string;
+  onInstructionsChange: (value: string) => void;
   onAdd: (lectureId: string, examId?: string) => void;
   onRemove: (lectureId: string) => void;
-  onGenerate: () => void;
+  onGenerate: () => void | Promise<void>;
+  onDownloadPdf: () => void | Promise<void>;
   onDelete: () => void;
   onOpenLecture: (lectureId: string) => void;
 }) {
@@ -1592,6 +1737,18 @@ function ExamDetail({
 
     return haystack.includes(normalizedQuery);
   });
+  const selectedTranscriptCount = transcripts.filter((transcript) =>
+    selectedIds.has(transcript.lectureId)
+  ).length;
+  const selectedSegmentCount = transcripts
+    .filter((transcript) => selectedIds.has(transcript.lectureId))
+    .reduce((total, transcript) => total + transcript.segments.length, 0);
+  const selectedConceptCount = concepts.filter((concept) =>
+    selectedIds.has(concept.lectureId)
+  ).length;
+  const selectedImageCount = mediaItems.filter(
+    (item) => selectedIds.has(item.lectureId) && item.kind === "image"
+  ).length;
 
   return (
     <section className="exam-builder-layout">
@@ -1713,6 +1870,27 @@ function ExamDetail({
           original media.
         </p>
 
+        <div className="workflow-steps" aria-label="Exam review workflow">
+          {[
+            { number: "1", label: "Select sources", complete: lectures.length > 0 },
+            {
+              number: "2",
+              label: "Add instructions",
+              complete: instructions.trim().length > 0
+            },
+            { number: "3", label: "Generate review", complete: Boolean(selectedGuide) },
+            { number: "4", label: "Download PDF", complete: Boolean(selectedGuide) }
+          ].map((step) => (
+            <div
+              className={step.complete ? "workflow-step complete" : "workflow-step"}
+              key={step.label}
+            >
+              <strong>{step.number}</strong>
+              <span>{step.label}</span>
+            </div>
+          ))}
+        </div>
+
         <div className="drop-instructions">
           <strong>Drop archive lectures here</strong>
           <span>
@@ -1730,7 +1908,7 @@ function ExamDetail({
                 <span>{lecture.date}</span>
               </button>
               <button type="button" onClick={() => onRemove(lecture.id)}>
-                Remove
+                Remove from exam
               </button>
             </div>
           ))}
@@ -1741,9 +1919,71 @@ function ExamDetail({
           ) : null}
         </div>
 
+        <div className="source-readiness">
+          <div>
+            <strong>{lectures.length}</strong>
+            <span>sources</span>
+          </div>
+          <div>
+            <strong>{selectedTranscriptCount}</strong>
+            <span>transcripts</span>
+          </div>
+          <div>
+            <strong>{selectedSegmentCount}</strong>
+            <span>segments</span>
+          </div>
+          <div>
+            <strong>{selectedConceptCount}</strong>
+            <span>concepts</span>
+          </div>
+          <div>
+            <strong>{selectedImageCount}</strong>
+            <span>images</span>
+          </div>
+        </div>
+
+        <label className="exam-instructions">
+          Exam review instructions
+          <textarea
+            value={instructions}
+            onChange={(event) => onInstructionsChange(event.target.value)}
+            rows={4}
+            placeholder="Example: focus on formulas, worked examples, boundary conditions, units, and common mistakes for Exam 2."
+          />
+        </label>
+
+        {selectedGuide ? (
+          <section className="review-preview" aria-label="Generated exam review preview">
+            <div className="section-heading">
+              <div>
+                <span className="pill">
+                  {selectedGuide.generatedBy === "local-fallback"
+                    ? "Local fallback"
+                    : "AI aggregation"}
+                </span>
+                <h3>Generated Review</h3>
+              </div>
+              <span>{new Date(selectedGuide.createdAt).toLocaleString()}</span>
+            </div>
+            <pre className="guide-preview compact">{selectedGuide.content}</pre>
+          </section>
+        ) : null}
+
         <div className="button-row">
-          <button className="primary" type="button" onClick={onGenerate}>
-            Generate Study Guide
+          <button
+            className="primary"
+            type="button"
+            onClick={() => void onGenerate()}
+            disabled={isGenerating || !lectures.length}
+          >
+            {isGenerating ? "Working..." : "Generate AI Review"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void onDownloadPdf()}
+            disabled={isGenerating || !selectedGuide}
+          >
+            Download Review PDF
           </button>
           <button className="danger" type="button" onClick={onDelete}>
             Delete Workspace
@@ -1765,6 +2005,13 @@ function ExamDetail({
               <small>
                 {lectureMedia.length} media item
                 {lectureMedia.length === 1 ? "" : "s"}
+              </small>
+              <small>
+                {
+                  transcripts.find((transcript) => transcript.lectureId === lecture.id)
+                    ?.segments.length || 0
+                }{" "}
+                transcript segments
               </small>
             </div>
           );

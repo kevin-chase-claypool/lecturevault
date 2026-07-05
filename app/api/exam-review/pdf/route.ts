@@ -1,0 +1,318 @@
+import katex from "katex";
+
+export const runtime = "nodejs";
+
+type ReviewFigure = {
+  label?: string;
+  lectureTitle?: string;
+  name?: string;
+  dataUrl?: string;
+};
+
+function jsonError(message: string, status: number) {
+  return Response.json({ error: message }, { status });
+}
+
+function cleanString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function escapeHtml(text: string) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function stripMarkdownMarks(text: string) {
+  return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1");
+}
+
+function renderInlineMath(text: string) {
+  return text
+    .split(/(\\\([\s\S]*?\\\))/g)
+    .map((part) => {
+      const inline = part.match(/^\\\(([\s\S]*?)\\\)$/);
+
+      if (!inline) {
+        return escapeHtml(part);
+      }
+
+      try {
+        return katex.renderToString(inline[1], {
+          displayMode: false,
+          throwOnError: false
+        });
+      } catch {
+        return escapeHtml(part);
+      }
+    })
+    .join("");
+}
+
+function renderDisplayMath(math: string) {
+  try {
+    return katex.renderToString(math, {
+      displayMode: true,
+      throwOnError: false
+    });
+  } catch {
+    return `<pre>${escapeHtml(math)}</pre>`;
+  }
+}
+
+function renderReviewMarkdown(markdown: string) {
+  const lines = markdown.trim().split(/\r?\n/);
+  const html: string[] = [];
+  let listItems: string[] = [];
+  let displayMath: string[] = [];
+  let inDisplayMath = false;
+
+  function flushList() {
+    if (!listItems.length) {
+      return;
+    }
+
+    html.push(
+      `<ul>${listItems
+        .map((item) => `<li>${renderInlineMath(stripMarkdownMarks(item))}</li>`)
+        .join("")}</ul>`
+    );
+    listItems = [];
+  }
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (line === "\\[") {
+      flushList();
+      inDisplayMath = true;
+      displayMath = [];
+      continue;
+    }
+
+    if (line === "\\]" && inDisplayMath) {
+      html.push(`<div class="math-block">${renderDisplayMath(displayMath.join("\n"))}</div>`);
+      inDisplayMath = false;
+      displayMath = [];
+      continue;
+    }
+
+    if (inDisplayMath) {
+      displayMath.push(rawLine);
+      continue;
+    }
+
+    if (line.startsWith("\\[") && line.endsWith("\\]") && line.length > 4) {
+      flushList();
+      html.push(`<div class="math-block">${renderDisplayMath(line.slice(2, -2).trim())}</div>`);
+      continue;
+    }
+
+    if (!line) {
+      flushList();
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,4})\s+(.+)$/);
+    if (heading) {
+      flushList();
+      const level = Math.min(heading[1].length + 1, 5);
+      html.push(`<h${level}>${renderInlineMath(stripMarkdownMarks(heading[2]))}</h${level}>`);
+      continue;
+    }
+
+    const bullet = line.match(/^[-*]\s+(.+)$/);
+    if (bullet) {
+      listItems.push(bullet[1]);
+      continue;
+    }
+
+    flushList();
+    html.push(`<p>${renderInlineMath(stripMarkdownMarks(line))}</p>`);
+  }
+
+  flushList();
+  return html.join("\n");
+}
+
+function figureHtml(figures: ReviewFigure[]) {
+  const usable = figures.filter((figure) => cleanString(figure.dataUrl));
+
+  if (!usable.length) {
+    return "";
+  }
+
+  return `<section class="figures">
+    <h2>Board Figure Appendix</h2>
+    ${usable
+      .map((figure) => {
+        const caption = `${cleanString(figure.label) || "Fig."}: ${
+          cleanString(figure.name) || "Board image"
+        }${
+          cleanString(figure.lectureTitle)
+            ? ` from ${cleanString(figure.lectureTitle)}`
+            : ""
+        }`;
+
+        return `<figure>
+          <img src="${escapeHtml(cleanString(figure.dataUrl))}" alt="${escapeHtml(caption)}" />
+          <figcaption>${escapeHtml(caption)}</figcaption>
+        </figure>`;
+      })
+      .join("\n")}
+  </section>`;
+}
+
+function buildHtml({
+  title,
+  courseName,
+  review,
+  figures
+}: {
+  title: string;
+  courseName: string;
+  review: string;
+  figures: ReviewFigure[];
+}) {
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.css" />
+  <style>
+    @page { size: Letter; margin: 0.65in; }
+    * { box-sizing: border-box; }
+    body {
+      color: #142033;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11.5pt;
+      line-height: 1.5;
+      margin: 0;
+    }
+    h1 {
+      border-bottom: 2px solid #172033;
+      font-size: 24pt;
+      line-height: 1.1;
+      margin: 0 0 0.2in;
+      padding-bottom: 0.12in;
+    }
+    h2 {
+      break-after: avoid;
+      color: #172033;
+      font-size: 17pt;
+      margin: 0.3in 0 0.08in;
+    }
+    h3, h4, h5 {
+      break-after: avoid;
+      color: #344054;
+      font-size: 12.5pt;
+      margin: 0.2in 0 0.05in;
+    }
+    p { margin: 0 0 0.1in; }
+    ul { margin: 0.04in 0 0.14in 0.22in; padding-left: 0.18in; }
+    li { margin: 0.04in 0; }
+    .meta { color: #526071; font-size: 10pt; margin: -0.1in 0 0.22in; }
+    .math-block { margin: 0.14in 0; overflow-wrap: anywhere; }
+    figure { break-inside: avoid; margin: 0.25in 0; page-break-inside: avoid; }
+    figure img {
+      border: 1px solid #d0d5dd;
+      display: block;
+      max-height: 8in;
+      max-width: 100%;
+      object-fit: contain;
+    }
+    figcaption { color: #526071; font-size: 9.5pt; margin-top: 0.06in; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  <div class="meta">${escapeHtml(courseName)}</div>
+  <main>${renderReviewMarkdown(review)}</main>
+  ${figureHtml(figures)}
+</body>
+</html>`;
+}
+
+function browserlessPdfUrl() {
+  const token = cleanString(process.env.BROWSERLESS_TOKEN);
+
+  if (!token) {
+    return "";
+  }
+
+  const endpoint =
+    cleanString(process.env.BROWSERLESS_PDF_ENDPOINT) ||
+    "https://production-sfo.browserless.io/pdf";
+  const url = new URL(endpoint);
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
+export async function POST(request: Request) {
+  const browserlessUrl = browserlessPdfUrl();
+
+  if (!browserlessUrl) {
+    return jsonError("Server is missing BROWSERLESS_TOKEN.", 500);
+  }
+
+  try {
+    const body = (await request.json()) as {
+      title?: string;
+      courseName?: string;
+      review?: string;
+      figures?: ReviewFigure[];
+    };
+    const review = cleanString(body.review);
+
+    if (!review) {
+      return jsonError("No review text was provided.", 400);
+    }
+
+    const html = buildHtml({
+      title: cleanString(body.title) || "Exam Review",
+      courseName: cleanString(body.courseName),
+      review,
+      figures: Array.isArray(body.figures) ? body.figures : []
+    });
+    const response = await fetch(browserlessUrl, {
+      method: "POST",
+      headers: {
+        "cache-control": "no-cache",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        html,
+        options: {
+          displayHeaderFooter: false,
+          format: "Letter",
+          margin: {
+            top: "0.65in",
+            right: "0.65in",
+            bottom: "0.65in",
+            left: "0.65in"
+          },
+          printBackground: true
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const message = await response.text();
+      return jsonError(message || "Browserless PDF render failed.", 502);
+    }
+
+    return new Response(await response.arrayBuffer(), {
+      headers: {
+        "content-disposition": 'attachment; filename="exam-review.pdf"',
+        "content-type": "application/pdf"
+      }
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Could not render exam review PDF.";
+    return jsonError(message, 500);
+  }
+}
