@@ -223,6 +223,41 @@ label {
   justify-content: start;
 }
 
+.cart-button {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  gap: 8px;
+  align-items: center;
+  border-color: #b5ded8;
+  background: #f2fbf9;
+  color: #07564e;
+}
+
+.cart-button.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.cart-button strong {
+  min-width: 24px;
+  min-height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--primary-dark);
+  font-size: 0.82rem;
+}
+
+.cart-button:not(.active) strong {
+  background: #d9f2ee;
+}
+
+.cart-icon {
+  font-weight: 900;
+}
+
 .button-row.stacked {
   grid-auto-flow: row;
 }

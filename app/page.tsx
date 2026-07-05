@@ -854,6 +854,7 @@ export default function LectureVaultApp() {
     .filter((lecture): lecture is Lecture =>
       Boolean(lecture && lecture.courseId === builderCourseId)
     );
+  const basketCount = builderSelectedLectures.length;
 
   useEffect(() => {
     if (
@@ -1244,18 +1245,47 @@ export default function LectureVaultApp() {
     setExamForm((current) => ({ ...current, courseId }));
   }
 
-  function toggleBuilderLecture(lectureId: string) {
+  function addLectureToBasket(lectureId: string) {
     const lecture = state.lectures.find((item) => item.id === lectureId);
 
-    if (!lecture || lecture.courseId !== builderCourseId) {
+    if (!lecture) {
+      setStatus("Could not find that lecture in the archive.");
       return;
     }
 
+    if (lecture.courseId !== builderCourseId) {
+      setExamBuilderCourse(lecture.courseId);
+    }
+
+    setBuilderSelectedLectureIds((current) => {
+      if (current.includes(lectureId)) {
+        return current;
+      }
+
+      const sameCourseIds = current.filter((id) =>
+        state.lectures.some(
+          (item) => item.id === id && item.courseId === lecture.courseId
+        )
+      );
+
+      return [...sameCourseIds, lectureId];
+    });
+    setStatus(`Added "${lecture.title}" to the exam basket.`);
+  }
+
+  function removeLectureFromBasket(lectureId: string) {
     setBuilderSelectedLectureIds((current) =>
-      current.includes(lectureId)
-        ? current.filter((id) => id !== lectureId)
-        : [...current, lectureId]
+      current.filter((id) => id !== lectureId)
     );
+    setStatus("Removed source from the exam basket.");
+  }
+
+  function toggleBuilderLecture(lectureId: string) {
+    if (builderSelectedLectureIds.includes(lectureId)) {
+      removeLectureFromBasket(lectureId);
+    } else {
+      addLectureToBasket(lectureId);
+    }
   }
 
   function addBuilderVisibleLectures() {
@@ -1307,7 +1337,7 @@ export default function LectureVaultApp() {
     setSelectedExamId(exam.id);
     setExamForm((current) => ({ ...current, name: "", startsOn: "" }));
     setBuilderSelectedLectureIds([]);
-    setStatus(`Created ${exam.name} from ${builderSelectedLectures.length} archive source${builderSelectedLectures.length === 1 ? "" : "s"}.`);
+    setStatus(`Checked out ${builderSelectedLectures.length} archive source${builderSelectedLectures.length === 1 ? "" : "s"} into ${exam.name}.`);
     setScreen("exam");
   }
 
@@ -1583,7 +1613,7 @@ export default function LectureVaultApp() {
             ["courses", "Courses"],
             ["archive", "Archive"],
             ["capture", "Upload / Record"],
-            ["builder", "New Exam Basket"],
+            ["builder", "Exam Basket"],
             ["exams", "Exam Baskets"]
           ].map(([id, label]) => (
             <button
@@ -1609,6 +1639,15 @@ export default function LectureVaultApp() {
             <h2>{screenTitle(screen)}</h2>
           </div>
           <div className="topbar-actions">
+            <button
+              className={basketCount ? "cart-button active" : "cart-button"}
+              type="button"
+              onClick={() => setScreen("builder")}
+              aria-label={`Exam basket with ${basketCount} selected source${basketCount === 1 ? "" : "s"}`}
+            >
+              <span className="cart-icon" aria-hidden="true">Cart</span>
+              <strong>{basketCount}</strong>
+            </button>
             <button type="button" onClick={() => setScreen("capture")}>
               New Capture
             </button>
@@ -1818,6 +1857,7 @@ export default function LectureVaultApp() {
                         setSelectedLectureId(lecture.id);
                         setScreen("lecture");
                       }}
+                      onAdd={() => addLectureToBasket(lecture.id)}
                       onDelete={() => deleteLectureFromArchive(lecture.id)}
                     />
                   ))}
@@ -1841,6 +1881,12 @@ export default function LectureVaultApp() {
                       <MathPreview text={selectedArchiveLecture.summary} />
                     </p>
                     <div className="button-row stacked">
+                      <button
+                        type="button"
+                        onClick={() => addLectureToBasket(selectedArchiveLecture.id)}
+                      >
+                        Add to Basket
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -2062,7 +2108,7 @@ export default function LectureVaultApp() {
               <div className="section-heading">
                 <div>
                   <span className="pill">Archive</span>
-                  <h3>Course Tree</h3>
+                  <h3>Shop by Course</h3>
                 </div>
               </div>
               <label>
@@ -2103,7 +2149,7 @@ export default function LectureVaultApp() {
                   />
                 </label>
                 <button type="button" onClick={addBuilderVisibleLectures}>
-                  Add visible
+                  Add visible to basket
                 </button>
               </div>
               <div className="lecture-grid compact">
@@ -2147,7 +2193,7 @@ export default function LectureVaultApp() {
                           type="button"
                           onClick={() => toggleBuilderLecture(lecture.id)}
                         >
-                          {selected ? "Selected" : "Select"}
+                          {selected ? "In Basket" : "Add to Basket"}
                         </button>
                         <button
                           type="button"
@@ -2175,9 +2221,9 @@ export default function LectureVaultApp() {
                 <div className="section-heading">
                   <div>
                     <span className="pill">
-                      {builderSelectedLectures.length} selected
+                      {builderSelectedLectures.length} in cart
                     </span>
-                    <h3>Exam Basket</h3>
+                    <h3>Shopping Cart</h3>
                   </div>
                 </div>
                 <label>
@@ -2221,13 +2267,13 @@ export default function LectureVaultApp() {
                   ))}
                   {!builderSelectedLectures.length ? (
                     <p className="empty">
-                      Select lectures from the organized archive to build this exam.
+                      Shop the archive and add lectures to this basket.
                     </p>
                   ) : null}
                 </div>
                 <div className="button-row stacked">
                   <button className="primary" type="submit">
-                    Create Exam Basket
+                    Checkout: Create Review
                   </button>
                   <button
                     type="button"

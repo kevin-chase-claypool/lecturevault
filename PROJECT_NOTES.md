@@ -66,6 +66,21 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-05 - Shopping Cart Exam Basket Interaction
+
+- Added a persistent top-bar cart button with the current exam basket count.
+- Archive lecture cards now support `Add to Basket`, making the archive feel like a browsable source shop.
+- Selected archive lecture previews also include `Add to Basket`.
+- The basket screen now uses shopping-cart language:
+  - `Shopping Cart`
+  - `In Basket`
+  - `Add to Basket`
+  - `Checkout: Create Review`
+- Adding a lecture from a different course switches the active basket course and keeps the basket course-consistent.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-05 - Exam Basket Language and Archive KaTeX Preview
 
 - Updated the user-facing workflow language from exam workspace/builder toward `Exam Basket`.
