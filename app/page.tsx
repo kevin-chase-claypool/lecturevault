@@ -629,7 +629,7 @@ function loadState(): VaultState {
 }
 
 export default function LectureVaultApp() {
-  const [state, setState] = useState<VaultState>(sampleState);
+  const [state, setState] = useState<VaultState>(() => loadState());
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [selectedCourseId, setSelectedCourseId] = useState("course-calculus");
   const [selectedLectureId, setSelectedLectureId] = useState("lecture-gradient");
@@ -663,11 +663,15 @@ export default function LectureVaultApp() {
   const [isReviewGenerating, setIsReviewGenerating] = useState(false);
 
   useEffect(() => {
-    setState(loadState());
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Browser storage could not save the archive.";
+      setStatus(`Archive save failed: ${message}`);
+    }
   }, [state]);
 
   const selectedCourse = state.courses.find(
@@ -854,6 +858,26 @@ export default function LectureVaultApp() {
   }
 
   function moveLectureToFolder(lectureId: string, folderId?: string) {
+    const lecture = state.lectures.find((item) => item.id === lectureId);
+    const folder = folderId
+      ? state.archiveFolders.find((item) => item.id === folderId)
+      : undefined;
+
+    if (!lecture) {
+      setStatus("Could not find that lecture in the archive.");
+      return;
+    }
+
+    if (folderId && !folder) {
+      setStatus("Could not find that archive folder.");
+      return;
+    }
+
+    if (folder && folder.courseId !== lecture.courseId) {
+      setStatus("Archive folders can only contain lectures from the same course.");
+      return;
+    }
+
     setState((current) => ({
       ...current,
       lectures: current.lectures.map((lecture) =>
@@ -960,8 +984,20 @@ export default function LectureVaultApp() {
 
   function addLectureToExam(lectureId: string, examId = selectedExamId) {
     const exam = state.exams.find((item) => item.id === examId);
+    const lecture = state.lectures.find((item) => item.id === lectureId);
+
     if (!exam) {
       setStatus("Create an exam workspace first.");
+      return;
+    }
+
+    if (!lecture) {
+      setStatus("Could not find that lecture in the archive.");
+      return;
+    }
+
+    if (lecture.courseId !== exam.courseId) {
+      setStatus("Exam workspaces can only use lectures from the same course.");
       return;
     }
 
@@ -1476,6 +1512,7 @@ export default function LectureVaultApp() {
                       }
                       onOpen={() => {
                         setSelectedLectureId(lecture.id);
+                        setScreen("lecture");
                       }}
                       onAdd={() => addLectureToExam(lecture.id)}
                     />
@@ -2098,11 +2135,15 @@ function LectureDetail({
   exams: ExamWorkspace[];
   onAddToExam: (lectureId: string, examId?: string) => void;
 }) {
-  const [targetExamId, setTargetExamId] = useState(exams[0]?.id || "");
+  const matchingExams = useMemo(
+    () => exams.filter((exam) => exam.courseId === lecture.courseId),
+    [exams, lecture.courseId]
+  );
+  const [targetExamId, setTargetExamId] = useState(matchingExams[0]?.id || "");
 
   useEffect(() => {
-    setTargetExamId(exams[0]?.id || "");
-  }, [exams]);
+    setTargetExamId(matchingExams[0]?.id || "");
+  }, [matchingExams]);
 
   return (
     <section className="detail-grid">
@@ -2135,7 +2176,7 @@ function LectureDetail({
           value={targetExamId}
           onChange={(event) => setTargetExamId(event.target.value)}
         >
-          {exams.map((exam) => (
+          {matchingExams.map((exam) => (
             <option key={exam.id} value={exam.id}>
               {exam.name}
             </option>
@@ -2148,6 +2189,11 @@ function LectureDetail({
         >
           Add Reference
         </button>
+        {!matchingExams.length ? (
+          <p className="empty">
+            Create an exam workspace for this course before adding references.
+          </p>
+        ) : null}
 
         <h3>Media</h3>
         <div className="media-list">

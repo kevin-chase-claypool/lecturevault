@@ -66,6 +66,18 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-05 - Data Flow Consistency Fixes
+
+- Changed app state initialization to load from `localStorage` immediately instead of writing demo state during initial hydration.
+- Wrapped `localStorage` persistence in error handling so storage quota/save failures are surfaced in the status message.
+- Enforced course consistency when adding lectures to exam workspaces.
+- Filtered the lecture detail exam selector to same-course exam workspaces.
+- Enforced course consistency when moving lectures into archive folders.
+- Made archive card `Open` navigate directly to lecture detail.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-05 - Archive Folder Tree Organization
 
 - Added an `ArchiveFolder` model to the localStorage state.
