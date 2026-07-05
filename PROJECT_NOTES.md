@@ -66,6 +66,17 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-05 - Explicit Archive Folder and Workspace Linking
+
+- Clarified the archive tree so only same-course folders with a matching exam workspace are labeled as `workspace`.
+- Exam-like folders without a matching workspace are labeled as folders instead of appearing workspace-linked.
+- Added `Create linked workspace` for the selected archive folder; it creates a same-course exam workspace and seeds it with lectures in that folder subtree.
+- Fixed archive course/folder selection so the selected lecture panel updates to the visible folder contents instead of showing a stale lecture from another course.
+- Changed archive `Add to Exam` behavior to target an exam workspace from the lecture's own course instead of the last selected workspace from another course.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-05 - Exam Bucket to Workspace Sync
 
 - Linked archive folders whose names match exam workspace names in the same course to the corresponding exam workspace.

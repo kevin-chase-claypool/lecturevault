@@ -454,6 +454,10 @@ function matchingExamForArchiveFolder(
   );
 }
 
+function isExamLikeFolderName(value: string) {
+  return /\b(exam|midterm|final|quiz|test)\b/i.test(value);
+}
+
 function examItemExists(
   examItems: ExamWorkspaceItem[],
   examWorkspaceId: string,
@@ -491,6 +495,29 @@ function pendingExamBucketLinks(state: VaultState) {
         lectureId: lecture.id
       }
     ];
+  });
+}
+
+function archiveLecturesForLocation(
+  state: VaultState,
+  courseId: string,
+  folderId: string
+) {
+  const selectedFolderIds =
+    folderId === "all" || folderId === "unfiled"
+      ? new Set<string>()
+      : folderDescendantIds(state.archiveFolders, folderId);
+
+  return state.lectures.filter((lecture) => {
+    const matchesCourse = lecture.courseId === courseId;
+    const matchesFolder =
+      folderId === "all"
+        ? true
+        : folderId === "unfiled"
+          ? !lecture.folderId
+          : Boolean(lecture.folderId && selectedFolderIds.has(lecture.folderId));
+
+    return matchesCourse && matchesFolder;
   });
 }
 
@@ -775,27 +802,28 @@ export default function LectureVaultApp() {
   const selectedGuide = state.studyGuides.find(
     (guide) => guide.id === selectedGuideId
   );
+  const selectedArchiveFolder = state.archiveFolders.find(
+    (folder) => folder.id === selectedArchiveFolderId
+  );
+  const selectedArchiveFolderExam = selectedArchiveFolder
+    ? matchingExamForArchiveFolder(selectedArchiveFolder, state.exams)
+    : undefined;
+  const canCreateLinkedWorkspace =
+    Boolean(selectedArchiveFolder) && !selectedArchiveFolderExam;
 
   const archiveLectures = useMemo(() => {
     const term = query.trim().toLowerCase();
-    const selectedFolderIds =
-      selectedArchiveFolderId === "all" || selectedArchiveFolderId === "unfiled"
-        ? new Set<string>()
-        : folderDescendantIds(state.archiveFolders, selectedArchiveFolderId);
 
-    return state.lectures.filter((lecture) => {
-      const matchesCourse = lecture.courseId === selectedCourseId;
-      const matchesFolder =
-        selectedArchiveFolderId === "all"
-          ? true
-          : selectedArchiveFolderId === "unfiled"
-            ? !lecture.folderId
-            : Boolean(lecture.folderId && selectedFolderIds.has(lecture.folderId));
+    return archiveLecturesForLocation(
+      state,
+      selectedCourseId,
+      selectedArchiveFolderId
+    ).filter((lecture) => {
       const course = state.courses.find((item) => item.id === lecture.courseId);
       const transcript = state.transcripts.find(
         (item) => item.lectureId === lecture.id
       );
-      return matchesCourse && matchesFolder && [lecture.title, lecture.summary, lecture.date, course?.name, course?.code, transcript?.text]
+      return [lecture.title, lecture.summary, lecture.date, course?.name, course?.code, transcript?.text]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
@@ -812,6 +840,10 @@ export default function LectureVaultApp() {
         .filter((lecture): lecture is Lecture => Boolean(lecture))
     : [];
 
+  const selectedArchiveLecture = archiveLectures.find(
+    (lecture) => lecture.id === selectedLectureId
+  );
+
   useEffect(() => {
     if (
       selectedArchiveFolderId !== "all" &&
@@ -825,6 +857,22 @@ export default function LectureVaultApp() {
       setSelectedArchiveFolderId("all");
     }
   }, [selectedArchiveFolderId, selectedCourseId, state.archiveFolders]);
+
+  useEffect(() => {
+    if (screen !== "archive") {
+      return;
+    }
+
+    if (
+      selectedLectureId &&
+      archiveLectures.some((lecture) => lecture.id === selectedLectureId)
+    ) {
+      return;
+    }
+
+    setSelectedLectureId(archiveLectures[0]?.id || "");
+  }, [archiveLectures, screen, selectedLectureId]);
+
   const selectedExamGuide = selectedExam
     ? state.studyGuides.find(
         (guide) => guide.examWorkspaceId === selectedExam.id
@@ -1242,6 +1290,79 @@ export default function LectureVaultApp() {
     setScreen("exam");
   }
 
+  function createLinkedWorkspaceFromSelectedFolder() {
+    const folder = state.archiveFolders.find(
+      (item) => item.id === selectedArchiveFolderId
+    );
+
+    if (!folder) {
+      setStatus("Select an archive folder to link to a workspace.");
+      return;
+    }
+
+    const existingExam = matchingExamForArchiveFolder(folder, state.exams);
+
+    if (existingExam) {
+      setSelectedExamId(existingExam.id);
+      setStatus(`${folder.name} is already linked to ${existingExam.name}.`);
+      setScreen("exam");
+      return;
+    }
+
+    const createdAt = new Date().toISOString();
+    const exam: ExamWorkspace = {
+      id: uid("exam"),
+      courseId: folder.courseId,
+      name: folder.name,
+      startsOn: "",
+      createdAt
+    };
+
+    setState((current) => {
+      const currentFolder = current.archiveFolders.find(
+        (item) => item.id === folder.id
+      );
+
+      if (!currentFolder) {
+        return current;
+      }
+
+      const currentExistingExam = matchingExamForArchiveFolder(
+        currentFolder,
+        current.exams
+      );
+
+      if (currentExistingExam) {
+        return current;
+      }
+
+      const folderIds = folderDescendantIds(current.archiveFolders, currentFolder.id);
+      const linkedLectures = current.lectures.filter(
+        (lecture) =>
+          lecture.courseId === currentFolder.courseId &&
+          lecture.folderId &&
+          folderIds.has(lecture.folderId)
+      );
+
+      return {
+        ...current,
+        exams: [exam, ...current.exams],
+        examItems: [
+          ...linkedLectures.map((lecture) => ({
+            id: uid("exam-item"),
+            examWorkspaceId: exam.id,
+            lectureId: lecture.id,
+            addedAt: createdAt
+          })),
+          ...current.examItems
+        ]
+      };
+    });
+    setSelectedExamId(exam.id);
+    setStatus(`Created ${exam.name} workspace from the selected archive folder.`);
+    setScreen("exam");
+  }
+
   function addLectureToExam(lectureId: string, examId = selectedExamId) {
     const exam = state.exams.find((item) => item.id === examId);
     const lecture = state.lectures.find((item) => item.id === lectureId);
@@ -1283,6 +1404,30 @@ export default function LectureVaultApp() {
       ]
     }));
     setStatus("Added lecture reference to exam workspace. Original media stayed in the archive.");
+  }
+
+  function addLectureToCourseExam(lectureId: string) {
+    const lecture = state.lectures.find((item) => item.id === lectureId);
+
+    if (!lecture) {
+      setStatus("Could not find that lecture in the archive.");
+      return;
+    }
+
+    const targetExam =
+      selectedExam?.courseId === lecture.courseId
+        ? selectedExam
+        : state.exams.find((exam) => exam.courseId === lecture.courseId);
+
+    if (!targetExam) {
+      setStatus(
+        "Create or link an exam workspace for this course before adding the lecture."
+      );
+      return;
+    }
+
+    setSelectedExamId(targetExam.id);
+    addLectureToExam(lectureId, targetExam.id);
   }
 
   function removeLectureFromExam(lectureId: string) {
@@ -1539,18 +1684,24 @@ export default function LectureVaultApp() {
   }
 
   function selectArchiveCourse(courseId: string) {
+    const nextLectures = archiveLecturesForLocation(state, courseId, "all");
+
     setSelectedCourseId(courseId);
     setSelectedArchiveFolderId("all");
+    setSelectedLectureId(nextLectures[0]?.id || "");
   }
 
   function selectArchiveFolder(folderId: string) {
     const folder = state.archiveFolders.find((item) => item.id === folderId);
+    const courseId = folder?.courseId || selectedCourseId;
+    const nextLectures = archiveLecturesForLocation(state, courseId, folderId);
 
     if (folder) {
       setSelectedCourseId(folder.courseId);
     }
 
     setSelectedArchiveFolderId(folderId);
+    setSelectedLectureId(nextLectures[0]?.id || "");
   }
 
   return (
@@ -1707,10 +1858,7 @@ export default function LectureVaultApp() {
               </label>
               <select
                 value={selectedCourseId}
-                onChange={(event) => {
-                  setSelectedCourseId(event.target.value);
-                  setSelectedArchiveFolderId("all");
-                }}
+                onChange={(event) => selectArchiveCourse(event.target.value)}
               >
                 {state.courses.map((course) => (
                   <option key={course.id} value={course.id}>
@@ -1763,6 +1911,14 @@ export default function LectureVaultApp() {
                   >
                     Delete
                   </button>
+                  <button
+                    className="wide"
+                    type="button"
+                    onClick={createLinkedWorkspaceFromSelectedFolder}
+                    disabled={!canCreateLinkedWorkspace}
+                  >
+                    Create linked workspace
+                  </button>
                 </div>
                 <ArchiveFolderTree
                   courses={state.courses}
@@ -1807,7 +1963,7 @@ export default function LectureVaultApp() {
                         setSelectedLectureId(lecture.id);
                         setScreen("lecture");
                       }}
-                      onAdd={() => addLectureToExam(lecture.id)}
+                      onAdd={() => addLectureToCourseExam(lecture.id)}
                       onDelete={() => deleteLectureFromArchive(lecture.id)}
                     />
                   ))}
@@ -1822,29 +1978,32 @@ export default function LectureVaultApp() {
 
               <aside className="panel side-panel">
                 <h3>Selected Lecture</h3>
-                {selectedLecture ? (
+                {selectedArchiveLecture ? (
                   <>
-                    <strong>{selectedLecture.title}</strong>
-                    <span>{courseLabel(selectedLecture.courseId)}</span>
-                    <small>{selectedLecture.date}</small>
-                    <p>{selectedLecture.summary}</p>
+                    <strong>{selectedArchiveLecture.title}</strong>
+                    <span>{courseLabel(selectedArchiveLecture.courseId)}</span>
+                    <small>{selectedArchiveLecture.date}</small>
+                    <p>{selectedArchiveLecture.summary}</p>
                     <div className="button-row stacked">
                       <button
                         type="button"
-                        onClick={() => setScreen("lecture")}
+                        onClick={() => {
+                          setSelectedLectureId(selectedArchiveLecture.id);
+                          setScreen("lecture");
+                        }}
                       >
                         Open detail
                       </button>
                       <button
                         type="button"
-                        onClick={() => addLectureToExam(selectedLecture.id)}
+                        onClick={() => addLectureToCourseExam(selectedArchiveLecture.id)}
                       >
-                        Add to current exam
+                        Add to course exam
                       </button>
                       <button
                         className="danger"
                         type="button"
-                        onClick={() => deleteLectureFromArchive(selectedLecture.id)}
+                        onClick={() => deleteLectureFromArchive(selectedArchiveLecture.id)}
                       >
                         Delete archive item
                       </button>
@@ -2344,6 +2503,11 @@ function ArchiveFolderTree({
     const childFolders = courseFolders.filter((item) => item.parentId === folder.id);
     const count = folderLectureCount(folders, lectures, folder.id);
     const matchingExam = matchingExamForArchiveFolder(folder, exams);
+    const folderLabel = matchingExam
+      ? `${folder.name} workspace`
+      : isExamLikeFolderName(folder.name)
+        ? `${folder.name} folder`
+        : folder.name;
 
     return (
       <div className="folder-node" key={folder.id}>
@@ -2360,7 +2524,7 @@ function ArchiveFolderTree({
           onDrop={(event) => dropOnFolder(event, folder.id)}
         >
           <span className="folder-icon" aria-hidden="true" />
-          <span>{matchingExam ? `${folder.name} workspace` : folder.name}</span>
+          <span>{folderLabel}</span>
           <small>{count}</small>
         </button>
         {childFolders.map((child) => renderFolder(child, depth + 1))}
