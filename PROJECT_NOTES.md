@@ -104,6 +104,7 @@ https://production-sfo.browserless.io/pdf
 - Replaced the text `LV` brand mark with a reusable vault icon in the sidebar, login, and setup/loading screens.
 - Added `app/icon.svg` and metadata icon wiring so the website/browser icon uses the vault mark.
 - Refined the visual system with stronger surfaces, cleaner shadows, polished button gradients, improved nav active treatment, and a more professional sidebar/topbar treatment.
+- Removed the sidebar tagline so the brand area is only the vault icon next to `LectureVault`, and tightened sidebar spacing/nav/sync styling.
 - Verified with:
   - `npm run build`
   - `npm run typecheck`

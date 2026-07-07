@@ -2410,7 +2410,6 @@ export default function LectureVaultApp() {
           <VaultMark />
           <div>
             <h1>LectureVault</h1>
-            <p>Transcription-first lecture archive</p>
           </div>
         </div>
         <nav className="nav" aria-label="Primary">
