@@ -1277,6 +1277,29 @@ label {
   margin-bottom: 0;
 }
 
+.usage-panel {
+  border: 1px solid #c8dbe2;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f6fbfc;
+}
+
+.usage-panel h4,
+.usage-panel p {
+  margin: 0;
+}
+
+.usage-panel h4 {
+  color: var(--text);
+}
+
+.usage-panel p {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 .token-usage {
   border: 1px solid #b5ded8;
   border-radius: 8px;

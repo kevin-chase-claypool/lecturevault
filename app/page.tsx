@@ -65,6 +65,8 @@ type Transcript = {
   mediaItemId?: string;
   text: string;
   segments: TranscriptSegment[];
+  generatedBy?: "manual" | "placeholder" | "openai";
+  usage?: TokenUsage | null;
   createdAt: string;
 };
 
@@ -216,6 +218,28 @@ function formatTokenUsage(usage?: TokenUsage | null) {
   ]
     .filter(Boolean)
     .join(" / ");
+}
+
+function transcriptUsageLabel(transcript?: Transcript) {
+  if (!transcript) {
+    return "No transcript saved yet.";
+  }
+
+  const usage = formatTokenUsage(transcript.usage);
+
+  if (usage) {
+    return `AI transcription usage: ${usage}`;
+  }
+
+  if (transcript.generatedBy === "placeholder") {
+    return "No AI transcription usage recorded. This lecture is using placeholder transcript text.";
+  }
+
+  if (transcript.generatedBy === "openai") {
+    return "AI transcription completed, but token usage was not returned.";
+  }
+
+  return "No AI transcription usage recorded. Transcript text was pasted or saved manually.";
 }
 
 function renderMathMarkup(text: string) {
@@ -1328,8 +1352,9 @@ export default function LectureVaultApp() {
     const title = captureForm.title.trim() || "Untitled lecture";
     const lectureId = uid("lecture");
     const createdAt = new Date().toISOString();
+    const pastedTranscript = captureForm.transcript.trim();
     const transcriptText =
-      captureForm.transcript.trim() ||
+      pastedTranscript ||
       `Transcript placeholder for ${title}. Add audio transcription or paste notes here.`;
     const mediaItems: MediaItem[] = [];
 
@@ -1352,6 +1377,8 @@ export default function LectureVaultApp() {
       mediaItemId: mediaItems[0]?.id,
       text: transcriptText,
       segments: splitTranscript(transcriptText),
+      generatedBy: pastedTranscript ? "manual" : "placeholder",
+      usage: null,
       createdAt
     };
 
@@ -3190,6 +3217,13 @@ function LectureDetail({
           <MathPreview text={lecture.summary} />
         </p>
 
+        <section className="usage-panel" aria-label="Transcription usage">
+          <div>
+            <h4>Transcription Usage</h4>
+            <p>{transcriptUsageLabel(transcript)}</p>
+          </div>
+        </section>
+
         <h4>Transcript</h4>
         <div className="transcript-box">
           {transcript?.segments.map((segment) => (
@@ -3349,6 +3383,7 @@ function ExamDetail({
   const selectedImageCount = mediaItems.filter(
     (item) => selectedIds.has(item.lectureId) && item.kind === "image"
   ).length;
+  const reviewUsage = formatTokenUsage(selectedGuide?.usage);
 
   return (
     <section className="exam-builder-layout">
@@ -3542,6 +3577,19 @@ function ExamDetail({
           </div>
         </div>
 
+        <section className="usage-panel" aria-label="Review generation usage">
+          <div>
+            <h4>Review Generation Usage</h4>
+            <p>
+              {reviewUsage
+                ? `AI review usage: ${reviewUsage}`
+                : selectedGuide
+                  ? "Review generated without token usage returned."
+                  : "No review-generation usage yet. Usage appears after Generate AI Review runs."}
+            </p>
+          </div>
+        </section>
+
         <label className="exam-instructions">
           Exam review instructions
           <textarea
@@ -3565,11 +3613,6 @@ function ExamDetail({
               </div>
               <span>{new Date(selectedGuide.createdAt).toLocaleString()}</span>
             </div>
-            {selectedGuide.usage ? (
-              <div className="token-usage">
-                AI token usage: {formatTokenUsage(selectedGuide.usage)}
-              </div>
-            ) : null}
             <pre className="guide-preview compact">{selectedGuide.content}</pre>
           </section>
         ) : null}

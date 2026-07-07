@@ -78,6 +78,17 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Add Lecture and Review Usage Surfaces
+
+- Added optional transcription metadata to transcript records so future OpenAI transcription usage can be stored per lecture.
+- New manually saved/pasted transcripts are marked as manual with no AI usage; placeholder transcripts are marked separately.
+- Added a `Transcription Usage` panel on lecture detail pages.
+- Added a persistent `Review Generation Usage` panel on saved review-set pages.
+- Removed duplicate review usage text from the generated-review preview on the review-set page; the standalone guide preview still shows usage.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-07 - Show Review Action Disabled States
 
 - Kept the full Reviews workflow visible by showing disabled `Generate AI Review` and `Download Review PDF` actions in the review-set draft panel.
