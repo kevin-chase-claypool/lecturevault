@@ -78,6 +78,17 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Merge Legacy Unfiled Into Lectures
+
+- Added a localStorage migration for existing course roots that still had `Unfiled` folders:
+  - if no `Lectures` folder exists, the first root `Unfiled` folder is renamed to `Lectures`
+  - extra root `Unfiled` folders are merged into `Lectures`
+  - lectures and child folders referencing removed `Unfiled` folders are reassigned to `Lectures`
+- Fixed nested archive tree row sizing so item counts stay inside the row boundary.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-07 - Default Lectures Folder and Tree Count Fix
 
 - Added a default `Lectures` folder for every course.

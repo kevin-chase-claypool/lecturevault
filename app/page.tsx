@@ -140,6 +140,7 @@ type VaultState = {
 
 const STORAGE_KEY = "lecturevault-state-v1";
 const DEFAULT_LECTURES_FOLDER_NAME = "Lectures";
+const LEGACY_UNFILED_FOLDER_NAME = "Unfiled";
 const MAX_INLINE_IMAGE_DIMENSION = 1600;
 const INLINE_IMAGE_QUALITY = 0.78;
 const SAMPLE_GAUSS_BOARD_DATA_URL =
@@ -551,6 +552,15 @@ function defaultLectureFolderId(folders: ArchiveFolder[], courseId: string) {
   )?.id;
 }
 
+function isLegacyUnfiledFolder(folder?: ArchiveFolder) {
+  return Boolean(
+    folder &&
+      !folder.parentId &&
+      folder.name.trim().toLowerCase() ===
+        LEGACY_UNFILED_FOLDER_NAME.toLowerCase()
+  );
+}
+
 function isDefaultLectureFolder(folder?: ArchiveFolder) {
   return Boolean(
     folder &&
@@ -571,11 +581,25 @@ function createDefaultLectureFolder(courseId: string, createdAt = new Date().toI
 
 function ensureCourseLectureFolders(state: VaultState): VaultState {
   let changed = false;
-  const folders = [...state.archiveFolders];
+  let folders = [...state.archiveFolders];
   const defaultFolderByCourse = new Map<string, string>();
+  const legacyFolderRemap = new Map<string, string>();
 
   for (const course of state.courses) {
+    const courseFolders = folders.filter((folder) => folder.courseId === course.id);
+    const legacyUnfiledFolders = courseFolders.filter(isLegacyUnfiledFolder);
     let folderId = defaultLectureFolderId(folders, course.id);
+
+    if (!folderId && legacyUnfiledFolders.length) {
+      const [primaryLegacyFolder] = legacyUnfiledFolders;
+      folders = folders.map((folder) =>
+        folder.id === primaryLegacyFolder.id
+          ? { ...folder, name: DEFAULT_LECTURES_FOLDER_NAME }
+          : folder
+      );
+      folderId = primaryLegacyFolder.id;
+      changed = true;
+    }
 
     if (!folderId) {
       const folder = createDefaultLectureFolder(course.id);
@@ -584,10 +608,22 @@ function ensureCourseLectureFolders(state: VaultState): VaultState {
       changed = true;
     }
 
+    for (const folder of legacyUnfiledFolders) {
+      if (folder.id !== folderId) {
+        legacyFolderRemap.set(folder.id, folderId);
+        changed = true;
+      }
+    }
+
     defaultFolderByCourse.set(course.id, folderId);
   }
 
   const lectures = state.lectures.map((lecture) => {
+    if (lecture.folderId && legacyFolderRemap.has(lecture.folderId)) {
+      changed = true;
+      return { ...lecture, folderId: legacyFolderRemap.get(lecture.folderId) };
+    }
+
     if (lecture.folderId) {
       return lecture;
     }
@@ -601,6 +637,16 @@ function ensureCourseLectureFolders(state: VaultState): VaultState {
     changed = true;
     return { ...lecture, folderId };
   });
+  folders = folders
+    .filter((folder) => !legacyFolderRemap.has(folder.id))
+    .map((folder) => {
+      if (folder.parentId && legacyFolderRemap.has(folder.parentId)) {
+        changed = true;
+        return { ...folder, parentId: legacyFolderRemap.get(folder.parentId) };
+      }
+
+      return folder;
+    });
 
   return changed ? { ...state, archiveFolders: folders, lectures } : state;
 }
