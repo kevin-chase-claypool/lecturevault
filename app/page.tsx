@@ -7,6 +7,7 @@ import {
   FormEvent,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from "react";
 import katex from "katex";
@@ -857,6 +858,8 @@ export default function LectureVaultApp() {
   const [builderQuery, setBuilderQuery] = useState("");
   const [builderSelectedLectureIds, setBuilderSelectedLectureIds] = useState<string[]>([]);
   const [isReviewGenerating, setIsReviewGenerating] = useState(false);
+  const stateJsonRef = useRef(JSON.stringify(state));
+  const skipNextCloudSaveRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -934,7 +937,9 @@ export default function LectureVaultApp() {
         setCloudUpdatedAt(data.updatedAt || "");
 
         if (data.state) {
-          setState(normalizeState(data.state));
+          const nextState = normalizeState(data.state);
+          skipNextCloudSaveRef.current = true;
+          setState(nextState);
           setStatus("Archive synced from Supabase.");
         } else if (stateHasUserData(state)) {
           setStatus("Supabase archive is empty. Uploading this browser's archive.");
@@ -964,6 +969,10 @@ export default function LectureVaultApp() {
   }, [authStatus]);
 
   useEffect(() => {
+    stateJsonRef.current = JSON.stringify(state);
+  }, [state]);
+
+  useEffect(() => {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (error) {
@@ -977,6 +986,11 @@ export default function LectureVaultApp() {
 
   useEffect(() => {
     if (authStatus !== "ready" || !cloudStateLoaded || !cloudSyncEnabled) {
+      return;
+    }
+
+    if (skipNextCloudSaveRef.current) {
+      skipNextCloudSaveRef.current = false;
       return;
     }
 
@@ -1009,6 +1023,61 @@ export default function LectureVaultApp() {
 
     return () => window.clearTimeout(timeoutId);
   }, [authStatus, cloudStateLoaded, cloudSyncEnabled, state]);
+
+  useEffect(() => {
+    if (authStatus !== "ready" || !cloudStateLoaded || !cloudSyncEnabled) {
+      return;
+    }
+
+    let active = true;
+
+    async function pullLatestCloudState() {
+      try {
+        const response = await fetch("/api/vault-state", {
+          credentials: "include",
+          headers: {
+            "cache-control": "no-cache"
+          }
+        });
+        const data = (await response.json()) as {
+          configured?: boolean;
+          state?: unknown;
+          updatedAt?: string | null;
+          error?: string;
+        };
+
+        if (!active || !response.ok || !data.configured || !data.state) {
+          return;
+        }
+
+        if (data.updatedAt && data.updatedAt === cloudUpdatedAt) {
+          return;
+        }
+
+        const nextState = normalizeState(data.state);
+        const nextJson = JSON.stringify(nextState);
+
+        setCloudUpdatedAt(data.updatedAt || "");
+
+        if (nextJson !== stateJsonRef.current) {
+          skipNextCloudSaveRef.current = true;
+          setState(nextState);
+          setStatus("Archive updated from Supabase.");
+        }
+      } catch {
+        // Keep the current local view if a background refresh fails.
+      }
+    }
+
+    const intervalId = window.setInterval(() => {
+      void pullLatestCloudState();
+    }, 5000);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [authStatus, cloudStateLoaded, cloudSyncEnabled, cloudUpdatedAt]);
 
   const selectedCourse = state.courses.find(
     (course) => course.id === selectedCourseId

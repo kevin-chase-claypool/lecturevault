@@ -91,6 +91,16 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Auto-Refresh Supabase State
+
+- Added background polling for `/api/vault-state` while Supabase sync is enabled.
+- Open browser sessions now pick up newer Supabase state from another device without a manual refresh.
+- Added a skip-save guard so state pulled from Supabase does not immediately write back and create sync loops.
+- Supabase sync remains last-write-wins.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-07 - Add Supabase Shared State Sync
 
 - Added `/api/vault-state` for authenticated server-side Supabase reads/writes.
