@@ -21,7 +21,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 ## Current Architecture
 
 - App: Next.js app in `LectureVault/`.
-- Storage: browser `localStorage` under `lecturevault-state-v1`.
+- Storage: Supabase shared JSON state in `lecturevault_state` when configured, with browser `localStorage` under `lecturevault-state-v1` as fallback/cache.
 - Archive data model: courses, lectures, media items, transcripts, extracted concepts, exam baskets, basket source references, and generated study guides.
 - Exam review route: `app/api/exam-review/route.ts`.
 - PDF route: `app/api/exam-review/pdf/route.ts`.
@@ -57,6 +57,19 @@ Optional session signing override:
 LECTUREVAULT_AUTH_SECRET
 ```
 
+Required for cross-device Supabase sync:
+
+```text
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+```
+
+Optional shared state row override:
+
+```text
+LECTUREVAULT_STATE_ID
+```
+
 Optional model override:
 
 ```text
@@ -77,6 +90,19 @@ https://production-sfo.browserless.io/pdf
 ```
 
 ## Recent Changes
+
+### 2026-07-07 - Add Supabase Shared State Sync
+
+- Added `/api/vault-state` for authenticated server-side Supabase reads/writes.
+- Added `@supabase/supabase-js`.
+- The client now loads shared vault state from Supabase after login and saves subsequent state changes back to Supabase.
+- Browser `localStorage` remains a fallback/cache when Supabase is unavailable or not configured.
+- Added a sidebar sync indicator for Supabase/browser-only state.
+- Added `supabase/lecturevault_state.sql` with the expected shared JSON state table.
+- Updated README with required Vercel environment variables.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
 
 ### 2026-07-07 - Persist Per-Review AI Context
 
@@ -399,8 +425,8 @@ https://production-sfo.browserless.io/pdf
 ## Known Limitations
 
 - Lecture transcription is not fully implemented yet. Current capture uses pasted transcript text or a placeholder.
-- Data is stored in browser `localStorage`, so it does not sync across devices and can be cleared by the browser.
-- Archive folders are currently local-only and stored in `localStorage`.
+- Supabase sync currently stores the whole app state as one JSON row with last-write-wins semantics.
+- Browser `localStorage` remains a fallback/cache and can diverge if Supabase is unavailable.
 - Existing media records that only contain metadata cannot recover original image pixels. Users must re-upload those images after the image embedding fix.
 - PDF image embedding depends on image data being stored in `MediaItem.dataUrl`.
 - Browserless is required for PDF output in deployed environments.
@@ -441,7 +467,7 @@ For archive organization changes, manually verify:
 ## Next Priorities
 
 - Add real lecture-level transcription route.
-- Move storage from `localStorage` to durable cloud storage/database.
+- Replace single-row Supabase JSON state with relational tables and conflict-aware sync if multi-user editing becomes important.
 - Add explicit image upload/re-upload controls for archive items.
 - Add formula audit or uncertainty section for advanced engineering/math courses.
 - Add project-level test coverage for API routes and PDF HTML generation.

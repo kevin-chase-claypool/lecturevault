@@ -789,9 +789,42 @@ function loadState(): VaultState {
   }
 }
 
+function normalizeState(input: unknown): VaultState {
+  if (!input || typeof input !== "object") {
+    return emptyState;
+  }
+
+  const parsed = { ...emptyState, ...(input as Partial<VaultState>) } as VaultState;
+  return ensureCourseLectureFolders(
+    removeLegacyDemoRecords({
+      ...parsed,
+      archiveFolders: Array.isArray(parsed.archiveFolders)
+        ? parsed.archiveFolders
+        : []
+    })
+  );
+}
+
+function stateHasUserData(state: VaultState) {
+  return Boolean(
+    state.courses.length ||
+      state.archiveFolders.length ||
+      state.lectures.length ||
+      state.mediaItems.length ||
+      state.transcripts.length ||
+      state.concepts.length ||
+      state.exams.length ||
+      state.examItems.length ||
+      state.studyGuides.length
+  );
+}
+
 export default function LectureVaultApp() {
   const [state, setState] = useState<VaultState>(() => loadState());
   const [authStatus, setAuthStatus] = useState<"checking" | "ready" | "locked" | "setup">("checking");
+  const [cloudStateLoaded, setCloudStateLoaded] = useState(false);
+  const [cloudSyncEnabled, setCloudSyncEnabled] = useState(false);
+  const [cloudUpdatedAt, setCloudUpdatedAt] = useState("");
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedLectureId, setSelectedLectureId] = useState("");
@@ -862,6 +895,75 @@ export default function LectureVaultApp() {
   }, []);
 
   useEffect(() => {
+    if (authStatus !== "ready") {
+      setCloudStateLoaded(false);
+      setCloudSyncEnabled(false);
+      return;
+    }
+
+    let active = true;
+
+    async function loadCloudState() {
+      try {
+        const response = await fetch("/api/vault-state", {
+          credentials: "include"
+        });
+        const data = (await response.json()) as {
+          configured?: boolean;
+          state?: unknown;
+          updatedAt?: string | null;
+          error?: string;
+        };
+
+        if (!active) {
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(data.error || "Could not load Supabase archive state.");
+        }
+
+        if (!data.configured) {
+          setCloudSyncEnabled(false);
+          setCloudStateLoaded(true);
+          setStatus("Supabase sync is not configured. Using this browser only.");
+          return;
+        }
+
+        setCloudSyncEnabled(true);
+        setCloudUpdatedAt(data.updatedAt || "");
+
+        if (data.state) {
+          setState(normalizeState(data.state));
+          setStatus("Archive synced from Supabase.");
+        } else if (stateHasUserData(state)) {
+          setStatus("Supabase archive is empty. Uploading this browser's archive.");
+        } else {
+          setStatus("Supabase archive ready.");
+        }
+
+        setCloudStateLoaded(true);
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+
+        const message =
+          error instanceof Error ? error.message : "Could not load Supabase archive state.";
+        setCloudSyncEnabled(false);
+        setCloudStateLoaded(true);
+        setStatus(`Supabase sync unavailable: ${message}`);
+      }
+    }
+
+    void loadCloudState();
+
+    return () => {
+      active = false;
+    };
+  }, [authStatus]);
+
+  useEffect(() => {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (error) {
@@ -872,6 +974,41 @@ export default function LectureVaultApp() {
       setStatus(`Archive save failed: ${message}`);
     }
   }, [state]);
+
+  useEffect(() => {
+    if (authStatus !== "ready" || !cloudStateLoaded || !cloudSyncEnabled) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const response = await fetch("/api/vault-state", {
+          body: JSON.stringify({ state }),
+          credentials: "include",
+          headers: {
+            "content-type": "application/json"
+          },
+          method: "PUT"
+        });
+        const data = (await response.json()) as {
+          updatedAt?: string;
+          error?: string;
+        };
+
+        if (!response.ok) {
+          throw new Error(data.error || "Could not save Supabase archive state.");
+        }
+
+        setCloudUpdatedAt(data.updatedAt || "");
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Could not save Supabase archive state.";
+        setStatus(`Supabase save failed: ${message}`);
+      }
+    }, 700);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [authStatus, cloudStateLoaded, cloudSyncEnabled, state]);
 
   const selectedCourse = state.courses.find(
     (course) => course.id === selectedCourseId
@@ -1937,6 +2074,15 @@ export default function LectureVaultApp() {
         <div className="sidebar-note">
           <strong>{state.lectures.length}</strong> archived items
           <span>{state.exams.length} review sets</span>
+          <span>
+            {cloudSyncEnabled
+              ? cloudUpdatedAt
+                ? `Supabase synced ${new Date(cloudUpdatedAt).toLocaleTimeString()}`
+                : "Supabase sync ready"
+              : cloudStateLoaded
+                ? "Browser-only storage"
+                : "Checking sync"}
+          </span>
         </div>
       </aside>
 
