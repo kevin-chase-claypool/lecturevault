@@ -254,13 +254,14 @@ function transcriptUsageLabel(transcript?: Transcript) {
 function renderMathMarkup(text: string) {
   const parts: Array<{ content: string; display: boolean; math: boolean }> = [];
   const pattern = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\$[^$\n]+?\$|\\\([^)]*?\\\))/g;
+  const normalizedText = normalizeLatexEscapes(text);
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = pattern.exec(text)) !== null) {
+  while ((match = pattern.exec(normalizedText)) !== null) {
     if (match.index > lastIndex) {
       parts.push({
-        content: text.slice(lastIndex, match.index),
+        content: normalizedText.slice(lastIndex, match.index),
         display: false,
         math: false
       });
@@ -292,15 +293,17 @@ function renderMathMarkup(text: string) {
     lastIndex = match.index + raw.length;
   }
 
-  if (lastIndex < text.length) {
+  if (lastIndex < normalizedText.length) {
     parts.push({
-      content: text.slice(lastIndex),
+      content: normalizedText.slice(lastIndex),
       display: false,
       math: false
     });
   }
 
-  return parts.length ? parts : [{ content: text, display: false, math: false }];
+  return parts.length
+    ? parts
+    : [{ content: normalizedText, display: false, math: false }];
 }
 
 function MathPreview({ text }: { text: string }) {
@@ -321,6 +324,12 @@ function MathPreview({ text }: { text: string }) {
   );
 }
 
+function normalizeLatexEscapes(text: string) {
+  return text
+    .replace(/\\\\(?=[()[\]])/g, "\\")
+    .replace(/\\\\(?=[a-zA-Z])/g, "\\");
+}
+
 function stripInlineMarkdown(text: string) {
   return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1");
 }
@@ -332,7 +341,7 @@ function ReviewMarkdownPreview({
   compact?: boolean;
   text: string;
 }) {
-  const lines = text.trim().split(/\r?\n/);
+  const lines = normalizeLatexEscapes(text).trim().split(/\r?\n/);
   const nodes: ReactNode[] = [];
   let bullets: string[] = [];
   let mathLines: string[] = [];

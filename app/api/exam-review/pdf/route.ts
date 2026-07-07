@@ -31,8 +31,14 @@ function stripMarkdownMarks(text: string) {
   return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1");
 }
 
-function renderInlineMath(text: string) {
+function normalizeLatexEscapes(text: string) {
   return text
+    .replace(/\\\\(?=[()[\]])/g, "\\")
+    .replace(/\\\\(?=[a-zA-Z])/g, "\\");
+}
+
+function renderInlineMath(text: string) {
+  return normalizeLatexEscapes(text)
     .split(/(\\\([\s\S]*?\\\))/g)
     .map((part) => {
       const inline = part.match(/^\\\(([\s\S]*?)\\\)$/);
@@ -65,7 +71,7 @@ function renderDisplayMath(math: string) {
 }
 
 function renderReviewMarkdown(markdown: string) {
-  const lines = markdown.trim().split(/\r?\n/);
+  const lines = normalizeLatexEscapes(markdown).trim().split(/\r?\n/);
   const html: string[] = [];
   let listItems: string[] = [];
   let displayMath: string[] = [];
