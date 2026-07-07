@@ -78,6 +78,17 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Purge Legacy Demo Records
+
+- Added a localStorage migration that removes the old hardcoded demo course IDs:
+  - `course-calculus`
+  - `course-physics`
+- The cleanup also removes their folders, lectures, media, transcripts, concepts, exam baskets, basket items, and study-guide references.
+- Confirmed the live deployment bundle no longer includes `Reset Demo`, `MATH 241`, or `PHYS 212` before adding this cleanup.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-07 - Remove Demo Course Reseeding
 
 - Stopped normal app startup from falling back to demo course data when browser storage is empty or unreadable.

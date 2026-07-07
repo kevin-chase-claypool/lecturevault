@@ -141,6 +141,7 @@ type VaultState = {
 const STORAGE_KEY = "lecturevault-state-v1";
 const DEFAULT_LECTURES_FOLDER_NAME = "Lectures";
 const LEGACY_UNFILED_FOLDER_NAME = "Unfiled";
+const LEGACY_DEMO_COURSE_IDS = new Set(["course-calculus", "course-physics"]);
 const MAX_INLINE_IMAGE_DIMENSION = 1600;
 const INLINE_IMAGE_QUALITY = 0.78;
 const SAMPLE_GAUSS_BOARD_DATA_URL =
@@ -393,6 +394,73 @@ function createDefaultLectureFolder(courseId: string, createdAt = new Date().toI
     courseId,
     name: DEFAULT_LECTURES_FOLDER_NAME,
     createdAt
+  };
+}
+
+function removeLegacyDemoRecords(state: VaultState): VaultState {
+  const legacyLectureIds = new Set(
+    state.lectures
+      .filter((lecture) => LEGACY_DEMO_COURSE_IDS.has(lecture.courseId))
+      .map((lecture) => lecture.id)
+  );
+  const legacyExamIds = new Set(
+    state.exams
+      .filter((exam) => LEGACY_DEMO_COURSE_IDS.has(exam.courseId))
+      .map((exam) => exam.id)
+  );
+
+  if (!legacyLectureIds.size && !legacyExamIds.size) {
+    const hasLegacyCourses = state.courses.some((course) =>
+      LEGACY_DEMO_COURSE_IDS.has(course.id)
+    );
+    const hasLegacyFolders = state.archiveFolders.some((folder) =>
+      LEGACY_DEMO_COURSE_IDS.has(folder.courseId)
+    );
+
+    if (!hasLegacyCourses && !hasLegacyFolders) {
+      return state;
+    }
+  }
+
+  return {
+    ...state,
+    courses: state.courses.filter(
+      (course) => !LEGACY_DEMO_COURSE_IDS.has(course.id)
+    ),
+    archiveFolders: state.archiveFolders.filter(
+      (folder) => !LEGACY_DEMO_COURSE_IDS.has(folder.courseId)
+    ),
+    lectures: state.lectures.filter(
+      (lecture) => !LEGACY_DEMO_COURSE_IDS.has(lecture.courseId)
+    ),
+    mediaItems: state.mediaItems.filter(
+      (item) => !legacyLectureIds.has(item.lectureId)
+    ),
+    transcripts: state.transcripts.filter(
+      (transcript) => !legacyLectureIds.has(transcript.lectureId)
+    ),
+    concepts: state.concepts.filter(
+      (concept) => !legacyLectureIds.has(concept.lectureId)
+    ),
+    exams: state.exams.filter(
+      (exam) => !LEGACY_DEMO_COURSE_IDS.has(exam.courseId)
+    ),
+    examItems: state.examItems.filter(
+      (item) =>
+        !legacyExamIds.has(item.examWorkspaceId) &&
+        !legacyLectureIds.has(item.lectureId)
+    ),
+    studyGuides: state.studyGuides
+      .filter((guide) => !legacyExamIds.has(guide.examWorkspaceId))
+      .map((guide) => ({
+        ...guide,
+        sourceLectureIds: guide.sourceLectureIds.filter(
+          (id) => !legacyLectureIds.has(id)
+        ),
+        figures: guide.figures?.filter(
+          (figure) => !legacyLectureIds.has(figure.lectureId)
+        )
+      }))
   };
 }
 
@@ -682,12 +750,13 @@ function loadState(): VaultState {
 
   try {
     const parsed = { ...emptyState, ...JSON.parse(raw) } as VaultState;
-    return ensureCourseLectureFolders({
+    const normalized = {
       ...parsed,
       archiveFolders: Array.isArray(parsed.archiveFolders)
         ? parsed.archiveFolders
         : []
-    });
+    };
+    return ensureCourseLectureFolders(removeLegacyDemoRecords(normalized));
   } catch {
     return emptyState;
   }
