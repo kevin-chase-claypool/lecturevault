@@ -253,7 +253,7 @@ function transcriptUsageLabel(transcript?: Transcript) {
 
 function renderMathMarkup(text: string) {
   const parts: Array<{ content: string; display: boolean; math: boolean }> = [];
-  const pattern = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\$[^$\n]+?\$|\\\([^)]*?\\\))/g;
+  const pattern = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\$[^$\n]+?\$|\\\([\s\S]*?\\\))/g;
   const normalizedText = normalizeLatexEscapes(text);
   let lastIndex = 0;
   let match: RegExpExecArray | null;

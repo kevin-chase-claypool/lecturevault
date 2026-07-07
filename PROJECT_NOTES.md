@@ -105,6 +105,7 @@ https://production-sfo.browserless.io/pdf
 - Fixed Vault lecture selection so clicking a compact folder-content card updates the right-side `Selected Lecture` inspector without opening the detail page.
 - Replaced raw generated-review `<pre>` previews with rendered Markdown-style review content that supports KaTeX math in the app.
 - Normalized double-escaped AI LaTeX such as `\\(` and `\\frac` before app/PDF rendering so generated math previews as KaTeX instead of raw text.
+- Fixed inline KaTeX detection for formulas containing normal parentheses, such as `p(\theta)`, by matching through the closing `\)` delimiter.
 - Updated PDF download errors to clearly report `PDF download failed: ...` in the status banner.
 - Browserless is still required for deployed PDF export through `/api/exam-review/pdf`.
 - Verified with:
