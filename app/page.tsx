@@ -3079,7 +3079,7 @@ function ArchiveFolderTree({
               <span>
                 {course.code} {course.name}
               </span>
-              <small>{courseLectures.length}</small>
+              <small aria-hidden="true" />
             </summary>
             <div className="folder-children">
               {rootFolders.map((folder) => renderFolder(folder))}
