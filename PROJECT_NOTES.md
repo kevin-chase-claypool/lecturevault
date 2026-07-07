@@ -105,6 +105,7 @@ https://production-sfo.browserless.io/pdf
 - The `Download Review PDF` action now immediately shows progress and any failure near the button instead of only updating the global status banner.
 - Hardened PDF error parsing on the client so non-JSON failures do not appear silent.
 - Expanded the missing `BROWSERLESS_TOKEN` server error with a clear Vercel environment-variable instruction.
+- Added non-secret Browserless runtime diagnostics to PDF errors and token fallbacks for `BROWSERLESS_API_KEY` / `BROWSERLESS_KEY`.
 - Verified with:
   - `npm run build`
   - `npm run typecheck`

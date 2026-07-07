@@ -251,7 +251,10 @@ function buildHtml({
 }
 
 function browserlessPdfUrl() {
-  const token = cleanString(process.env.BROWSERLESS_TOKEN);
+  const token =
+    cleanString(process.env.BROWSERLESS_TOKEN) ||
+    cleanString(process.env.BROWSERLESS_API_KEY) ||
+    cleanString(process.env.BROWSERLESS_KEY);
 
   if (!token) {
     return "";
@@ -265,6 +268,26 @@ function browserlessPdfUrl() {
   return url.toString();
 }
 
+function browserlessConfigSummary() {
+  const endpoint =
+    cleanString(process.env.BROWSERLESS_PDF_ENDPOINT) ||
+    "https://production-sfo.browserless.io/pdf";
+  let endpointHost = "invalid endpoint";
+
+  try {
+    endpointHost = new URL(endpoint).host;
+  } catch {
+    endpointHost = endpoint || "not configured";
+  }
+
+  return [
+    `BROWSERLESS_TOKEN present: ${Boolean(cleanString(process.env.BROWSERLESS_TOKEN))}`,
+    `BROWSERLESS_API_KEY present: ${Boolean(cleanString(process.env.BROWSERLESS_API_KEY))}`,
+    `BROWSERLESS_KEY present: ${Boolean(cleanString(process.env.BROWSERLESS_KEY))}`,
+    `BROWSERLESS_PDF_ENDPOINT host: ${endpointHost}`
+  ].join("; ");
+}
+
 export async function POST(request: Request) {
   const authError = requireAuthenticatedRequest(request);
 
@@ -276,7 +299,7 @@ export async function POST(request: Request) {
 
   if (!browserlessUrl) {
     return jsonError(
-      "Server is missing BROWSERLESS_TOKEN. Add it in Vercel Environment Variables to enable PDF downloads.",
+      `Server runtime does not see a Browserless token. ${browserlessConfigSummary()}. If Vercel shows the variable, redeploy the Production deployment after saving environment variables.`,
       500
     );
   }
