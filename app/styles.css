@@ -10,7 +10,9 @@
   --primary-dark: #08495c;
   --accent: #9c4a1a;
   --danger: #b42318;
-  --shadow: 0 16px 45px rgba(28, 39, 55, 0.12);
+  --shadow: 0 14px 34px rgba(28, 39, 55, 0.08);
+  --shadow-soft: 0 8px 22px rgba(28, 39, 55, 0.06);
+  --ring: rgba(13, 95, 119, 0.18);
 }
 
 * {
@@ -24,7 +26,9 @@ body {
 
 body {
   margin: 0;
-  background: var(--bg);
+  background:
+    linear-gradient(180deg, #f7f9fb 0, var(--bg) 240px),
+    var(--bg);
   color: var(--text);
   font-family:
     Inter,
@@ -89,15 +93,23 @@ button {
   min-height: 38px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 8px 13px;
   background: #ffffff;
   color: var(--text);
   font-weight: 700;
   cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
 }
 
 button:hover:not(:disabled) {
   border-color: var(--primary);
+  box-shadow: 0 6px 16px rgba(13, 95, 119, 0.1);
+  transform: translateY(-1px);
 }
 
 button:disabled {
@@ -116,6 +128,18 @@ textarea {
   background: #ffffff;
   color: var(--text);
   line-height: 1.35;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible {
+  border-color: var(--primary);
+  outline: 3px solid var(--ring);
 }
 
 textarea {
@@ -143,9 +167,10 @@ label {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 18px;
+  padding: 20px 18px;
   border-right: 1px solid var(--border);
-  background: #18242f;
+  background:
+    linear-gradient(180deg, #172431 0%, #111a24 100%);
   color: #ffffff;
 }
 
@@ -156,12 +181,12 @@ label {
 }
 
 .mark {
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: #f3c766;
+  background: linear-gradient(135deg, #f5d278, #d8a934);
   color: #1a2430;
   font-weight: 900;
 }
@@ -189,7 +214,9 @@ label {
 }
 
 .nav button {
-  justify-content: start;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   border-color: transparent;
   background: transparent;
   color: #dce5ec;
@@ -221,7 +248,7 @@ label {
 
 .workspace {
   min-width: 0;
-  padding: 22px;
+  padding: 24px;
 }
 
 .topbar {
@@ -229,7 +256,13 @@ label {
   gap: 16px;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(205, 214, 225, 0.78);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(10px);
 }
 
 .topbar h2,
@@ -244,9 +277,9 @@ label {
 
 .eyebrow {
   color: var(--accent);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 900;
-  letter-spacing: 0;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -323,7 +356,11 @@ label {
 
 .status {
   min-height: 22px;
-  margin: 0 0 14px;
+  margin: 0 0 16px;
+  border-left: 3px solid var(--primary);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.72);
   color: var(--muted);
   font-size: 0.92rem;
 }
@@ -340,17 +377,18 @@ label {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-soft);
 }
 
 .metric {
   display: grid;
   gap: 3px;
-  padding: 16px;
+  padding: 18px;
 }
 
 .metric strong {
-  font-size: 2rem;
+  color: var(--primary-dark);
+  font-size: 2.08rem;
   line-height: 1;
 }
 
@@ -405,7 +443,7 @@ label {
 
 .panel {
   min-width: 0;
-  padding: 16px;
+  padding: 18px;
 }
 
 .panel h3,
@@ -444,6 +482,10 @@ label {
 
 .form-grid {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 160px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--panel);
 }
 
 .toolbar {
@@ -556,6 +598,16 @@ label {
   justify-content: space-between;
   gap: 16px;
   padding: 16px;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.lecture-card:hover {
+  border-color: #9db7c8;
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
 }
 
 .lecture-card h3 {
@@ -613,6 +665,7 @@ label {
   border-radius: 8px;
   padding: 12px;
   background: var(--surface);
+  box-shadow: var(--shadow-soft);
 }
 
 .row-card > div:first-child {
@@ -726,11 +779,20 @@ label {
 .dropzone {
   min-height: 150px;
   place-items: center;
-  border: 2px dashed #9fb0bf;
+  border: 2px dashed #92a9ba;
   border-radius: 8px;
   padding: 18px;
   background: var(--panel);
   text-align: center;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.dropzone:hover {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px rgba(13, 95, 119, 0.08);
 }
 
 .dropzone input {
@@ -770,10 +832,11 @@ label {
   align-items: center;
   border: 1px solid #b8d6df;
   border-radius: 8px;
-  padding: 16px;
+  padding: 18px;
   background:
     linear-gradient(135deg, rgba(13, 95, 119, 0.12), transparent 55%),
     #ffffff;
+  box-shadow: var(--shadow-soft);
 }
 
 .capture-hero h3,
@@ -819,7 +882,8 @@ label {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
-  background: var(--panel);
+  background: #ffffff;
+  box-shadow: var(--shadow-soft);
 }
 
 .capture-media-panel .section-heading {

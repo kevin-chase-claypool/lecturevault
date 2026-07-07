@@ -78,6 +78,20 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Professional Visual Polish Pass
+
+- Refined the app-wide visual system:
+  - softer page background and shadows
+  - clearer focus rings
+  - smoother button, card, and drop-zone hover states
+  - more professional topbar and sidebar treatment
+- Improved dashboard and card presentation with stronger task hierarchy and lighter surfaces.
+- Improved New Lecture intake visuals with a more polished hero, details panel, source drop zone, and attached-media surface.
+- Preserved the current local-first behavior and screen structure.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-07 - New Lecture UX and Vault Language
 
 - Confirmed the active LectureVault app is the nested `LectureVault/` repo, which has the `l3cturevault` Git remote.
