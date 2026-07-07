@@ -1625,13 +1625,19 @@ export default function LectureVaultApp() {
       return;
     }
 
-    setIsReviewGenerating(true);
-    setStatus("Generating AI review from selected review-set materials...");
-
     const sourceLectureIds = selectedExamLectures.map((lecture) => lecture.id);
     const selectedTranscripts = state.transcripts.filter((transcript) =>
       sourceLectureIds.includes(transcript.lectureId)
     );
+
+    if (!selectedTranscripts.length) {
+      setStatus("Add at least one lecture transcript before generating an AI review.");
+      return;
+    }
+
+    setIsReviewGenerating(true);
+    setStatus("Generating AI review from selected review-set materials...");
+
     const selectedConcepts = state.concepts.filter((concept) =>
       sourceLectureIds.includes(concept.lectureId)
     );
@@ -2442,7 +2448,11 @@ export default function LectureVaultApp() {
                     placeholder="Lecture, formula, media name, transcript..."
                   />
                 </label>
-                <button type="button" onClick={addBuilderVisibleLectures}>
+                <button
+                  type="button"
+                  onClick={addBuilderVisibleLectures}
+                  disabled={!builderLectures.length}
+                >
                   Add visible sources
                 </button>
               </div>
@@ -2566,7 +2576,13 @@ export default function LectureVaultApp() {
                   ) : null}
                 </div>
                 <div className="button-row stacked">
-                  <button className="primary" type="submit">
+                  <button
+                    className="primary"
+                    type="submit"
+                    disabled={
+                      !examForm.name.trim() || !builderSelectedLectures.length
+                    }
+                  >
                     Create Review Set
                   </button>
                   <button
@@ -2576,6 +2592,17 @@ export default function LectureVaultApp() {
                   >
                     Clear Selection
                   </button>
+                </div>
+                <div className="review-action-preview">
+                  <h3>Review Actions</h3>
+                  <div className="button-row stacked">
+                    <button type="button" disabled>
+                      Generate AI Review
+                    </button>
+                    <button type="button" disabled>
+                      Download Review PDF
+                    </button>
+                  </div>
                 </div>
               </form>
               <div className="saved-review-sets">
@@ -3552,7 +3579,7 @@ function ExamDetail({
             className="primary"
             type="button"
             onClick={() => void onGenerate()}
-            disabled={isGenerating || !lectures.length}
+            disabled={isGenerating || !lectures.length || !selectedTranscriptCount}
           >
             {isGenerating ? "Working..." : "Generate AI Review"}
           </button>

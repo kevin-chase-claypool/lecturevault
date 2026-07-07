@@ -78,6 +78,17 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Show Review Action Disabled States
+
+- Kept the full Reviews workflow visible by showing disabled `Generate AI Review` and `Download Review PDF` actions in the review-set draft panel.
+- Disabled `Create Review Set` until the draft has a name and at least one selected source.
+- Disabled `Add visible sources` when the current archive filter has no visible sources.
+- Disabled AI generation until a saved review set has selected sources with at least one transcript, preventing accidental token use without transcript material.
+- Strengthened disabled button styling so unavailable actions are clearly greyed out.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-07 - Consolidate Reviews UX
 
 - Replaced the separate user-facing `Exam Review` and `Exam Baskets` navigation entries with one `Reviews` entry.

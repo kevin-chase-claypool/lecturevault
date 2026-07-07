@@ -113,8 +113,13 @@ button:hover:not(:disabled) {
 }
 
 button:disabled {
+  border-color: #d4dde7;
+  background: #eef3f7;
+  color: #7a8797;
   cursor: not-allowed;
-  opacity: 0.55;
+  box-shadow: none;
+  opacity: 1;
+  transform: none;
 }
 
 input,
@@ -1302,6 +1307,19 @@ label {
   display: grid;
   gap: 8px;
   margin: 12px 0;
+}
+
+.review-action-preview {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.review-action-preview h3 {
+  margin: 0;
+  font-size: 0.95rem;
 }
 
 .guide-preview {
