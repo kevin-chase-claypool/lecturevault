@@ -1032,6 +1032,7 @@ export default function LectureVaultApp() {
   const [builderSelectedLectureIds, setBuilderSelectedLectureIds] = useState<string[]>([]);
   const [isLectureGenerating, setIsLectureGenerating] = useState(false);
   const [isReviewGenerating, setIsReviewGenerating] = useState(false);
+  const [reviewPdfStatus, setReviewPdfStatus] = useState("");
   const stateJsonRef = useRef(JSON.stringify(state));
   const skipNextCloudSaveRef = useRef(false);
 
@@ -2176,6 +2177,7 @@ export default function LectureVaultApp() {
     }
 
     setIsReviewGenerating(true);
+    setReviewPdfStatus("");
     setStatus("Generating AI review from selected review-set materials...");
     const submittedContext = reviewContext.trim();
 
@@ -2262,11 +2264,13 @@ export default function LectureVaultApp() {
 
   async function downloadExamReviewPdf(guide = selectedExamGuide) {
     if (!selectedExam || !guide) {
+      setReviewPdfStatus("Generate an exam review before downloading the PDF.");
       setStatus("Generate an exam review before downloading the PDF.");
       return;
     }
 
     setIsReviewGenerating(true);
+    setReviewPdfStatus("Rendering PDF with KaTeX...");
     setStatus("Rendering exam review PDF with KaTeX...");
 
     try {
@@ -2300,8 +2304,12 @@ export default function LectureVaultApp() {
       });
 
       if (!response.ok) {
-        const data = (await response.json()) as { error?: string };
-        throw new Error(data.error || "Could not render exam review PDF.");
+        const fallback = "Could not render exam review PDF.";
+        const contentType = response.headers.get("content-type") || "";
+        const message = contentType.includes("application/json")
+          ? ((await response.json()) as { error?: string }).error || fallback
+          : (await response.text()) || fallback;
+        throw new Error(message);
       }
 
       const blob = await response.blob();
@@ -2316,10 +2324,12 @@ export default function LectureVaultApp() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+      setReviewPdfStatus("PDF downloaded.");
       setStatus("Exam review PDF downloaded.");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Could not render exam review PDF.";
+      setReviewPdfStatus(`PDF download failed: ${message}`);
       setStatus(`PDF download failed: ${message}`);
     } finally {
       setIsReviewGenerating(false);
@@ -3288,6 +3298,7 @@ export default function LectureVaultApp() {
             selectedGuide={selectedExamGuide}
             instructions={reviewContext}
             isGenerating={isReviewGenerating}
+            pdfStatus={reviewPdfStatus}
             courseLabel={courseLabel}
             onInstructionsChange={updateSelectedReviewContext}
             onAdd={addLectureToExam}
@@ -3904,6 +3915,7 @@ function ExamDetail({
   selectedGuide,
   instructions,
   isGenerating,
+  pdfStatus,
   courseLabel,
   onInstructionsChange,
   onAdd,
@@ -3923,6 +3935,7 @@ function ExamDetail({
   selectedGuide?: StudyGuide;
   instructions: string;
   isGenerating: boolean;
+  pdfStatus: string;
   courseLabel: (id: string) => string;
   onInstructionsChange: (value: string) => void;
   onAdd: (lectureId: string, examId?: string) => void;
@@ -4216,12 +4229,24 @@ function ExamDetail({
             onClick={() => void onDownloadPdf()}
             disabled={isGenerating || !selectedGuide}
           >
-            Download Review PDF
+            {isGenerating ? "Working..." : "Download Review PDF"}
           </button>
           <button className="danger" type="button" onClick={onDelete}>
             Delete Review Set
           </button>
         </div>
+        {pdfStatus ? (
+          <p
+            className={
+              pdfStatus.startsWith("PDF download failed")
+                ? "pdf-status error"
+                : "pdf-status"
+            }
+            role="status"
+          >
+            {pdfStatus}
+          </p>
+        ) : null}
       </article>
 
       <aside className="panel side-panel source-inspector">

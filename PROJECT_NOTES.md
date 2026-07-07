@@ -99,6 +99,16 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Make PDF Download Feedback Visible
+
+- Added a local PDF status/error message inside the Review Set panel, directly below the review actions.
+- The `Download Review PDF` action now immediately shows progress and any failure near the button instead of only updating the global status banner.
+- Hardened PDF error parsing on the client so non-JSON failures do not appear silent.
+- Expanded the missing `BROWSERLESS_TOKEN` server error with a clear Vercel environment-variable instruction.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-07 - Professional Brand Polish and Vault Icon
 
 - Replaced the text `LV` brand mark with a reusable vault icon in the sidebar, login, and setup/loading screens.

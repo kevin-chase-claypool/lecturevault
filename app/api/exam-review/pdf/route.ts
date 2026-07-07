@@ -275,7 +275,10 @@ export async function POST(request: Request) {
   const browserlessUrl = browserlessPdfUrl();
 
   if (!browserlessUrl) {
-    return jsonError("Server is missing BROWSERLESS_TOKEN.", 500);
+    return jsonError(
+      "Server is missing BROWSERLESS_TOKEN. Add it in Vercel Environment Variables to enable PDF downloads.",
+      500
+    );
   }
 
   try {
@@ -320,8 +323,13 @@ export async function POST(request: Request) {
     });
 
     if (!response.ok) {
-      const message = await response.text();
-      return jsonError(message || "Browserless PDF render failed.", 502);
+      const message = (await response.text()).trim();
+      return jsonError(
+        message
+          ? `Browserless PDF render failed (${response.status}): ${message.slice(0, 600)}`
+          : `Browserless PDF render failed with status ${response.status}.`,
+        502
+      );
     }
 
     return new Response(await response.arrayBuffer(), {
