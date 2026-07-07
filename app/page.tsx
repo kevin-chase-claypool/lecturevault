@@ -3880,8 +3880,12 @@ function LectureDetail({
         <div className="concept-list">
           {concepts.map((concept) => (
             <div key={concept.id}>
-              <strong>{concept.title}</strong>
-              <p>{concept.detail}</p>
+              <strong>
+                <MathPreview text={concept.title} />
+              </strong>
+              <p>
+                <MathPreview text={concept.detail} />
+              </p>
               <small>Source: {concept.sourceSegmentId || "media"}</small>
             </div>
           ))}

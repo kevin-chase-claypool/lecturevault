@@ -904,6 +904,11 @@ label {
   width: 100%;
 }
 
+.concept-list .math-inline,
+.concept-list .math-block {
+  overflow-x: auto;
+}
+
 .dropzone {
   min-height: 150px;
   place-items: center;
