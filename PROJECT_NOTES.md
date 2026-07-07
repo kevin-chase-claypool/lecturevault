@@ -99,6 +99,15 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Compact Vault Cards and Render Review Math
+
+- Made Vault folder contents use compact lecture cards so folder contents are shorter and easier to scan.
+- Replaced raw generated-review `<pre>` previews with rendered Markdown-style review content that supports KaTeX math in the app.
+- Updated PDF download errors to clearly report `PDF download failed: ...` in the status banner.
+- Browserless is still required for deployed PDF export through `/api/exam-review/pdf`.
+- Verified with:
+  - `npm run typecheck`
+
 ### 2026-07-07 - Store Lecture Media in Supabase Storage
 
 - Added shared Supabase server helpers and a default private `lecturevault-media` bucket.

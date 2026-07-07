@@ -710,6 +710,49 @@ label {
   background: #f2fbf9;
 }
 
+.lecture-card.compact-card {
+  min-height: 0;
+  gap: 10px;
+  padding: 12px;
+}
+
+.lecture-card.compact-card h3 {
+  margin: 7px 0 5px;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.lecture-card.compact-card p {
+  display: -webkit-box;
+  max-height: 2.7em;
+  overflow: hidden;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.lecture-card.compact-card .pill {
+  min-height: 22px;
+  padding: 3px 7px;
+  font-size: 0.68rem;
+}
+
+.lecture-card.compact-card .card-meta {
+  gap: 6px;
+  font-size: 0.74rem;
+}
+
+.lecture-card.compact-card .button-row {
+  gap: 6px;
+}
+
+.lecture-card.compact-card button {
+  min-height: 32px;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+}
+
 .pill {
   display: inline-flex;
   max-width: 100%;
@@ -1380,6 +1423,61 @@ label {
 
 .guide-preview.compact {
   max-height: 320px;
+}
+
+.guide-rendered {
+  width: 100%;
+  max-height: 68dvh;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.guide-rendered.compact {
+  max-height: 360px;
+}
+
+.guide-rendered h3,
+.guide-rendered h4,
+.guide-rendered h5,
+.guide-rendered p {
+  margin: 0;
+}
+
+.guide-rendered h3,
+.guide-rendered h4,
+.guide-rendered h5 {
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.guide-rendered h3:not(:first-child),
+.guide-rendered h4:not(:first-child),
+.guide-rendered h5:not(:first-child) {
+  margin-top: 16px;
+}
+
+.guide-rendered p,
+.guide-rendered ul {
+  margin-top: 8px;
+}
+
+.guide-rendered ul {
+  padding-left: 20px;
+}
+
+.guide-rendered li {
+  margin: 6px 0;
+}
+
+.review-math-block {
+  margin-top: 10px;
+  overflow-x: auto;
 }
 
 @media (max-width: 1120px) and (min-width: 761px) {

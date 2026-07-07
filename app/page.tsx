@@ -10,6 +10,7 @@ import {
   useRef,
   useState
 } from "react";
+import type { ReactNode } from "react";
 import katex from "katex";
 
 type Screen =
@@ -317,6 +318,110 @@ function MathPreview({ text }: { text: string }) {
         )
       )}
     </>
+  );
+}
+
+function stripInlineMarkdown(text: string) {
+  return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1");
+}
+
+function ReviewMarkdownPreview({
+  compact = false,
+  text
+}: {
+  compact?: boolean;
+  text: string;
+}) {
+  const lines = text.trim().split(/\r?\n/);
+  const nodes: ReactNode[] = [];
+  let bullets: string[] = [];
+  let mathLines: string[] = [];
+  let inDisplayMath = false;
+
+  function flushBullets() {
+    if (!bullets.length) {
+      return;
+    }
+
+    nodes.push(
+      <ul key={`list-${nodes.length}`}>
+        {bullets.map((item, index) => (
+          <li key={`${item}-${index}`}>
+            <MathPreview text={stripInlineMarkdown(item)} />
+          </li>
+        ))}
+      </ul>
+    );
+    bullets = [];
+  }
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (line === "\\[") {
+      flushBullets();
+      inDisplayMath = true;
+      mathLines = ["\\["];
+      continue;
+    }
+
+    if (line === "\\]" && inDisplayMath) {
+      mathLines.push("\\]");
+      nodes.push(
+        <div className="review-math-block" key={`math-${nodes.length}`}>
+          <MathPreview text={mathLines.join("\n")} />
+        </div>
+      );
+      inDisplayMath = false;
+      mathLines = [];
+      continue;
+    }
+
+    if (inDisplayMath) {
+      mathLines.push(rawLine);
+      continue;
+    }
+
+    if (!line) {
+      flushBullets();
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,4})\s+(.+)$/);
+    if (heading) {
+      flushBullets();
+      const HeadingTag = `h${Math.min(heading[1].length + 2, 5)}` as
+        | "h3"
+        | "h4"
+        | "h5";
+      nodes.push(
+        <HeadingTag key={`heading-${nodes.length}`}>
+          <MathPreview text={stripInlineMarkdown(heading[2])} />
+        </HeadingTag>
+      );
+      continue;
+    }
+
+    const bullet = line.match(/^[-*]\s+(.+)$/);
+    if (bullet) {
+      bullets.push(bullet[1]);
+      continue;
+    }
+
+    flushBullets();
+    nodes.push(
+      <p key={`paragraph-${nodes.length}`}>
+        <MathPreview text={stripInlineMarkdown(line)} />
+      </p>
+    );
+  }
+
+  flushBullets();
+
+  return (
+    <div className={compact ? "guide-rendered compact" : "guide-rendered"}>
+      {nodes.length ? nodes : <p>No generated review content yet.</p>}
+    </div>
   );
 }
 
@@ -2206,7 +2311,7 @@ export default function LectureVaultApp() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Could not render exam review PDF.";
-      setStatus(message);
+      setStatus(`PDF download failed: ${message}`);
     } finally {
       setIsReviewGenerating(false);
     }
@@ -2570,6 +2675,7 @@ export default function LectureVaultApp() {
                       key={lecture.id}
                       lecture={lecture}
                       courseLabel={courseLabel}
+                      compact
                       mediaCount={
                         state.mediaItems.filter(
                           (item) => item.lectureId === lecture.id
@@ -3557,6 +3663,7 @@ function LectureCard({
   courseLabel,
   mediaCount,
   conceptCount,
+  compact = false,
   onOpen,
   onAdd,
   onDelete
@@ -3565,13 +3672,14 @@ function LectureCard({
   courseLabel: (id: string) => string;
   mediaCount: number;
   conceptCount: number;
+  compact?: boolean;
   onOpen: () => void;
   onAdd?: () => void;
   onDelete: () => void;
 }) {
   return (
     <article
-      className="lecture-card"
+      className={compact ? "lecture-card compact-card" : "lecture-card"}
       draggable
       onDragStart={(event) =>
         event.dataTransfer.setData("text/lecture-id", lecture.id)
@@ -4064,7 +4172,7 @@ function ExamDetail({
               </div>
               <span>{new Date(selectedGuide.createdAt).toLocaleString()}</span>
             </div>
-            <pre className="guide-preview compact">{selectedGuide.content}</pre>
+            <ReviewMarkdownPreview compact text={selectedGuide.content} />
           </section>
         ) : null}
 
@@ -4156,7 +4264,7 @@ function StudyGuidePreview({
             </div>
           </section>
         ) : null}
-        <pre className="guide-preview">{guide.content}</pre>
+        <ReviewMarkdownPreview text={guide.content} />
       </article>
       <aside className="panel side-panel">
         <h3>Source Links</h3>
