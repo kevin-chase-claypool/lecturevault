@@ -1761,9 +1761,9 @@ export default function LectureVaultApp() {
           {[
             ["dashboard", "Dashboard"],
             ["courses", "Courses"],
-            ["archive", "Archive"],
-            ["capture", "Upload / Record"],
-            ["builder", "Exam Basket"],
+            ["capture", "New Lecture"],
+            ["archive", "Vault"],
+            ["builder", "Exam Review"],
             ["exams", "Exam Baskets"]
           ].map(([id, label]) => (
             <button
@@ -1799,7 +1799,7 @@ export default function LectureVaultApp() {
               <strong>{basketCount}</strong>
             </button>
             <button type="button" onClick={() => setScreen("capture")}>
-              New Capture
+              New Lecture
             </button>
             <button type="button" onClick={resetDemo}>
               Reset Demo
@@ -2103,7 +2103,23 @@ export default function LectureVaultApp() {
         ) : null}
 
         {screen === "capture" ? (
-          <form className="capture panel" onSubmit={saveCapture}>
+          <form className="capture panel capture-workflow" onSubmit={saveCapture}>
+            <div className="capture-hero">
+              <div>
+                <span className="eyebrow">New Lecture</span>
+                <h3>Upload an MP3 lecture into the vault</h3>
+                <p>
+                  Add lecture audio first, attach board photos when useful,
+                  then save a searchable lecture record for exam review.
+                </p>
+              </div>
+              <div className="capture-steps" aria-label="Capture workflow">
+                <span>1 Details</span>
+                <span>2 Media</span>
+                <span>3 Notes</span>
+                <span>4 Save</span>
+              </div>
+            </div>
             <div className="form-grid">
               <label>
                 Course
@@ -2152,14 +2168,14 @@ export default function LectureVaultApp() {
             </div>
 
             <label
-              className="dropzone"
+              className="dropzone lecture-dropzone"
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault();
                 addCaptureFiles(Array.from(event.dataTransfer.files || []));
               }}
             >
-              <span>Audio, video, whiteboard images, or related media</span>
+              <span>Lecture source files</span>
               <input
                 type="file"
                 multiple
@@ -2172,11 +2188,11 @@ export default function LectureVaultApp() {
               <strong>
                 {captureFiles.length
                   ? `${captureFiles.length} media file${captureFiles.length === 1 ? "" : "s"} attached`
-                  : "Choose files"}
+                  : "Drop or choose an MP3 lecture"}
               </strong>
               <small>
-                Add audio, video, board photos, PDFs, or notes in multiple
-                passes before saving one lecture.
+                MP3 and other audio/video files are the main input. Add board
+                photos, PDFs, or notes in the same lecture record when needed.
               </small>
             </label>
 
@@ -2184,7 +2200,7 @@ export default function LectureVaultApp() {
               <div className="capture-media-panel">
                 <div className="section-heading">
                   <div>
-                    <span className="pill">Aggregation Sources</span>
+                    <span className="pill">Vault Sources</span>
                     <h3>Attached Media</h3>
                   </div>
                   <button
@@ -2233,12 +2249,12 @@ export default function LectureVaultApp() {
                   }))
                 }
                 rows={9}
-                placeholder="Paste transcript text, record notes, or leave blank for a placeholder. The MVP stores locally and derives source timestamp segments from this text."
+                placeholder="Paste transcript text or rough notes. If you only attach an MP3 for now, the lecture is still saved as an archive item."
               />
             </label>
 
             <label>
-              AI summary / board context
+              Summary / board context
               <textarea
                 value={captureForm.summary}
                 onChange={(event) =>
@@ -2254,7 +2270,7 @@ export default function LectureVaultApp() {
 
             <div className="button-row">
               <button className="primary" type="submit">
-                Save to Archive
+                Save to Vault
               </button>
               <button
                 type="button"
@@ -2589,10 +2605,10 @@ function screenTitle(screen: Screen) {
   const titles: Record<Screen, string> = {
     dashboard: "Dashboard",
     courses: "Course list",
-    archive: "Lecture/media archive",
+    archive: "Vault",
     lecture: "Lecture detail",
-    capture: "Upload or record lecture",
-    builder: "New exam basket",
+    capture: "New lecture",
+    builder: "Exam review builder",
     exams: "Exam basket list",
     exam: "Exam basket",
     guide: "Study guide preview"
@@ -2718,29 +2734,35 @@ function Dashboard({
       </div>
 
       <div className="dashboard-grid">
-        <section className="panel">
+        <section className="panel action-panel capture-action">
           <div className="section-heading">
-            <h3>Daily Capture</h3>
-            <button type="button" onClick={() => setScreen("capture")}>
-              Capture
+            <div>
+              <span className="eyebrow">New Lecture</span>
+              <h3>Transcribe an MP3 lecture</h3>
+            </div>
+            <button className="primary" type="button" onClick={() => setScreen("capture")}>
+              Add Lecture
             </button>
           </div>
           <p>
-            Record or upload lecture audio, video, whiteboard photos, and
-            supporting files into the permanent archive first.
+            Start with audio, add board photos or rough notes, then save the
+            lecture into the permanent vault.
           </p>
         </section>
 
-        <section className="panel">
+        <section className="panel action-panel basket-action">
           <div className="section-heading">
-            <h3>Exam Basket</h3>
+            <div>
+              <span className="eyebrow">Exam Review</span>
+              <h3>Build from saved lectures</h3>
+            </div>
             <button type="button" onClick={() => setScreen("builder")}>
-              Build
+              Build Review
             </button>
           </div>
           <p>
-            Collect lecture sources from the archive, then generate a single
-            AI review and PDF.
+            Select archived lecture sources, create an exam basket, and
+            generate one focused AI review with PDF export.
           </p>
         </section>
       </div>

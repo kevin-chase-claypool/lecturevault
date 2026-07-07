@@ -78,6 +78,24 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - New Lecture UX and Vault Language
+
+- Confirmed the active LectureVault app is the nested `LectureVault/` repo, which has the `l3cturevault` Git remote.
+- Updated dashboard action panels so the main paths are clearer:
+  - `New Lecture` for MP3/audio capture into the vault
+  - `Exam Review` for building from saved lectures
+- Updated navigation and screen titles from generic archive/upload language toward `New Lecture`, `Vault`, and `Exam Review`.
+- Reworked the capture screen into a guided intake:
+  - hero panel with workflow steps
+  - MP3/audio-first drop zone language
+  - clearer vault source naming
+  - `Save to Vault` primary action
+- Refined visual styling with calmer colors, task-focused dashboard cards, and responsive capture workflow chips.
+- Updated `README.md` to match the current product language and clarify that lecture-level audio transcription is still a future backend step.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-05 - Course Deletion
 
 - Added explicit `Delete course` controls to the Courses list.
