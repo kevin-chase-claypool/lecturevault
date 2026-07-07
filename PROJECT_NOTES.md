@@ -99,6 +99,15 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Professional Brand Polish and Vault Icon
+
+- Replaced the text `LV` brand mark with a reusable vault icon in the sidebar, login, and setup/loading screens.
+- Added `app/icon.svg` and metadata icon wiring so the website/browser icon uses the vault mark.
+- Refined the visual system with stronger surfaces, cleaner shadows, polished button gradients, improved nav active treatment, and a more professional sidebar/topbar treatment.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-07 - Compact Vault Cards and Render Review Math
 
 - Made Vault folder contents use compact lecture cards so folder contents are shorter and easier to scan.

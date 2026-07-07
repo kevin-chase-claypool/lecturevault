@@ -5,7 +5,10 @@ import "./styles.css";
 export const metadata: Metadata = {
   title: "LectureVault",
   description:
-    "A transcription-first lecture archive with exam baskets and AI review PDFs."
+    "A transcription-first lecture archive with exam baskets and AI review PDFs.",
+  icons: {
+    icon: "/icon.svg"
+  }
 };
 
 export default function RootLayout({

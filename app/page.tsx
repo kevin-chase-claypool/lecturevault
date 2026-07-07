@@ -2407,7 +2407,7 @@ export default function LectureVaultApp() {
     <main className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="mark">LV</div>
+          <VaultMark />
           <div>
             <h1>LectureVault</h1>
             <p>Transcription-first lecture archive</p>
@@ -3335,6 +3335,19 @@ function screenTitle(screen: Screen) {
   return titles[screen];
 }
 
+function VaultMark() {
+  return (
+    <div className="mark" aria-hidden="true">
+      <svg viewBox="0 0 48 48" role="img">
+        <rect className="vault-body" x="8" y="14" width="32" height="26" rx="5" />
+        <path className="vault-door" d="M15 14V10.8C15 7 18 4 21.8 4h4.4C30 4 33 7 33 10.8V14" />
+        <circle className="vault-dial" cx="24" cy="27" r="6.2" />
+        <path className="vault-spoke" d="M24 20.8v3.2M24 30v3.2M17.8 27H21M27 27h3.2M19.6 22.6l2.2 2.2M26.2 29.2l2.2 2.2M28.4 22.6l-2.2 2.2M21.8 29.2l-2.2 2.2" />
+      </svg>
+    </div>
+  );
+}
+
 function AuthShell({
   title,
   message = "Loading LectureVault."
@@ -3345,7 +3358,7 @@ function AuthShell({
   return (
     <main className="auth-page">
       <section className="auth-card">
-        <div className="mark">LV</div>
+        <VaultMark />
         <h1>{title}</h1>
         <p>{message}</p>
       </section>
@@ -3390,7 +3403,7 @@ function LoginGate({ onAuthenticated }: { onAuthenticated: () => void }) {
   return (
     <main className="auth-page">
       <form className="auth-card" onSubmit={login}>
-        <div className="mark">LV</div>
+        <VaultMark />
         <h1>LectureVault</h1>
         <p>
           Enter the app password to use the lecture archive, review sets, AI
