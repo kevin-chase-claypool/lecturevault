@@ -78,6 +78,16 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Consolidate Reviews UX
+
+- Replaced the separate user-facing `Exam Review` and `Exam Baskets` navigation entries with one `Reviews` entry.
+- Reworded basket/cart/builder language to `Review Set`, `Selected Sources`, and `Create Review Set`.
+- Added a saved review-set list inside the Reviews screen so existing review sets remain reachable without a separate navigation section.
+- Kept the underlying exam workspace data model unchanged for compatibility with existing saved data.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-07 - Purge Legacy Demo Records
 
 - Added a localStorage migration that removes the old hardcoded demo course IDs:

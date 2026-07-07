@@ -1080,7 +1080,7 @@ export default function LectureVaultApp() {
     const examCount = state.exams.filter((exam) => exam.courseId === courseId)
       .length;
     const confirmed = window.confirm(
-      `Delete ${course.code} ${course.name}? This removes ${lectureCount} archived lecture item${lectureCount === 1 ? "" : "s"}, related media/transcripts/concepts, ${examCount} exam basket${examCount === 1 ? "" : "s"}, and generated reviews for this course.`
+      `Delete ${course.code} ${course.name}? This removes ${lectureCount} archived lecture item${lectureCount === 1 ? "" : "s"}, related media/transcripts/concepts, ${examCount} review set${examCount === 1 ? "" : "s"}, and generated reviews for this course.`
     );
 
     if (!confirmed) {
@@ -1151,7 +1151,7 @@ export default function LectureVaultApp() {
     );
     setCaptureForm((current) => ({ ...current, courseId: nextCourseId }));
     setExamForm((current) => ({ ...current, courseId: nextCourseId }));
-    setStatus(`Deleted ${course.code} and its related archive and basket data.`);
+    setStatus(`Deleted ${course.code} and its related archive and review data.`);
   }
 
   function addArchiveFolder(event: FormEvent) {
@@ -1262,7 +1262,7 @@ export default function LectureVaultApp() {
     }
 
     const confirmed = window.confirm(
-      `Delete "${lecture.title}" from the archive? This removes its transcript, media, concepts, and exam basket references.`
+      `Delete "${lecture.title}" from the archive? This removes its transcript, media, concepts, and review-set references.`
     );
 
     if (!confirmed) {
@@ -1422,7 +1422,7 @@ export default function LectureVaultApp() {
     }));
     setSelectedExamId(exam.id);
     setExamForm((current) => ({ ...current, name: "", startsOn: "" }));
-    setStatus(`Created ${exam.name}. Add archive sources to the exam basket.`);
+    setStatus(`Created ${exam.name}. Add archive sources to the review set.`);
     setScreen("exam");
   }
 
@@ -1431,7 +1431,7 @@ export default function LectureVaultApp() {
     const lecture = state.lectures.find((item) => item.id === lectureId);
 
     if (!exam) {
-      setStatus("Create an exam basket first.");
+      setStatus("Create a review set first.");
       return;
     }
 
@@ -1441,7 +1441,7 @@ export default function LectureVaultApp() {
     }
 
     if (lecture.courseId !== exam.courseId) {
-      setStatus("Exam baskets can only use lectures from the same course.");
+      setStatus("Review sets can only use lectures from the same course.");
       return;
     }
 
@@ -1450,7 +1450,7 @@ export default function LectureVaultApp() {
     );
 
     if (alreadyAdded) {
-      setStatus("That lecture is already in this exam basket.");
+      setStatus("That lecture is already in this review set.");
       return;
     }
 
@@ -1466,7 +1466,7 @@ export default function LectureVaultApp() {
         ...current.examItems
       ]
     }));
-    setStatus("Added lecture reference to exam basket. Original media stayed in the archive.");
+    setStatus("Added lecture reference to the review set. Original media stayed in the archive.");
   }
 
   function setExamBuilderCourse(courseId: string) {
@@ -1507,14 +1507,14 @@ export default function LectureVaultApp() {
 
       return [...sameCourseIds, lectureId];
     });
-    setStatus(`Added "${lecture.title}" to the exam basket.`);
+    setStatus(`Added "${lecture.title}" to the review set draft.`);
   }
 
   function removeLectureFromBasket(lectureId: string) {
     setBuilderSelectedLectureIds((current) =>
       current.filter((id) => id !== lectureId)
     );
-    setStatus("Removed source from the exam basket.");
+    setStatus("Removed source from the review set draft.");
   }
 
   function toggleBuilderLecture(lectureId: string) {
@@ -1533,19 +1533,19 @@ export default function LectureVaultApp() {
       }
       return Array.from(next);
     });
-    setStatus("Added visible archive materials to the exam builder.");
+    setStatus("Added visible archive materials to the review set draft.");
   }
 
   function createWorkspaceFromBuilder(event: FormEvent) {
     event.preventDefault();
 
     if (!examForm.name.trim()) {
-      setStatus("Name the exam basket before creating it.");
+      setStatus("Name the review set before creating it.");
       return;
     }
 
     if (!builderSelectedLectures.length) {
-      setStatus("Select archive materials before creating the exam basket.");
+      setStatus("Select archive materials before creating the review set.");
       return;
     }
 
@@ -1574,7 +1574,7 @@ export default function LectureVaultApp() {
     setSelectedExamId(exam.id);
     setExamForm((current) => ({ ...current, name: "", startsOn: "" }));
     setBuilderSelectedLectureIds([]);
-    setStatus(`Checked out ${builderSelectedLectures.length} archive source${builderSelectedLectures.length === 1 ? "" : "s"} into ${exam.name}.`);
+    setStatus(`Created ${exam.name} with ${builderSelectedLectures.length} archive source${builderSelectedLectures.length === 1 ? "" : "s"}.`);
     setScreen("exam");
   }
 
@@ -1593,7 +1593,7 @@ export default function LectureVaultApp() {
           )
       )
     }));
-    setStatus("Removed from exam basket. Archive item was not changed.");
+    setStatus("Removed from review set. Archive item was not changed.");
   }
 
   function deleteExam(examId: string) {
@@ -1626,7 +1626,7 @@ export default function LectureVaultApp() {
     }
 
     setIsReviewGenerating(true);
-    setStatus("Generating AI exam review from selected basket materials...");
+    setStatus("Generating AI review from selected review-set materials...");
 
     const sourceLectureIds = selectedExamLectures.map((lecture) => lecture.id);
     const selectedTranscripts = state.transcripts.filter((transcript) =>
@@ -1700,7 +1700,7 @@ export default function LectureVaultApp() {
       setStatus(
         data.generatedBy === "local-fallback"
           ? "Review generated locally because OPENAI_API_KEY is not configured."
-          : `AI exam review generated from selected basket materials${
+          : `AI review generated from selected review-set materials${
               formatTokenUsage(data.usage) ? ` (${formatTokenUsage(data.usage)})` : ""
             }.`
       );
@@ -1865,12 +1865,18 @@ export default function LectureVaultApp() {
             ["courses", "Courses"],
             ["capture", "New Lecture"],
             ["archive", "Vault"],
-            ["builder", "Exam Review"],
-            ["exams", "Exam Baskets"]
+            ["builder", "Reviews"]
           ].map(([id, label]) => (
             <button
               key={id}
-              className={screen === id ? "active" : ""}
+              className={
+                id === "builder" &&
+                ["builder", "exams", "exam", "guide"].includes(screen)
+                  ? "active"
+                  : screen === id
+                    ? "active"
+                    : ""
+              }
               type="button"
               onClick={() => setScreen(id as Screen)}
             >
@@ -1880,7 +1886,7 @@ export default function LectureVaultApp() {
         </nav>
         <div className="sidebar-note">
           <strong>{state.lectures.length}</strong> archived items
-          <span>{state.exams.length} exam baskets</span>
+          <span>{state.exams.length} review sets</span>
         </div>
       </aside>
 
@@ -1895,9 +1901,9 @@ export default function LectureVaultApp() {
               className={basketCount ? "cart-button active" : "cart-button"}
               type="button"
               onClick={() => setScreen("builder")}
-              aria-label={`Exam basket with ${basketCount} selected source${basketCount === 1 ? "" : "s"}`}
+              aria-label={`Review set draft with ${basketCount} selected source${basketCount === 1 ? "" : "s"}`}
             >
-              <span className="cart-icon" aria-hidden="true">Cart</span>
+              <span className="cart-icon" aria-hidden="true">Review</span>
               <strong>{basketCount}</strong>
             </button>
             <button type="button" onClick={() => setScreen("capture")}>
@@ -2157,7 +2163,7 @@ export default function LectureVaultApp() {
                         type="button"
                         onClick={() => addLectureToBasket(selectedArchiveLecture.id)}
                       >
-                        Add to Basket
+                        Add to Review
                       </button>
                       <button
                         type="button"
@@ -2437,7 +2443,7 @@ export default function LectureVaultApp() {
                   />
                 </label>
                 <button type="button" onClick={addBuilderVisibleLectures}>
-                  Add visible to basket
+                  Add visible sources
                 </button>
               </div>
               <div className="lecture-grid compact">
@@ -2481,7 +2487,7 @@ export default function LectureVaultApp() {
                           type="button"
                           onClick={() => toggleBuilderLecture(lecture.id)}
                         >
-                          {selected ? "In Basket" : "Add to Basket"}
+                          {selected ? "Selected" : "Add to Review"}
                         </button>
                         <button
                           type="button"
@@ -2509,13 +2515,13 @@ export default function LectureVaultApp() {
                 <div className="section-heading">
                   <div>
                     <span className="pill">
-                      {builderSelectedLectures.length} in cart
+                      {builderSelectedLectures.length} selected
                     </span>
-                    <h3>Shopping Cart</h3>
+                    <h3>Review Set Draft</h3>
                   </div>
                 </div>
                 <label>
-                  Basket name
+                  Review set name
                   <input
                     value={examForm.name}
                     onChange={(event) =>
@@ -2555,23 +2561,58 @@ export default function LectureVaultApp() {
                   ))}
                   {!builderSelectedLectures.length ? (
                     <p className="empty">
-                      Shop the archive and add lectures to this basket.
+                      Select archived lectures to build this review set.
                     </p>
                   ) : null}
                 </div>
                 <div className="button-row stacked">
                   <button className="primary" type="submit">
-                    Checkout: Create Review
+                    Create Review Set
                   </button>
                   <button
                     type="button"
                     onClick={() => setBuilderSelectedLectureIds([])}
                     disabled={!builderSelectedLectureIds.length}
                   >
-                    Clear Basket
+                    Clear Selection
                   </button>
                 </div>
               </form>
+              <div className="saved-review-sets">
+                <h3>Saved Review Sets</h3>
+                <div className="source-list">
+                  {state.exams.map((exam) => (
+                    <button
+                      className="row-button"
+                      key={exam.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedExamId(exam.id);
+                        setScreen("exam");
+                      }}
+                    >
+                      <strong>{exam.name}</strong>
+                      <span>{courseLabel(exam.courseId)}</span>
+                      <small>
+                        {
+                          state.examItems.filter(
+                            (item) => item.examWorkspaceId === exam.id
+                          ).length
+                        }{" "}
+                        selected source
+                        {state.examItems.filter(
+                          (item) => item.examWorkspaceId === exam.id
+                        ).length === 1
+                          ? ""
+                          : "s"}
+                      </small>
+                    </button>
+                  ))}
+                  {!state.exams.length ? (
+                    <p className="empty">Created review sets will appear here.</p>
+                  ) : null}
+                </div>
+              </div>
             </aside>
           </section>
         ) : null}
@@ -2579,7 +2620,7 @@ export default function LectureVaultApp() {
         {screen === "exams" ? (
           <section className="content-grid">
             <form className="panel form-panel" onSubmit={createExam}>
-              <h3>Create Empty Exam Basket</h3>
+              <h3>Create Empty Review Set</h3>
               <label>
                 Course
                 <select
@@ -2599,7 +2640,7 @@ export default function LectureVaultApp() {
                 </select>
               </label>
               <label>
-                Basket name
+                Review set name
                 <input
                   value={examForm.name}
                   onChange={(event) =>
@@ -2625,12 +2666,12 @@ export default function LectureVaultApp() {
                 />
               </label>
               <button className="primary" type="submit">
-                Create Basket
+                Create Review Set
               </button>
             </form>
 
             <section className="panel list-panel">
-              <h3>Exam Basket List</h3>
+              <h3>Review Sets</h3>
               {state.exams.map((exam) => (
                 <button
                   className="row-button"
@@ -2709,9 +2750,9 @@ function screenTitle(screen: Screen) {
     archive: "Vault",
     lecture: "Lecture detail",
     capture: "New lecture",
-    builder: "Exam review builder",
-    exams: "Exam basket list",
-    exam: "Exam basket",
+    builder: "Reviews",
+    exams: "Review sets",
+    exam: "Review set",
     guide: "Study guide preview"
   };
   return titles[screen];
@@ -2775,7 +2816,7 @@ function LoginGate({ onAuthenticated }: { onAuthenticated: () => void }) {
         <div className="mark">LV</div>
         <h1>LectureVault</h1>
         <p>
-          Enter the app password to use the lecture archive, exam basket, AI
+          Enter the app password to use the lecture archive, review sets, AI
           review generation, and PDF download.
         </p>
         <label>
@@ -2830,7 +2871,7 @@ function Dashboard({
         </div>
         <div className="metric">
           <strong>{state.exams.length}</strong>
-          <span>Exam baskets</span>
+          <span>Review sets</span>
         </div>
       </div>
 
@@ -2854,15 +2895,15 @@ function Dashboard({
         <section className="panel action-panel basket-action">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">Exam Review</span>
+              <span className="eyebrow">Reviews</span>
               <h3>Build from saved lectures</h3>
             </div>
             <button type="button" onClick={() => setScreen("builder")}>
-              Build Review
+              Create Review Set
             </button>
           </div>
           <p>
-            Select archived lecture sources, create an exam basket, and
+            Select archived lecture sources, create a review set, and
             generate one focused AI review with PDF export.
           </p>
         </section>
@@ -2888,7 +2929,7 @@ function Dashboard({
           ))}
         </section>
         <section className="panel list-panel">
-          <h3>Active Exam Baskets</h3>
+          <h3>Review Sets</h3>
           {activeExams.map((exam) => (
             <button
               key={exam.id}
@@ -3070,7 +3111,7 @@ function LectureCard({
         </button>
         {onAdd ? (
           <button type="button" onClick={onAdd}>
-          Add to Basket
+            Add to Review
           </button>
         ) : null}
         <button className="danger" type="button" onClick={onDelete}>
@@ -3146,7 +3187,7 @@ function LectureDetail({
       </article>
 
       <aside className="panel side-panel">
-        <h3>Add to Exam Basket</h3>
+        <h3>Add to Review Set</h3>
         <select
           value={targetExamId}
           onChange={(event) => setTargetExamId(event.target.value)}
@@ -3166,7 +3207,7 @@ function LectureDetail({
         </button>
         {!matchingExams.length ? (
           <p className="empty">
-            Create an exam basket for this course before adding references.
+            Create a review set for this course before adding references.
           </p>
         ) : null}
 
@@ -3397,7 +3438,7 @@ function ExamDetail({
           <span>{exam.startsOn || "No date"}</span>
         </div>
         <p>
-          Drag lectures from the file explorer into this exam basket. Items here
+          Drag lectures from the file explorer into this review set. Items here
           are references to the archive, so removing them does not delete
           original media.
         </p>
@@ -3440,7 +3481,7 @@ function ExamDetail({
                 <span>{lecture.date}</span>
               </button>
               <button type="button" onClick={() => onRemove(lecture.id)}>
-                Remove from exam
+                Remove from review
               </button>
             </div>
           ))}
@@ -3523,7 +3564,7 @@ function ExamDetail({
             Download Review PDF
           </button>
           <button className="danger" type="button" onClick={onDelete}>
-            Delete Basket
+            Delete Review Set
           </button>
         </div>
       </article>
@@ -3555,7 +3596,7 @@ function ExamDetail({
         })}
         {!lectures.length ? (
           <p className="empty">
-            Sources added to the exam basket will appear here.
+            Sources added to the review set will appear here.
           </p>
         ) : null}
       </aside>
