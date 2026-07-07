@@ -78,6 +78,15 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Remove Demo Course Reseeding
+
+- Stopped normal app startup from falling back to demo course data when browser storage is empty or unreadable.
+- Removed the hardcoded startup selections for the old demo courses, lectures, and exam.
+- Removed the top-bar `Reset Demo` action so production users cannot accidentally restore the old MATH/PHYS demo records.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-07 - Clamp Stale Course Selections
 
 - Added a startup/runtime cleanup pass that keeps selected courses, capture defaults, exam forms, builder filters, selected lectures, and selected exams pointed at records that still exist.

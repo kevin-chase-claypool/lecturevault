@@ -158,189 +158,6 @@ const emptyState: VaultState = {
   studyGuides: []
 };
 
-const sampleState: VaultState = {
-  courses: [
-    {
-      id: "course-calculus",
-      code: "MATH 241",
-      name: "Calculus III",
-      term: "Fall 2026",
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: "course-physics",
-      code: "PHYS 212",
-      name: "Electricity and Magnetism",
-      term: "Fall 2026",
-      createdAt: new Date().toISOString()
-    }
-  ],
-  archiveFolders: [
-    {
-      id: "folder-calculus-lectures",
-      courseId: "course-calculus",
-      name: DEFAULT_LECTURES_FOLDER_NAME,
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: "folder-physics-lectures",
-      courseId: "course-physics",
-      name: DEFAULT_LECTURES_FOLDER_NAME,
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: "folder-calculus-exam-1",
-      courseId: "course-calculus",
-      name: "Exam 1",
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: "folder-physics-exam-1",
-      courseId: "course-physics",
-      name: "Exam 1",
-      createdAt: new Date().toISOString()
-    }
-  ],
-  lectures: [
-    {
-      id: "lecture-gradient",
-      courseId: "course-calculus",
-      folderId: "folder-calculus-exam-1",
-      title: "Gradient and Directional Derivatives",
-      date: "2026-09-08",
-      summary:
-        "Directional rate of change $D_{\\mathbf{u}} f=\\nabla f\\cdot \\mathbf{u}$, gradient vector meaning, level curves, and worked optimization examples.",
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: "lecture-gauss",
-      courseId: "course-physics",
-      folderId: "folder-physics-exam-1",
-      title: "Gauss's Law",
-      date: "2026-09-10",
-      summary:
-        "Electric flux $\\Phi_E=\\oint \\mathbf{E}\\cdot d\\mathbf{A}$, symmetry choices, closed surfaces, and field calculations for spheres and cylinders.",
-      createdAt: new Date().toISOString()
-    }
-  ],
-  mediaItems: [
-    {
-      id: "media-gradient-audio",
-      lectureId: "lecture-gradient",
-      kind: "audio",
-      name: "gradient-lecture.m4a",
-      mimeType: "audio/mp4",
-      size: 18400000,
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: "media-gauss-board",
-      lectureId: "lecture-gauss",
-      kind: "image",
-      name: "gauss-board.jpg",
-      mimeType: "image/jpeg",
-      size: 940000,
-      dataUrl: SAMPLE_GAUSS_BOARD_DATA_URL,
-      createdAt: new Date().toISOString()
-    }
-  ],
-  transcripts: [
-    {
-      id: "transcript-gradient",
-      lectureId: "lecture-gradient",
-      mediaItemId: "media-gradient-audio",
-      text:
-        "The directional derivative $D_{\\mathbf{u}} f=\\nabla f\\cdot \\mathbf{u}$ measures how a function changes as you move from a point in a chosen direction. The gradient points in the direction of steepest increase and is perpendicular to level curves. To compute it, take the dot product of the gradient with a unit direction vector.",
-      segments: [
-        {
-          id: "seg-gradient-1",
-          startSeconds: 0,
-          endSeconds: 48,
-          text:
-            "The directional derivative $D_{\\mathbf{u}} f=\\nabla f\\cdot \\mathbf{u}$ measures how a function changes as you move from a point in a chosen direction."
-        },
-        {
-          id: "seg-gradient-2",
-          startSeconds: 49,
-          endSeconds: 126,
-          text:
-            "The gradient points in the direction of steepest increase and is perpendicular to level curves."
-        },
-        {
-          id: "seg-gradient-3",
-          startSeconds: 127,
-          endSeconds: 170,
-          text:
-            "To compute it, take the dot product of the gradient with a unit direction vector."
-        }
-      ],
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: "transcript-gauss",
-      lectureId: "lecture-gauss",
-      mediaItemId: "media-gauss-board",
-      text:
-        "Gauss's law $\\oint \\mathbf{E}\\cdot d\\mathbf{A}=Q_{enc}/\\epsilon_0$ relates electric flux through a closed surface to enclosed charge. Pick Gaussian surfaces that match symmetry. Spherical charge distributions use spheres; line charges use cylinders.",
-      segments: [
-        {
-          id: "seg-gauss-1",
-          startSeconds: 0,
-          endSeconds: 55,
-          text:
-            "Gauss's law $\\oint \\mathbf{E}\\cdot d\\mathbf{A}=Q_{enc}/\\epsilon_0$ relates electric flux through a closed surface to enclosed charge."
-        },
-        {
-          id: "seg-gauss-2",
-          startSeconds: 56,
-          endSeconds: 118,
-          text:
-            "Pick Gaussian surfaces that match symmetry. Spherical charge distributions use spheres; line charges use cylinders."
-        }
-      ],
-      createdAt: new Date().toISOString()
-    }
-  ],
-  concepts: [
-    {
-      id: "concept-gradient",
-      lectureId: "lecture-gradient",
-      title: "Gradient vector",
-      detail:
-        "Vector of partial derivatives. It points toward steepest increase and supports directional derivative calculations.",
-      sourceSegmentId: "seg-gradient-2",
-      mediaItemId: "media-gradient-audio"
-    },
-    {
-      id: "concept-gauss",
-      lectureId: "lecture-gauss",
-      title: "Gaussian surface choice",
-      detail:
-        "Choose a closed surface that matches the charge symmetry so the flux integral becomes simple.",
-      sourceSegmentId: "seg-gauss-2",
-      mediaItemId: "media-gauss-board"
-    }
-  ],
-  exams: [
-    {
-      id: "exam-1",
-      courseId: "course-calculus",
-      name: "Exam 1",
-      startsOn: "2026-09-28",
-      createdAt: new Date().toISOString()
-    }
-  ],
-  examItems: [
-    {
-      id: "exam-item-gradient",
-      examWorkspaceId: "exam-1",
-      lectureId: "lecture-gradient",
-      addedAt: new Date().toISOString()
-    }
-  ],
-  studyGuides: []
-};
-
 function uid(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}-${Date.now()}`;
 }
@@ -855,12 +672,12 @@ function buildStudyGuide(
 
 function loadState(): VaultState {
   if (typeof window === "undefined") {
-    return ensureCourseLectureFolders(sampleState);
+    return emptyState;
   }
 
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (!raw) {
-    return ensureCourseLectureFolders(sampleState);
+    return emptyState;
   }
 
   try {
@@ -872,7 +689,7 @@ function loadState(): VaultState {
         : []
     });
   } catch {
-    return ensureCourseLectureFolders(sampleState);
+    return emptyState;
   }
 }
 
@@ -880,9 +697,9 @@ export default function LectureVaultApp() {
   const [state, setState] = useState<VaultState>(() => loadState());
   const [authStatus, setAuthStatus] = useState<"checking" | "ready" | "locked" | "setup">("checking");
   const [screen, setScreen] = useState<Screen>("dashboard");
-  const [selectedCourseId, setSelectedCourseId] = useState("course-calculus");
-  const [selectedLectureId, setSelectedLectureId] = useState("lecture-gradient");
-  const [selectedExamId, setSelectedExamId] = useState("exam-1");
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [selectedLectureId, setSelectedLectureId] = useState("");
+  const [selectedExamId, setSelectedExamId] = useState("");
   const [selectedGuideId, setSelectedGuideId] = useState("");
   const [selectedArchiveFolderId, setSelectedArchiveFolderId] = useState("all");
   const [query, setQuery] = useState("");
@@ -894,7 +711,7 @@ export default function LectureVaultApp() {
     term: ""
   });
   const [captureForm, setCaptureForm] = useState({
-    courseId: "course-calculus",
+    courseId: "",
     title: "",
     date: new Date().toISOString().slice(0, 10),
     transcript: "",
@@ -902,11 +719,11 @@ export default function LectureVaultApp() {
   });
   const [captureFiles, setCaptureFiles] = useState<File[]>([]);
   const [examForm, setExamForm] = useState({
-    courseId: "course-calculus",
+    courseId: "",
     name: "",
     startsOn: ""
   });
-  const [builderCourseId, setBuilderCourseId] = useState("course-calculus");
+  const [builderCourseId, setBuilderCourseId] = useState("");
   const [builderFolderId, setBuilderFolderId] = useState("all");
   const [builderQuery, setBuilderQuery] = useState("");
   const [builderSelectedLectureIds, setBuilderSelectedLectureIds] = useState<string[]>([]);
@@ -1886,16 +1703,6 @@ export default function LectureVaultApp() {
     }
   }
 
-  function resetDemo() {
-    setState(sampleState);
-    setSelectedCourseId("course-calculus");
-    setSelectedArchiveFolderId("all");
-    setSelectedLectureId("lecture-gradient");
-    setSelectedExamId("exam-1");
-    setSelectedGuideId("");
-    setStatus("Demo data restored.");
-  }
-
   function addCaptureFiles(files: File[]) {
     if (!files.length) {
       return;
@@ -2026,9 +1833,6 @@ export default function LectureVaultApp() {
             </button>
             <button type="button" onClick={() => setScreen("capture")}>
               New Lecture
-            </button>
-            <button type="button" onClick={resetDemo}>
-              Reset Demo
             </button>
             <button type="button" onClick={() => void logout()}>
               Log out
