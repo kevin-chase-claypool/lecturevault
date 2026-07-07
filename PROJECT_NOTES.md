@@ -102,6 +102,7 @@ https://production-sfo.browserless.io/pdf
 ### 2026-07-07 - Compact Vault Cards and Render Review Math
 
 - Made Vault folder contents use compact lecture cards so folder contents are shorter and easier to scan.
+- Fixed Vault lecture selection so clicking a compact folder-content card updates the right-side `Selected Lecture` inspector without opening the detail page.
 - Replaced raw generated-review `<pre>` previews with rendered Markdown-style review content that supports KaTeX math in the app.
 - Updated PDF download errors to clearly report `PDF download failed: ...` in the status banner.
 - Browserless is still required for deployed PDF export through `/api/exam-review/pdf`.

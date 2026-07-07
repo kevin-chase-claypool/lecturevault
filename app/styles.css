@@ -714,6 +714,7 @@ label {
   min-height: 0;
   gap: 10px;
   padding: 12px;
+  cursor: pointer;
 }
 
 .lecture-card.compact-card h3 {

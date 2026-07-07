@@ -2676,6 +2676,7 @@ export default function LectureVaultApp() {
                       lecture={lecture}
                       courseLabel={courseLabel}
                       compact
+                      selected={selectedLectureId === lecture.id}
                       mediaCount={
                         state.mediaItems.filter(
                           (item) => item.lectureId === lecture.id
@@ -2686,6 +2687,7 @@ export default function LectureVaultApp() {
                           (concept) => concept.lectureId === lecture.id
                         ).length
                       }
+                      onSelect={() => setSelectedLectureId(lecture.id)}
                       onOpen={() => {
                         setSelectedLectureId(lecture.id);
                         setScreen("lecture");
@@ -3664,6 +3666,8 @@ function LectureCard({
   mediaCount,
   conceptCount,
   compact = false,
+  selected = false,
+  onSelect,
   onOpen,
   onAdd,
   onDelete
@@ -3673,14 +3677,25 @@ function LectureCard({
   mediaCount: number;
   conceptCount: number;
   compact?: boolean;
+  selected?: boolean;
+  onSelect?: () => void;
   onOpen: () => void;
   onAdd?: () => void;
   onDelete: () => void;
 }) {
+  const classes = [
+    "lecture-card",
+    compact ? "compact-card" : "",
+    selected ? "selected" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <article
-      className={compact ? "lecture-card compact-card" : "lecture-card"}
+      className={classes}
       draggable
+      onClick={onSelect}
       onDragStart={(event) =>
         event.dataTransfer.setData("text/lecture-id", lecture.id)
       }
@@ -3697,7 +3712,7 @@ function LectureCard({
         <span>{mediaCount} media</span>
         <span>{conceptCount} concepts</span>
       </div>
-      <div className="button-row">
+      <div className="button-row" onClick={(event) => event.stopPropagation()}>
         <button type="button" onClick={onOpen}>
           Open
         </button>
