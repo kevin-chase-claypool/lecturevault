@@ -78,6 +78,15 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Clamp Stale Course Selections
+
+- Added a startup/runtime cleanup pass that keeps selected courses, capture defaults, exam forms, builder filters, selected lectures, and selected exams pointed at records that still exist.
+- This prevents deleted courses from lingering in archive or exam screens through browser `localStorage`.
+- Preserved the legacy `Unfiled` to `Lectures` merge so existing users get one default `Lectures` folder per course without stale `Unfiled` rows.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-07 - Merge Legacy Unfiled Into Lectures
 
 - Added a localStorage migration for existing course roots that still had `Unfiled` folders:

@@ -1039,9 +1039,66 @@ export default function LectureVaultApp() {
   const basketCount = builderSelectedLectures.length;
 
   useEffect(() => {
+    setState((current) => ensureCourseLectureFolders(current));
+  }, [state.archiveFolders, state.courses, state.lectures]);
+
+  useEffect(() => {
+    const courseIds = new Set(state.courses.map((course) => course.id));
+    const firstCourseId = state.courses[0]?.id || "";
+
+    if (firstCourseId && !courseIds.has(selectedCourseId)) {
+      setSelectedCourseId(firstCourseId);
+      setSelectedArchiveFolderId("all");
+    }
+
+    if (firstCourseId && !courseIds.has(captureForm.courseId)) {
+      setCaptureForm((current) => ({ ...current, courseId: firstCourseId }));
+    }
+
+    if (firstCourseId && !courseIds.has(examForm.courseId)) {
+      setExamForm((current) => ({ ...current, courseId: firstCourseId }));
+    }
+
+    if (firstCourseId && !courseIds.has(builderCourseId)) {
+      setBuilderCourseId(firstCourseId);
+      setBuilderFolderId("all");
+    }
+
+    if (
+      selectedLectureId &&
+      !state.lectures.some((lecture) => lecture.id === selectedLectureId)
+    ) {
+      setSelectedLectureId(state.lectures[0]?.id || "");
+    }
+
+    if (
+      selectedExamId &&
+      !state.exams.some((exam) => exam.id === selectedExamId)
+    ) {
+      setSelectedExamId(state.exams[0]?.id || "");
+    }
+  }, [
+    builderCourseId,
+    captureForm.courseId,
+    examForm.courseId,
+    selectedCourseId,
+    selectedExamId,
+    selectedLectureId,
+    state.courses,
+    state.exams,
+    state.lectures
+  ]);
+
+  useEffect(() => {
+    if (selectedArchiveFolderId === "unfiled") {
+      setSelectedArchiveFolderId(
+        defaultLectureFolderId(state.archiveFolders, selectedCourseId) || "all"
+      );
+      return;
+    }
+
     if (
       selectedArchiveFolderId !== "all" &&
-      selectedArchiveFolderId !== "unfiled" &&
       !state.archiveFolders.some(
         (folder) =>
           folder.id === selectedArchiveFolderId &&
@@ -1053,9 +1110,15 @@ export default function LectureVaultApp() {
   }, [selectedArchiveFolderId, selectedCourseId, state.archiveFolders]);
 
   useEffect(() => {
+    if (builderFolderId === "unfiled") {
+      setBuilderFolderId(
+        defaultLectureFolderId(state.archiveFolders, builderCourseId) || "all"
+      );
+      return;
+    }
+
     if (
       builderFolderId !== "all" &&
-      builderFolderId !== "unfiled" &&
       !state.archiveFolders.some(
         (folder) =>
           folder.id === builderFolderId && folder.courseId === builderCourseId
@@ -3021,7 +3084,7 @@ function ArchiveFolderTree({
   function renderFolder(folder: ArchiveFolder, depth = 0) {
     const courseFolders = folders.filter((item) => item.courseId === folder.courseId);
     const childFolders = courseFolders
-      .filter((item) => item.parentId === folder.id)
+      .filter((item) => item.parentId === folder.id && !isLegacyUnfiledFolder(item))
       .sort(compareArchiveFolders);
     const count = folderLectureCount(folders, lectures, folder.id);
 
@@ -3061,7 +3124,7 @@ function ArchiveFolderTree({
           (folder) => folder.courseId === course.id
         );
         const rootFolders = courseFolders
-          .filter((folder) => !folder.parentId)
+          .filter((folder) => !folder.parentId && !isLegacyUnfiledFolder(folder))
           .sort(compareArchiveFolders);
         return (
           <details className="course-folder-group" key={course.id} open>
