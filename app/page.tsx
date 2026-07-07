@@ -1,6 +1,14 @@
 "use client";
 
-import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  ChangeEvent,
+  CSSProperties,
+  DragEvent,
+  FormEvent,
+  useEffect,
+  useMemo,
+  useState
+} from "react";
 import katex from "katex";
 
 type Screen =
@@ -2858,15 +2866,14 @@ function ArchiveFolderTree({
     const count = folderLectureCount(folders, lectures, folder.id);
 
     return (
-      <div className="folder-node" key={folder.id}>
-        <button
+      <details className="folder-node" key={folder.id} open>
+        <summary
           className={
             selectedCourseId === folder.courseId && selectedFolderId === folder.id
               ? "active"
               : ""
           }
-          style={{ paddingLeft: `${12 + depth * 16}px` }}
-          type="button"
+          style={{ "--tree-depth": depth } as CSSProperties}
           onClick={() => onSelectFolder(folder.id)}
           onDragOver={allowDrop}
           onDrop={(event) => dropOnFolder(event, folder.id)}
@@ -2874,9 +2881,13 @@ function ArchiveFolderTree({
           <span className="folder-icon" aria-hidden="true" />
           <span>{folder.name}</span>
           <small>{count}</small>
-        </button>
-        {childFolders.map((child) => renderFolder(child, depth + 1))}
-      </div>
+        </summary>
+        {childFolders.length ? (
+          <div className="folder-children">
+            {childFolders.map((child) => renderFolder(child, depth + 1))}
+          </div>
+        ) : null}
+      </details>
     );
   }
 
@@ -2895,14 +2906,13 @@ function ArchiveFolderTree({
         ).length;
 
         return (
-          <div className="course-folder-group" key={course.id}>
-            <button
+          <details className="course-folder-group" key={course.id} open>
+            <summary
               className={
                 selectedCourseId === course.id && selectedFolderId === "all"
                   ? "active course-node"
                   : "course-node"
               }
-              type="button"
               onClick={() => onSelectCourse(course.id)}
             >
               <span className="folder-icon" aria-hidden="true" />
@@ -2910,7 +2920,7 @@ function ArchiveFolderTree({
                 {course.code} {course.name}
               </span>
               <small>{courseLectures.length}</small>
-            </button>
+            </summary>
             <button
               className={
                 selectedCourseId === course.id && selectedFolderId === "unfiled"
@@ -2929,8 +2939,10 @@ function ArchiveFolderTree({
               <span>Unfiled</span>
               <small>{unfiledCount}</small>
             </button>
-            {rootFolders.map((folder) => renderFolder(folder))}
-          </div>
+            <div className="folder-children">
+              {rootFolders.map((folder) => renderFolder(folder))}
+            </div>
+          </details>
         );
       })}
     </div>

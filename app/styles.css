@@ -529,34 +529,88 @@ label {
 
 .archive-folder-tree {
   display: grid;
-  gap: 6px;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  background: #ffffff;
 }
 
 .course-folder-group {
-  display: grid;
-  gap: 6px;
+  display: block;
 }
 
 .course-folder-group + .course-folder-group {
-  margin-top: 8px;
-  padding-top: 8px;
+  margin-top: 4px;
+  padding-top: 4px;
   border-top: 1px solid var(--border);
 }
 
-.archive-folder-tree button {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  min-height: 42px;
-  padding: 8px 10px;
-  text-align: left;
+.archive-folder-tree details {
+  display: block;
 }
 
+.archive-folder-tree summary {
+  list-style: none;
+}
+
+.archive-folder-tree summary::-webkit-details-marker {
+  display: none;
+}
+
+.archive-folder-tree summary,
+.archive-folder-tree button {
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px 18px minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  width: 100%;
+  min-height: 30px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.archive-folder-tree summary:hover,
+.archive-folder-tree button:hover:not(:disabled) {
+  border-color: #d7e1ea;
+  background: #f5f8fb;
+  box-shadow: none;
+  transform: none;
+}
+
+.archive-folder-tree summary::before {
+  content: "›";
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  transform: rotate(0deg);
+  transition: transform 120ms ease;
+}
+
+.archive-folder-tree details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.archive-folder-tree button::before {
+  content: "";
+}
+
+.archive-folder-tree summary.active,
 .archive-folder-tree button.active {
-  border-color: #8dbab4;
-  background: #ecfaf7;
-  color: #07564e;
+  border-color: #b8d6df;
+  background: #e8f4f7;
+  color: var(--primary-dark);
 }
 
 .archive-folder-tree .course-node {
@@ -564,7 +618,25 @@ label {
   font-weight: 900;
 }
 
-.archive-folder-tree button span:nth-child(2) {
+.archive-folder-tree .folder-node > summary {
+  padding-left: calc(8px + (var(--tree-depth, 0) * 18px));
+}
+
+.folder-children {
+  display: grid;
+  gap: 2px;
+}
+
+.course-folder-group > .folder-children {
+  margin-left: 18px;
+}
+
+.archive-folder-tree button {
+  margin-left: 18px;
+}
+
+.archive-folder-tree summary span:nth-of-type(2),
+.archive-folder-tree button span:nth-of-type(2) {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

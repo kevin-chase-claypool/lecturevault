@@ -78,6 +78,19 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Explorer-Style Archive Tree
+
+- Reworked the archive folder tree to behave more like Windows File Explorer:
+  - course and folder rows now use expandable disclosure nodes
+  - rows are compact instead of card-like
+  - nested folders have clearer indentation
+  - selected rows use a lighter explorer-style highlight
+  - folders can collapse as the number of lectures and folders grows
+- Preserved drag/drop folder behavior and course/unfiled selection behavior.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-07 - Tablet Navigation Layout Fix
 
 - Changed responsive navigation behavior so tablet widths keep a compact left sidebar instead of moving the navigation into an uneven top panel.
