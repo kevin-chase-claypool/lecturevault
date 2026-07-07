@@ -102,6 +102,7 @@ https://production-sfo.browserless.io/pdf
 ### 2026-07-07 - Compact Vault Cards and Render Review Math
 
 - Made Vault folder contents use compact lecture cards so folder contents are shorter and easier to scan.
+- Made Reviews source candidates use the same compact lecture cards as Vault for a shorter at-a-glance list.
 - Fixed Vault lecture selection so clicking a compact folder-content card updates the right-side `Selected Lecture` inspector without opening the detail page.
 - Replaced raw generated-review `<pre>` previews with rendered Markdown-style review content that supports KaTeX math in the app.
 - Normalized double-escaped AI LaTeX such as `\\(` and `\\frac` before app/PDF rendering so generated math previews as KaTeX instead of raw text.

@@ -3035,55 +3035,31 @@ export default function LectureVaultApp() {
                   const selected = builderSelectedLectureIds.includes(lecture.id);
 
                   return (
-                    <article
-                      className={selected ? "lecture-card selected" : "lecture-card"}
+                    <LectureCard
                       key={lecture.id}
-                    >
-                      <div>
-                        <span className="pill">{courseLabel(lecture.courseId)}</span>
-                        <h3>{lecture.title}</h3>
-                        <p>
-                          <MathPreview text={lecture.summary} />
-                        </p>
-                      </div>
-                      <div className="card-meta">
-                        <span>{lecture.date}</span>
-                        <span>
-                          {
-                            state.mediaItems.filter(
-                              (item) => item.lectureId === lecture.id
-                            ).length
-                          }{" "}
-                          media
-                        </span>
-                        <span>
-                          {
-                            state.concepts.filter(
-                              (concept) => concept.lectureId === lecture.id
-                            ).length
-                          }{" "}
-                          concepts
-                        </span>
-                      </div>
-                      <div className="button-row">
-                        <button
-                          className={selected ? "primary" : ""}
-                          type="button"
-                          onClick={() => toggleBuilderLecture(lecture.id)}
-                        >
-                          {selected ? "Selected" : "Add to Review"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedLectureId(lecture.id);
-                            setScreen("lecture");
-                          }}
-                        >
-                          Open
-                        </button>
-                      </div>
-                    </article>
+                      lecture={lecture}
+                      courseLabel={courseLabel}
+                      compact
+                      selected={selected}
+                      mediaCount={
+                        state.mediaItems.filter(
+                          (item) => item.lectureId === lecture.id
+                        ).length
+                      }
+                      conceptCount={
+                        state.concepts.filter(
+                          (concept) => concept.lectureId === lecture.id
+                        ).length
+                      }
+                      addLabel={selected ? "Selected" : "Add to Review"}
+                      addPrimary={selected}
+                      onSelect={() => toggleBuilderLecture(lecture.id)}
+                      onOpen={() => {
+                        setSelectedLectureId(lecture.id);
+                        setScreen("lecture");
+                      }}
+                      onAdd={() => toggleBuilderLecture(lecture.id)}
+                    />
                   );
                 })}
                 {!builderLectures.length ? (
@@ -3676,6 +3652,8 @@ function LectureCard({
   conceptCount,
   compact = false,
   selected = false,
+  addLabel = "Add to Review",
+  addPrimary = false,
   onSelect,
   onOpen,
   onAdd,
@@ -3687,10 +3665,12 @@ function LectureCard({
   conceptCount: number;
   compact?: boolean;
   selected?: boolean;
+  addLabel?: string;
+  addPrimary?: boolean;
   onSelect?: () => void;
   onOpen: () => void;
   onAdd?: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
 }) {
   const classes = [
     "lecture-card",
@@ -3726,13 +3706,19 @@ function LectureCard({
           Open
         </button>
         {onAdd ? (
-          <button type="button" onClick={onAdd}>
-            Add to Review
+          <button
+            className={addPrimary ? "primary" : ""}
+            type="button"
+            onClick={onAdd}
+          >
+            {addLabel}
           </button>
         ) : null}
-        <button className="danger" type="button" onClick={onDelete}>
-          Delete
-        </button>
+        {onDelete ? (
+          <button className="danger" type="button" onClick={onDelete}>
+            Delete
+          </button>
+        ) : null}
       </div>
     </article>
   );
