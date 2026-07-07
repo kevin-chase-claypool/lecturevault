@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import type { ResponseInputMessageContentList } from "openai/resources/responses/responses";
 import { requireAuthenticatedRequest } from "../../../lib/auth";
+import { storageObjectToDataUrl } from "../../../lib/supabase-server";
 
 export const runtime = "nodejs";
 
@@ -38,8 +39,11 @@ type ExamReviewMediaItem = {
   id?: string;
   lectureId?: string;
   kind?: string;
+  mimeType?: string;
   name?: string;
   dataUrl?: string;
+  storageBucket?: string;
+  storagePath?: string;
 };
 
 type ExamReviewFigure = {
@@ -78,26 +82,42 @@ function trimTranscripts(transcripts: ExamReviewTranscript[]) {
   });
 }
 
-function buildFigures(
+async function dataUrlForMedia(item: ExamReviewMediaItem) {
+  const inline = cleanString(item.dataUrl);
+
+  if (inline) {
+    return inline;
+  }
+
+  return (
+    (await storageObjectToDataUrl({
+      bucket: cleanString(item.storageBucket),
+      mimeType: cleanString(item.mimeType),
+      path: cleanString(item.storagePath)
+    })) || undefined
+  );
+}
+
+async function buildFigures(
   lectures: ExamReviewLecture[],
   mediaItems: ExamReviewMediaItem[]
 ) {
   let index = 0;
+  const figures: ExamReviewFigure[] = [];
 
-  return mediaItems
-    .filter((item) => item.kind === "image")
-    .map((item) => {
-      const lecture = lectures.find((entry) => entry.id === item.lectureId);
-      index += 1;
-
-      return {
-        label: `Fig. ${index}`,
-        lectureId: cleanString(item.lectureId),
-        lectureTitle: cleanString(lecture?.title) || "Untitled lecture",
-        name: cleanString(item.name) || `Board image ${index}`,
-        dataUrl: cleanString(item.dataUrl) || undefined
-      };
+  for (const item of mediaItems.filter((entry) => entry.kind === "image")) {
+    const lecture = lectures.find((entry) => entry.id === item.lectureId);
+    index += 1;
+    figures.push({
+      label: `Fig. ${index}`,
+      lectureId: cleanString(item.lectureId),
+      lectureTitle: cleanString(lecture?.title) || "Untitled lecture",
+      name: cleanString(item.name) || `Board image ${index}`,
+      dataUrl: await dataUrlForMedia(item)
     });
+  }
+
+  return figures;
 }
 
 function formatSeconds(value: unknown) {
@@ -282,7 +302,7 @@ export async function POST(request: Request) {
     );
     const concepts = Array.isArray(body.concepts) ? body.concepts : [];
     const mediaItems = Array.isArray(body.mediaItems) ? body.mediaItems : [];
-    const figures = buildFigures(lectures, mediaItems);
+    const figures = await buildFigures(lectures, mediaItems);
     const examName = cleanString(body.examName) || "Exam";
     const courseName = cleanString(body.courseName);
     const instructions = cleanString(body.instructions);

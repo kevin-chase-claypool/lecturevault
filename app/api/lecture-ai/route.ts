@@ -1,6 +1,7 @@
 import OpenAI, { toFile } from "openai";
 import type { ResponseInputMessageContentList } from "openai/resources/responses/responses";
 import { requireAuthenticatedRequest } from "../../../lib/auth";
+import { storageObjectToDataUrl } from "../../../lib/supabase-server";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,8 @@ type LectureMediaItem = {
   mimeType?: string;
   size?: number;
   dataUrl?: string;
+  storageBucket?: string;
+  storagePath?: string;
 };
 
 type TokenUsage = {
@@ -63,6 +66,22 @@ function audioFormat(media: LectureMediaItem) {
   }
 
   return null;
+}
+
+async function mediaDataUrl(media: LectureMediaItem) {
+  const inline = cleanString(media.dataUrl);
+
+  if (inline) {
+    return inline;
+  }
+
+  return (
+    (await storageObjectToDataUrl({
+      bucket: cleanString(media.storageBucket),
+      mimeType: cleanString(media.mimeType),
+      path: cleanString(media.storagePath)
+    })) || ""
+  );
 }
 
 function usageFromOpenAI(usage: unknown): TokenUsage {
@@ -140,11 +159,16 @@ export async function POST(request: Request) {
     const audioTranscripts: string[] = [];
     const transcribedMediaIds: string[] = [];
     const usableAudio = mediaItems
-      .filter((item) => item.kind === "audio" && item.dataUrl && audioFormat(item))
+      .filter(
+        (item) =>
+          item.kind === "audio" &&
+          Boolean(cleanString(item.dataUrl) || cleanString(item.storagePath)) &&
+          audioFormat(item)
+      )
       .slice(0, MAX_AUDIO_INPUTS);
 
     for (const item of usableAudio) {
-      const parsed = parseDataUrl(cleanString(item.dataUrl));
+      const parsed = parseDataUrl(await mediaDataUrl(item));
       const format = audioFormat(item);
 
       if (!parsed || !format) {
@@ -178,13 +202,17 @@ export async function POST(request: Request) {
       totalUsage = addUsage(totalUsage, usageFromOpenAI(transcription.usage));
     }
 
-    const imageInputs = mediaItems
-      .filter(
-        (item) =>
-          item.kind === "image" &&
-          cleanString(item.dataUrl).startsWith("data:image/")
+    const imageInputs = (
+      await Promise.all(
+        mediaItems
+          .filter((item) => item.kind === "image")
+          .slice(0, MAX_IMAGE_INPUTS)
+          .map(async (item) => ({
+            dataUrl: await mediaDataUrl(item),
+            item
+          }))
       )
-      .slice(0, MAX_IMAGE_INPUTS);
+    ).filter(({ dataUrl }) => dataUrl.startsWith("data:image/"));
     const mediaManifest = mediaItems
       .map(
         (item, index) =>
@@ -218,9 +246,9 @@ export async function POST(request: Request) {
           .filter(Boolean)
           .join("\n\n")
       },
-      ...imageInputs.map((item) => ({
+      ...imageInputs.map(({ dataUrl }) => ({
         type: "input_image" as const,
-        image_url: item.dataUrl,
+        image_url: dataUrl,
         detail: "auto" as const
       }))
     ];

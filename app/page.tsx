@@ -57,6 +57,8 @@ type MediaItem = {
   mimeType: string;
   size: number;
   dataUrl?: string;
+  storageBucket?: string;
+  storagePath?: string;
   createdAt: string;
 };
 
@@ -326,6 +328,26 @@ function embeddedDataUrlForMedia(item: MediaItem) {
   return item.id === "media-gauss-board" || item.name === "gauss-board.jpg"
     ? SAMPLE_GAUSS_BOARD_DATA_URL
     : undefined;
+}
+
+function mediaStorageUrl(item: MediaItem) {
+  if (item.dataUrl) {
+    return item.dataUrl;
+  }
+
+  if (!item.storagePath) {
+    return "";
+  }
+
+  const params = new URLSearchParams({
+    path: item.storagePath
+  });
+
+  if (item.storageBucket) {
+    params.set("bucket", item.storageBucket);
+  }
+
+  return `/api/media/read?${params.toString()}`;
 }
 
 function buildReviewFigures(lectures: Lecture[], mediaItems: MediaItem[]) {
@@ -645,6 +667,41 @@ async function fileToMediaDataUrl(file: File) {
   }
 
   return file.size <= 8 * 1024 * 1024 ? readFileAsDataUrl(file) : undefined;
+}
+
+async function uploadMediaFile({
+  file,
+  lectureId,
+  mediaId
+}: {
+  file: File;
+  lectureId: string;
+  mediaId: string;
+}) {
+  const form = new FormData();
+  form.set("file", file);
+  form.set("lectureId", lectureId);
+  form.set("mediaId", mediaId);
+
+  const response = await fetch("/api/media/upload", {
+    body: form,
+    credentials: "include",
+    method: "POST"
+  });
+  const data = (await response.json()) as {
+    bucket?: string;
+    error?: string;
+    path?: string;
+  };
+
+  if (!response.ok || !data.path) {
+    throw new Error(data.error || `Could not upload ${file.name} to Supabase.`);
+  }
+
+  return {
+    storageBucket: data.bucket,
+    storagePath: data.path
+  };
 }
 
 function readFileAsDataUrl(file: File) {
@@ -1593,14 +1650,25 @@ export default function LectureVaultApp() {
       }
 
       for (const file of captureFiles) {
+        const mediaId = uid("media");
+        let storage: Pick<MediaItem, "storageBucket" | "storagePath"> = {};
+        let dataUrl: string | undefined;
+
+        try {
+          storage = await uploadMediaFile({ file, lectureId, mediaId });
+        } catch {
+          dataUrl = await fileToMediaDataUrl(file);
+        }
+
         mediaItems.push({
-          id: uid("media"),
+          id: mediaId,
           lectureId,
           kind: fileKind(file),
           name: file.name,
           mimeType: file.type || "application/octet-stream",
           size: file.size,
-          dataUrl: await fileToMediaDataUrl(file),
+          dataUrl,
+          ...storage,
           createdAt
         });
       }
@@ -2004,7 +2072,7 @@ export default function LectureVaultApp() {
       sourceLectureIds.includes(item.lectureId)
     );
     const reviewMediaItems = selectedMediaItems.map((item) =>
-      item.kind === "image"
+      item.kind === "image" && embeddedDataUrlForMedia(item)
         ? { ...item, dataUrl: embeddedDataUrlForMedia(item) }
         : item
     );
@@ -2096,7 +2164,14 @@ export default function LectureVaultApp() {
         selectedExamLectures,
         selectedMediaItems
       );
-      const figures = currentFigures.length ? currentFigures : guide.figures || [];
+      const guideFiguresHaveImages = Boolean(
+        guide.figures?.some((figure) => figure.dataUrl)
+      );
+      const figures = guideFiguresHaveImages
+        ? guide.figures || []
+        : currentFigures.length
+          ? currentFigures
+          : guide.figures || [];
       const response = await fetch("/api/exam-review/pdf", {
         method: "POST",
         headers: {
@@ -3645,23 +3720,28 @@ function LectureDetail({
 
         <h3>Media</h3>
         <div className="media-list">
-          {mediaItems.map((item) => (
-            <div key={item.id} className="media-item">
-              <strong>{item.name}</strong>
-              <span>
-                {item.kind} - {(item.size / 1024 / 1024).toFixed(1)} MB
-              </span>
-              {item.kind === "image" && item.dataUrl ? (
-                <img src={item.dataUrl} alt={item.name} />
-              ) : null}
-              {item.kind === "audio" && item.dataUrl ? (
-                <audio src={item.dataUrl} controls />
-              ) : null}
-              {item.kind === "video" && item.dataUrl ? (
-                <video src={item.dataUrl} controls />
-              ) : null}
-            </div>
-          ))}
+          {mediaItems.map((item) => {
+            const sourceUrl = mediaStorageUrl(item);
+
+            return (
+              <div key={item.id} className="media-item">
+                <strong>{item.name}</strong>
+                <span>
+                  {item.kind} - {(item.size / 1024 / 1024).toFixed(1)} MB
+                </span>
+                {item.storagePath ? <span>Stored in Supabase</span> : null}
+                {item.kind === "image" && sourceUrl ? (
+                  <img src={sourceUrl} alt={item.name} />
+                ) : null}
+                {item.kind === "audio" && sourceUrl ? (
+                  <audio src={sourceUrl} controls />
+                ) : null}
+                {item.kind === "video" && sourceUrl ? (
+                  <video src={sourceUrl} controls />
+                ) : null}
+              </div>
+            );
+          })}
         </div>
 
         <h3>Extracted Concepts</h3>

@@ -21,7 +21,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 ## Current Architecture
 
 - App: Next.js app in `LectureVault/`.
-- Storage: Supabase shared JSON state in `lecturevault_state` when configured, with browser `localStorage` under `lecturevault-state-v1` as fallback/cache.
+- Storage: Supabase shared JSON state in `lecturevault_state` when configured, with browser `localStorage` under `lecturevault-state-v1` as fallback/cache. Lecture source media is stored in Supabase Storage when configured.
 - Archive data model: courses, lectures, media items, transcripts, extracted concepts, exam baskets, basket source references, and generated study guides.
 - Exam review route: `app/api/exam-review/route.ts`.
 - PDF route: `app/api/exam-review/pdf/route.ts`.
@@ -64,6 +64,12 @@ SUPABASE_URL
 SUPABASE_SERVICE_ROLE_KEY
 ```
 
+Optional Supabase media bucket override:
+
+```text
+SUPABASE_MEDIA_BUCKET
+```
+
 Optional shared state row override:
 
 ```text
@@ -92,6 +98,20 @@ https://production-sfo.browserless.io/pdf
 ```
 
 ## Recent Changes
+
+### 2026-07-07 - Store Lecture Media in Supabase Storage
+
+- Added shared Supabase server helpers and a default private `lecturevault-media` bucket.
+- Added authenticated media upload/read routes:
+  - `/api/media/upload`
+  - `/api/media/read`
+- New lecture source media now saves `storageBucket` and `storagePath` references on each `MediaItem` when Supabase upload succeeds.
+- Lecture detail renders stored images/audio/video through the authenticated read route.
+- Lecture AI resolves stored MP3/WAV and image objects from Supabase before sending them to OpenAI.
+- Exam review AI resolves stored lecture images from Supabase so returned review figures can be embedded in KaTeX/PDF output.
+- Kept data URL fallback for demo/existing records and for cases where media upload is unavailable.
+- Verified with:
+  - `npm run typecheck`
 
 ### 2026-07-07 - Add Lecture-Level AI Artifact Generation
 
@@ -452,11 +472,11 @@ https://production-sfo.browserless.io/pdf
 
 ## Known Limitations
 
-- Lecture AI is implemented for source media with available data URLs; large files that are metadata-only cannot be transcribed/analyzed until durable file storage is added.
+- Lecture media storage now uses Supabase Storage when configured, but server-routed uploads can still be constrained by deployment request body limits. Direct browser-to-Supabase signed uploads may be needed if large MP3 uploads are rejected by Vercel.
 - Supabase sync currently stores the whole app state as one JSON row with last-write-wins semantics.
 - Browser `localStorage` remains a fallback/cache and can diverge if Supabase is unavailable.
 - Existing media records that only contain metadata cannot recover original image pixels. Users must re-upload those images after the image embedding fix.
-- PDF image embedding depends on image data being stored in `MediaItem.dataUrl`.
+- PDF image embedding uses stored image data returned by review generation when available; existing metadata-only image records still cannot render pixels.
 - Browserless is required for PDF output in deployed environments.
 - The app has no user accounts or cloud database yet.
 - The AI output should be source-audited for senior-level engineering/math accuracy.
@@ -494,7 +514,7 @@ For archive organization changes, manually verify:
 
 ## Next Priorities
 
-- Add real lecture-level transcription route.
+- Add direct browser-to-Supabase signed uploads if deployment body limits block large MP3 uploads.
 - Replace single-row Supabase JSON state with relational tables and conflict-aware sync if multi-user editing becomes important.
 - Add explicit image upload/re-upload controls for archive items.
 - Add formula audit or uncertainty section for advanced engineering/math courses.

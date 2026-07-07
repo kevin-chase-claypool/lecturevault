@@ -1,37 +1,10 @@
-import { createClient } from "@supabase/supabase-js";
 import { requireAuthenticatedRequest } from "../../../lib/auth";
+import { supabaseServerClient } from "../../../lib/supabase-server";
 
 export const runtime = "nodejs";
 
 const TABLE_NAME = "lecturevault_state";
 const ROW_ID = process.env.LECTUREVAULT_STATE_ID?.trim() || "default";
-
-function supabaseConfig() {
-  const url = process.env.SUPABASE_URL?.trim();
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-    process.env.SUPABASE_SERVICE_KEY?.trim();
-
-  if (!url || !key) {
-    return null;
-  }
-
-  return { key, url };
-}
-
-function supabaseClient() {
-  const config = supabaseConfig();
-
-  if (!config) {
-    return null;
-  }
-
-  return createClient(config.url, config.key, {
-    auth: {
-      persistSession: false
-    }
-  });
-}
 
 export async function GET(request: Request) {
   const unauthorized = requireAuthenticatedRequest(request);
@@ -40,7 +13,7 @@ export async function GET(request: Request) {
     return unauthorized;
   }
 
-  const client = supabaseClient();
+  const client = supabaseServerClient();
 
   if (!client) {
     return Response.json({
@@ -74,7 +47,7 @@ export async function PUT(request: Request) {
     return unauthorized;
   }
 
-  const client = supabaseClient();
+  const client = supabaseServerClient();
 
   if (!client) {
     return Response.json(
