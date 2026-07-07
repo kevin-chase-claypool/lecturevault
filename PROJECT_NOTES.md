@@ -78,6 +78,15 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Tablet Navigation Layout Fix
+
+- Changed responsive navigation behavior so tablet widths keep a compact left sidebar instead of moving the navigation into an uneven top panel.
+- Limited the top navigation layout to smaller phone widths.
+- Updated narrow-screen navigation to a balanced 3-by-2 grid for the six primary options.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-07 - Professional Visual Polish Pass
 
 - Refined the app-wide visual system:
