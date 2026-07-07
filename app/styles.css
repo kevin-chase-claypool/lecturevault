@@ -1278,6 +1278,8 @@ label {
 }
 
 .usage-panel {
+  display: grid;
+  gap: 10px;
   border: 1px solid #c8dbe2;
   border-radius: 8px;
   padding: 12px;
@@ -1298,6 +1300,23 @@ label {
   color: var(--muted);
   font-size: 0.9rem;
   line-height: 1.4;
+}
+
+.usage-source-list {
+  display: grid;
+  gap: 5px;
+}
+
+.usage-source-list span {
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .token-usage {

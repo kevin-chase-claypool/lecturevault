@@ -74,6 +74,8 @@ Optional model override:
 
 ```text
 OPENAI_EXAM_REVIEW_MODEL
+OPENAI_LECTURE_MODEL
+OPENAI_TRANSCRIPTION_MODEL
 ```
 
 Required for PDF download:
@@ -90,6 +92,22 @@ https://production-sfo.browserless.io/pdf
 ```
 
 ## Recent Changes
+
+### 2026-07-07 - Add Lecture-Level AI Artifact Generation
+
+- Added `/api/lecture-ai` for authenticated lecture-level AI generation.
+- Lecture AI now:
+  - transcribes stored MP3/WAV source media when a data URL is available
+  - sends uploaded images to the model as first-class visual context
+  - creates an exam-focused lecture study artifact rather than only a raw transcript
+  - saves source media IDs and transcribed media IDs on the transcript
+  - saves combined OpenAI usage on the transcript
+- Added `Generate AI Lecture` to the New Lecture screen; `Save to Vault` remains the no-token path.
+- Lecture detail now lists `Source Media Used` and marks transcribed source media.
+- Review/PDF generation can continue to include selected lecture images as figures.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
 
 ### 2026-07-07 - Auto-Refresh Supabase State
 
@@ -434,7 +452,7 @@ https://production-sfo.browserless.io/pdf
 
 ## Known Limitations
 
-- Lecture transcription is not fully implemented yet. Current capture uses pasted transcript text or a placeholder.
+- Lecture AI is implemented for source media with available data URLs; large files that are metadata-only cannot be transcribed/analyzed until durable file storage is added.
 - Supabase sync currently stores the whole app state as one JSON row with last-write-wins semantics.
 - Browser `localStorage` remains a fallback/cache and can diverge if Supabase is unavailable.
 - Existing media records that only contain metadata cannot recover original image pixels. Users must re-upload those images after the image embedding fix.

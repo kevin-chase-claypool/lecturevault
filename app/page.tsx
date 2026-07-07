@@ -64,6 +64,8 @@ type Transcript = {
   id: string;
   lectureId: string;
   mediaItemId?: string;
+  sourceMediaIds?: string[];
+  transcribedMediaIds?: string[];
   text: string;
   segments: TranscriptSegment[];
   generatedBy?: "manual" | "placeholder" | "openai";
@@ -857,6 +859,7 @@ export default function LectureVaultApp() {
   const [builderFolderId, setBuilderFolderId] = useState("all");
   const [builderQuery, setBuilderQuery] = useState("");
   const [builderSelectedLectureIds, setBuilderSelectedLectureIds] = useState<string[]>([]);
+  const [isLectureGenerating, setIsLectureGenerating] = useState(false);
   const [isReviewGenerating, setIsReviewGenerating] = useState(false);
   const stateJsonRef = useRef(JSON.stringify(state));
   const skipNextCloudSaveRef = useRef(false);
@@ -1569,36 +1572,133 @@ export default function LectureVaultApp() {
 
   async function saveCapture(event: FormEvent) {
     event.preventDefault();
+    await persistCapture(false);
+  }
+
+  async function saveCaptureWithAi() {
+    await persistCapture(true);
+  }
+
+  async function persistCapture(useAi: boolean) {
     const title = captureForm.title.trim() || "Untitled lecture";
     const lectureId = uid("lecture");
     const createdAt = new Date().toISOString();
     const pastedTranscript = captureForm.transcript.trim();
-    const transcriptText =
-      pastedTranscript ||
-      `Transcript placeholder for ${title}. Add audio transcription or paste notes here.`;
     const mediaItems: MediaItem[] = [];
 
-    for (const file of captureFiles) {
-      mediaItems.push({
-        id: uid("media"),
-        lectureId,
-        kind: fileKind(file),
-        name: file.name,
-        mimeType: file.type || "application/octet-stream",
-        size: file.size,
-        dataUrl: await fileToMediaDataUrl(file),
-        createdAt
-      });
+    try {
+      if (useAi) {
+        setIsLectureGenerating(true);
+        setStatus("Generating lecture study artifact from source media...");
+      }
+
+      for (const file of captureFiles) {
+        mediaItems.push({
+          id: uid("media"),
+          lectureId,
+          kind: fileKind(file),
+          name: file.name,
+          mimeType: file.type || "application/octet-stream",
+          size: file.size,
+          dataUrl: await fileToMediaDataUrl(file),
+          createdAt
+        });
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not read lecture source files.";
+      setStatus(message);
+      setIsLectureGenerating(false);
+      return;
+    }
+
+    let transcriptText =
+      pastedTranscript ||
+      `Transcript placeholder for ${title}. Add audio transcription or paste notes here.`;
+    let transcriptUsage: TokenUsage | null = null;
+    let generatedBy: Transcript["generatedBy"] = pastedTranscript
+      ? "manual"
+      : "placeholder";
+    let sourceMediaIds = mediaItems.map((item) => item.id);
+    let transcribedMediaIds: string[] = [];
+    let aiConcepts: ExtractedConcept[] | null = null;
+    let aiSummary = "";
+
+    if (useAi) {
+      try {
+        const response = await fetch("/api/lecture-ai", {
+          body: JSON.stringify({
+            courseName: courseLabel(captureForm.courseId),
+            date: captureForm.date,
+            mediaItems,
+            notes: [captureForm.summary.trim(), pastedTranscript]
+              .filter(Boolean)
+              .join("\n\n"),
+            title
+          }),
+          credentials: "include",
+          headers: {
+            "content-type": "application/json"
+          },
+          method: "POST"
+        });
+        const data = (await response.json()) as {
+          concepts?: Array<{
+            title?: string;
+            detail?: string;
+            sourceMediaId?: string;
+          }>;
+          error?: string;
+          generatedBy?: "openai";
+          sourceMediaIds?: string[];
+          summary?: string;
+          transcribedMediaIds?: string[];
+          transcriptText?: string;
+          usage?: TokenUsage | null;
+        };
+
+        if (!response.ok) {
+          throw new Error(data.error || "Could not generate lecture study artifact.");
+        }
+
+        transcriptText = data.transcriptText || transcriptText;
+        transcriptUsage = data.usage || null;
+        generatedBy = data.generatedBy || "openai";
+        sourceMediaIds = data.sourceMediaIds?.length
+          ? data.sourceMediaIds
+          : sourceMediaIds;
+        transcribedMediaIds = data.transcribedMediaIds || [];
+        aiSummary = data.summary || "";
+        aiConcepts =
+          data.concepts?.map((concept, index) => ({
+            detail: concept.detail || "No detail returned.",
+            id: uid("concept"),
+            lectureId,
+            mediaItemId: concept.sourceMediaId,
+            sourceSegmentId: `ai-concept-${index + 1}`,
+            title: concept.title || `Concept ${index + 1}`
+          })) || [];
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Could not generate lecture study artifact.";
+        setStatus(message);
+        setIsLectureGenerating(false);
+        return;
+      }
     }
 
     const transcript: Transcript = {
       id: uid("transcript"),
       lectureId,
       mediaItemId: mediaItems[0]?.id,
+      sourceMediaIds,
+      transcribedMediaIds,
       text: transcriptText,
       segments: splitTranscript(transcriptText),
-      generatedBy: pastedTranscript ? "manual" : "placeholder",
-      usage: null,
+      generatedBy,
+      usage: transcriptUsage,
       createdAt
     };
 
@@ -1618,6 +1718,7 @@ export default function LectureVaultApp() {
       title,
       date: captureForm.date,
       summary:
+        aiSummary ||
         captureForm.summary.trim() ||
         transcript.segments
           .slice(0, 2)
@@ -1634,7 +1735,10 @@ export default function LectureVaultApp() {
       lectures: [lecture, ...current.lectures],
       mediaItems: [...mediaItems, ...current.mediaItems],
       transcripts: [transcript, ...current.transcripts],
-      concepts: [...extractConcepts(lectureId, transcript), ...current.concepts]
+      concepts: [
+        ...(aiConcepts || extractConcepts(lectureId, transcript)),
+        ...current.concepts
+      ]
     }));
     setSelectedLectureId(lectureId);
     setCaptureFiles([]);
@@ -1644,7 +1748,12 @@ export default function LectureVaultApp() {
       transcript: "",
       summary: ""
     }));
-    setStatus(`Saved ${title} to the permanent archive.`);
+    setStatus(
+      useAi
+        ? `Generated and saved ${title} to the permanent archive.`
+        : `Saved ${title} to the permanent archive.`
+    );
+    setIsLectureGenerating(false);
     setScreen("lecture");
   }
 
@@ -2641,11 +2750,25 @@ export default function LectureVaultApp() {
             </label>
 
             <div className="button-row">
-              <button className="primary" type="submit">
+              <button
+                className="primary"
+                type="button"
+                onClick={() => void saveCaptureWithAi()}
+                disabled={
+                  isLectureGenerating ||
+                  (!captureFiles.length &&
+                    !captureForm.transcript.trim() &&
+                    !captureForm.summary.trim())
+                }
+              >
+                {isLectureGenerating ? "Working..." : "Generate AI Lecture"}
+              </button>
+              <button type="submit" disabled={isLectureGenerating}>
                 Save to Vault
               </button>
               <button
                 type="button"
+                disabled={isLectureGenerating}
                 onClick={() =>
                   setCaptureForm((current) => ({
                     ...current,
@@ -3454,6 +3577,22 @@ function LectureDetail({
             <h4>Transcription Usage</h4>
             <p>{transcriptUsageLabel(transcript)}</p>
           </div>
+          {transcript?.sourceMediaIds?.length ? (
+            <div className="usage-source-list">
+              <h4>Source Media Used</h4>
+              {transcript.sourceMediaIds.map((mediaId) => {
+                const item = mediaItems.find((entry) => entry.id === mediaId);
+                const wasTranscribed = transcript.transcribedMediaIds?.includes(mediaId);
+
+                return (
+                  <span key={mediaId}>
+                    {item?.name || mediaId}
+                    {wasTranscribed ? " - transcribed" : ""}
+                  </span>
+                );
+              })}
+            </div>
+          ) : null}
         </section>
 
         <h4>Transcript</h4>

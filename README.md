@@ -57,8 +57,10 @@ Optional:
 
 ```text
 LECTUREVAULT_STATE_ID=default
+OPENAI_LECTURE_MODEL=gpt-4.1-mini
+OPENAI_TRANSCRIPTION_MODEL=gpt-4o-transcribe
 ```
 
 ## Notes
 
-Small selected media files are stored as data URLs inside the shared state for preview. Larger files are represented by metadata so the UI remains responsive. Lecture-level audio transcription is still a future backend step; current capture saves attached audio and any pasted transcript or notes into the vault.
+Small selected media files are stored as data URLs inside the shared state for preview and lecture-level AI analysis. Larger files are represented by metadata so the UI remains responsive and cannot be transcribed/analyzed until durable file storage is added. Current capture can save manually pasted transcript text or generate an AI lecture artifact from supported source media.
