@@ -91,6 +91,7 @@ type ExamWorkspace = {
   courseId: string;
   name: string;
   startsOn: string;
+  context?: string;
   createdAt: string;
 };
 
@@ -144,6 +145,8 @@ const STORAGE_KEY = "lecturevault-state-v1";
 const DEFAULT_LECTURES_FOLDER_NAME = "Lectures";
 const LEGACY_UNFILED_FOLDER_NAME = "Unfiled";
 const LEGACY_DEMO_COURSE_IDS = new Set(["course-calculus", "course-physics"]);
+const DEFAULT_REVIEW_CONTEXT =
+  "Prioritize high-yield concepts, formulas, worked problem patterns, common mistakes, and a practice checklist.";
 const MAX_INLINE_IMAGE_DIMENSION = 1600;
 const INLINE_IMAGE_QUALITY = 0.78;
 const SAMPLE_GAUSS_BOARD_DATA_URL =
@@ -820,9 +823,6 @@ export default function LectureVaultApp() {
   const [builderFolderId, setBuilderFolderId] = useState("all");
   const [builderQuery, setBuilderQuery] = useState("");
   const [builderSelectedLectureIds, setBuilderSelectedLectureIds] = useState<string[]>([]);
-  const [examInstructions, setExamInstructions] = useState(
-    "Prioritize high-yield concepts, formulas, worked problem patterns, common mistakes, and a practice checklist."
-  );
   const [isReviewGenerating, setIsReviewGenerating] = useState(false);
 
   useEffect(() => {
@@ -947,6 +947,20 @@ export default function LectureVaultApp() {
       Boolean(lecture && lecture.courseId === builderCourseId)
     );
   const basketCount = builderSelectedLectures.length;
+  const reviewContext = selectedExam?.context ?? DEFAULT_REVIEW_CONTEXT;
+
+  function updateSelectedReviewContext(context: string) {
+    if (!selectedExam) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      exams: current.exams.map((exam) =>
+        exam.id === selectedExam.id ? { ...exam, context } : exam
+      )
+    }));
+  }
 
   useEffect(() => {
     setState((current) => ensureCourseLectureFolders(current));
@@ -1440,6 +1454,7 @@ export default function LectureVaultApp() {
       courseId: examForm.courseId,
       name: examForm.name.trim(),
       startsOn: examForm.startsOn,
+      context: DEFAULT_REVIEW_CONTEXT,
       createdAt
     };
 
@@ -1582,6 +1597,7 @@ export default function LectureVaultApp() {
       courseId: builderCourseId,
       name: examForm.name.trim(),
       startsOn: examForm.startsOn,
+      context: DEFAULT_REVIEW_CONTEXT,
       createdAt
     };
 
@@ -1664,6 +1680,7 @@ export default function LectureVaultApp() {
 
     setIsReviewGenerating(true);
     setStatus("Generating AI review from selected review-set materials...");
+    const submittedContext = reviewContext.trim();
 
     const selectedConcepts = state.concepts.filter((concept) =>
       sourceLectureIds.includes(concept.lectureId)
@@ -1686,7 +1703,7 @@ export default function LectureVaultApp() {
         body: JSON.stringify({
           examName: selectedExam.name,
           courseName: courseLabel(selectedExam.courseId),
-          instructions: examInstructions,
+          instructions: submittedContext,
           lectures: selectedExamLectures,
           transcripts: selectedTranscripts,
           concepts: selectedConcepts,
@@ -1714,7 +1731,7 @@ export default function LectureVaultApp() {
         figures: data.figures?.length
           ? data.figures
           : buildReviewFigures(selectedExamLectures, reviewMediaItems),
-        instructions: examInstructions,
+        instructions: submittedContext,
         generatedBy: data.generatedBy || "openai",
         usage: data.usage || null,
         createdAt: new Date().toISOString()
@@ -2764,10 +2781,10 @@ export default function LectureVaultApp() {
             concepts={state.concepts}
             transcripts={state.transcripts}
             selectedGuide={selectedExamGuide}
-            instructions={examInstructions}
+            instructions={reviewContext}
             isGenerating={isReviewGenerating}
             courseLabel={courseLabel}
-            onInstructionsChange={setExamInstructions}
+            onInstructionsChange={updateSelectedReviewContext}
             onAdd={addLectureToExam}
             onRemove={removeLectureFromExam}
             onGenerate={generateGuide}
@@ -3510,7 +3527,7 @@ function ExamDetail({
             { number: "1", label: "Select sources", complete: lectures.length > 0 },
             {
               number: "2",
-              label: "Add instructions",
+              label: "Add AI context",
               complete: instructions.trim().length > 0
             },
             { number: "3", label: "Generate review", complete: Boolean(selectedGuide) },
@@ -3591,12 +3608,12 @@ function ExamDetail({
         </section>
 
         <label className="exam-instructions">
-          Exam review instructions
+          AI context before submission
           <textarea
             value={instructions}
             onChange={(event) => onInstructionsChange(event.target.value)}
             rows={4}
-            placeholder="Example: focus on formulas, worked examples, boundary conditions, units, and common mistakes for Exam 2."
+            placeholder="Example: focus on formulas from chapters 4-6, emphasize worked examples, assume the exam is closed-note, and flag common unit mistakes."
           />
         </label>
 
@@ -3696,6 +3713,14 @@ function StudyGuidePreview({
           <div className="token-usage">
             AI token usage: {formatTokenUsage(guide.usage)}
           </div>
+        ) : null}
+        {guide.instructions ? (
+          <section className="usage-panel" aria-label="Submitted AI context">
+            <div>
+              <h4>Submitted AI Context</h4>
+              <p>{guide.instructions}</p>
+            </div>
+          </section>
         ) : null}
         <pre className="guide-preview">{guide.content}</pre>
       </article>

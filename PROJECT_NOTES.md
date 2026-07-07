@@ -78,6 +78,16 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Persist Per-Review AI Context
+
+- Added a `context` field to review sets so AI context is saved per review set instead of shared globally.
+- Renamed the review-set textarea to `AI context before submission`.
+- The selected review set's context is sent to `/api/exam-review` when `Generate AI Review` runs.
+- Generated reviews still store the submitted context snapshot, and the standalone guide preview now shows that submitted context.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-07 - Add Lecture and Review Usage Surfaces
 
 - Added optional transcription metadata to transcript records so future OpenAI transcription usage can be stored per lecture.
