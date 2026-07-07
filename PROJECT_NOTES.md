@@ -78,6 +78,20 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Default Lectures Folder and Tree Count Fix
+
+- Added a default `Lectures` folder for every course.
+- Migrated legacy no-folder lectures into each course's `Lectures` folder on state load.
+- New courses now create their `Lectures` folder immediately.
+- New captured/transcribed lectures now save into the course `Lectures` folder by default.
+- Removed the visible default `Unfiled` row from the archive tree.
+- Dropping a lecture onto a course root now sends it to that course's `Lectures` folder.
+- Protected the default `Lectures` folder from rename/delete actions.
+- Sorted `Lectures` to the top of each course and tightened tree indentation/count alignment so counts stay inside the row boundary.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-07 - Explorer-Style Archive Tree
 
 - Reworked the archive folder tree to behave more like Windows File Explorer:

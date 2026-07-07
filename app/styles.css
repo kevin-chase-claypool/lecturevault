@@ -566,6 +566,7 @@ label {
   gap: 7px;
   align-items: center;
   width: 100%;
+  min-width: 0;
   min-height: 30px;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -619,7 +620,7 @@ label {
 }
 
 .archive-folder-tree .folder-node > summary {
-  padding-left: calc(8px + (var(--tree-depth, 0) * 18px));
+  padding-left: calc(6px + (var(--tree-depth, 0) * 14px));
 }
 
 .folder-children {
@@ -628,11 +629,11 @@ label {
 }
 
 .course-folder-group > .folder-children {
-  margin-left: 18px;
+  margin-left: 10px;
 }
 
 .archive-folder-tree button {
-  margin-left: 18px;
+  margin-left: 10px;
 }
 
 .archive-folder-tree summary span:nth-of-type(2),
@@ -646,6 +647,9 @@ label {
 .archive-folder-tree small {
   color: var(--muted);
   font-weight: 900;
+  justify-self: end;
+  min-width: 2ch;
+  text-align: right;
 }
 
 .archive-list-panel {
