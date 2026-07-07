@@ -133,6 +133,9 @@ type ReviewFigure = {
   lectureTitle: string;
   name: string;
   dataUrl?: string;
+  mimeType?: string;
+  storageBucket?: string;
+  storagePath?: string;
 };
 
 type VaultState = {
@@ -478,9 +481,25 @@ function buildReviewFigures(lectures: Lecture[], mediaItems: MediaItem[]) {
         lectureId: item.lectureId,
         lectureTitle: lecture?.title || "Untitled lecture",
         name: item.name || `Board image ${index}`,
-        dataUrl: embeddedDataUrlForMedia(item)
+        dataUrl: embeddedDataUrlForMedia(item),
+        mimeType: item.mimeType,
+        storageBucket: item.storageBucket,
+        storagePath: item.storagePath
       };
     });
+}
+
+function stripLargeFigureDataUrls(figures: ReviewFigure[]) {
+  return figures.map((figure) => {
+    if (figure.storagePath) {
+      const { dataUrl, ...withoutInlineData } = figure;
+      return withoutInlineData;
+    }
+
+    return figure.dataUrl && figure.dataUrl.length > 450000
+      ? { ...figure, dataUrl: undefined }
+      : figure;
+  });
 }
 
 function folderDescendantIds(folders: ArchiveFolder[], folderId: string) {
@@ -2282,14 +2301,9 @@ export default function LectureVaultApp() {
         selectedExamLectures,
         selectedMediaItems
       );
-      const guideFiguresHaveImages = Boolean(
-        guide.figures?.some((figure) => figure.dataUrl)
+      const figures = stripLargeFigureDataUrls(
+        currentFigures.length ? currentFigures : guide.figures || []
       );
-      const figures = guideFiguresHaveImages
-        ? guide.figures || []
-        : currentFigures.length
-          ? currentFigures
-          : guide.figures || [];
       const response = await fetch("/api/exam-review/pdf", {
         method: "POST",
         headers: {

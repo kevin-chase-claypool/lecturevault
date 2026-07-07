@@ -1,5 +1,6 @@
 import katex from "katex";
 import { requireAuthenticatedRequest } from "../../../../lib/auth";
+import { storageObjectToDataUrl } from "../../../../lib/supabase-server";
 
 export const runtime = "nodejs";
 
@@ -8,6 +9,9 @@ type ReviewFigure = {
   lectureTitle?: string;
   name?: string;
   dataUrl?: string;
+  mimeType?: string;
+  storageBucket?: string;
+  storagePath?: string;
 };
 
 function jsonError(message: string, status: number) {
@@ -175,6 +179,35 @@ function figureHtml(figures: ReviewFigure[]) {
   </section>`;
 }
 
+async function resolveFigureImages(figures: ReviewFigure[]) {
+  const resolved: ReviewFigure[] = [];
+
+  for (const figure of figures) {
+    const dataUrl = cleanString(figure.dataUrl);
+
+    if (dataUrl.startsWith("data:image/")) {
+      resolved.push(figure);
+      continue;
+    }
+
+    const storagePath = cleanString(figure.storagePath);
+    const storageDataUrl = storagePath
+      ? await storageObjectToDataUrl({
+          bucket: cleanString(figure.storageBucket),
+          mimeType: cleanString(figure.mimeType),
+          path: storagePath
+        })
+      : null;
+
+    resolved.push({
+      ...figure,
+      dataUrl: storageDataUrl || undefined
+    });
+  }
+
+  return resolved;
+}
+
 function buildHtml({
   title,
   courseName,
@@ -321,7 +354,7 @@ export async function POST(request: Request) {
       title: cleanString(body.title) || "Exam Review",
       courseName: cleanString(body.courseName),
       review,
-      figures: Array.isArray(body.figures) ? body.figures : []
+      figures: await resolveFigureImages(Array.isArray(body.figures) ? body.figures : [])
     });
     const response = await fetch(browserlessUrl, {
       method: "POST",

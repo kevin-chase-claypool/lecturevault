@@ -52,6 +52,9 @@ type ExamReviewFigure = {
   lectureTitle: string;
   name: string;
   dataUrl?: string;
+  mimeType?: string;
+  storageBucket?: string;
+  storagePath?: string;
 };
 
 function jsonError(message: string, status: number) {
@@ -113,7 +116,10 @@ async function buildFigures(
       lectureId: cleanString(item.lectureId),
       lectureTitle: cleanString(lecture?.title) || "Untitled lecture",
       name: cleanString(item.name) || `Board image ${index}`,
-      dataUrl: await dataUrlForMedia(item)
+      dataUrl: await dataUrlForMedia(item),
+      mimeType: cleanString(item.mimeType) || undefined,
+      storageBucket: cleanString(item.storageBucket) || undefined,
+      storagePath: cleanString(item.storagePath) || undefined
     });
   }
 

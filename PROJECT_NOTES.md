@@ -106,6 +106,7 @@ https://production-sfo.browserless.io/pdf
 - Hardened PDF error parsing on the client so non-JSON failures do not appear silent.
 - Expanded the missing `BROWSERLESS_TOKEN` server error with a clear Vercel environment-variable instruction.
 - Added non-secret Browserless runtime diagnostics to PDF errors and token fallbacks for `BROWSERLESS_API_KEY` / `BROWSERLESS_KEY`.
+- Reduced PDF request payload size by sending Supabase image references instead of large base64 image data when storage paths are available; the PDF route resolves images server-side.
 - Verified with:
   - `npm run build`
   - `npm run typecheck`
