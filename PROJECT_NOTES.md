@@ -99,6 +99,16 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Add Supabase Storage Manager
+
+- Added a `Storage` section to the left navigation.
+- Added `/api/media/objects` for authenticated recursive listing and deletion of Supabase Storage media objects.
+- Added a Storage Manager screen showing bucket, file count, total stored size, object path, MIME type, size, updated date, and open/download actions.
+- Added guarded multi-select deletion for Supabase files, with a warning that deleting storage objects does not remove lecture records.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-07 - Direct Supabase Media Uploads
 
 - Added `/api/media/signed-upload` to create short-lived Supabase Storage signed upload URLs for authenticated users.

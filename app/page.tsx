@@ -19,6 +19,7 @@ type Screen =
   | "archive"
   | "lecture"
   | "capture"
+  | "storage"
   | "builder"
   | "exams"
   | "exam"
@@ -136,6 +137,15 @@ type ReviewFigure = {
   mimeType?: string;
   storageBucket?: string;
   storagePath?: string;
+};
+
+type SupabaseStorageFile = {
+  createdAt?: string;
+  mimeType?: string;
+  name: string;
+  path: string;
+  size?: number;
+  updatedAt?: string;
 };
 
 type VaultState = {
@@ -462,6 +472,16 @@ function mediaStorageUrl(item: MediaItem) {
 
   if (item.storageBucket) {
     params.set("bucket", item.storageBucket);
+  }
+
+  return `/api/media/read?${params.toString()}`;
+}
+
+function storageObjectUrl(path: string, bucket?: string) {
+  const params = new URLSearchParams({ path });
+
+  if (bucket) {
+    params.set("bucket", bucket);
   }
 
   return `/api/media/read?${params.toString()}`;
@@ -1098,6 +1118,10 @@ export default function LectureVaultApp() {
   const [isReviewGenerating, setIsReviewGenerating] = useState(false);
   const [isPdfRendering, setIsPdfRendering] = useState(false);
   const [reviewPdfStatus, setReviewPdfStatus] = useState("");
+  const [storageBucket, setStorageBucket] = useState("");
+  const [storageFiles, setStorageFiles] = useState<SupabaseStorageFile[]>([]);
+  const [selectedStoragePaths, setSelectedStoragePaths] = useState<string[]>([]);
+  const [isStorageLoading, setIsStorageLoading] = useState(false);
   const stateJsonRef = useRef(JSON.stringify(state));
   const skipNextCloudSaveRef = useRef(false);
 
@@ -2462,6 +2486,91 @@ export default function LectureVaultApp() {
     setAuthStatus("locked");
   }
 
+  async function loadStorageFiles() {
+    setIsStorageLoading(true);
+    setStatus("Loading Supabase media objects...");
+
+    try {
+      const response = await fetch("/api/media/objects", {
+        credentials: "include"
+      });
+      const data = (await response.json()) as {
+        bucket?: string;
+        error?: string;
+        files?: SupabaseStorageFile[];
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Could not load Supabase media objects.");
+      }
+
+      setStorageBucket(data.bucket || "");
+      setStorageFiles(data.files || []);
+      setSelectedStoragePaths((current) =>
+        current.filter((path) => (data.files || []).some((file) => file.path === path))
+      );
+      setStatus(`Loaded ${(data.files || []).length} Supabase media object${(data.files || []).length === 1 ? "" : "s"}.`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not load Supabase media objects.";
+      setStatus(message);
+    } finally {
+      setIsStorageLoading(false);
+    }
+  }
+
+  function toggleStoragePath(path: string) {
+    setSelectedStoragePaths((current) =>
+      current.includes(path)
+        ? current.filter((item) => item !== path)
+        : [...current, path]
+    );
+  }
+
+  async function deleteSelectedStorageFiles() {
+    if (!selectedStoragePaths.length) {
+      setStatus("Select at least one Supabase file to delete.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${selectedStoragePaths.length} file${selectedStoragePaths.length === 1 ? "" : "s"} from Supabase Storage? This does not remove lecture records that reference them.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsStorageLoading(true);
+    setStatus("Deleting selected Supabase media objects...");
+
+    try {
+      const response = await fetch("/api/media/objects", {
+        body: JSON.stringify({ paths: selectedStoragePaths }),
+        credentials: "include",
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "DELETE"
+      });
+      const data = (await response.json()) as { deleted?: number; error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Could not delete selected Supabase files.");
+      }
+
+      setSelectedStoragePaths([]);
+      setStatus(`Deleted ${data.deleted || 0} Supabase media object${data.deleted === 1 ? "" : "s"}.`);
+      await loadStorageFiles();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not delete selected Supabase files.";
+      setStatus(message);
+    } finally {
+      setIsStorageLoading(false);
+    }
+  }
+
   if (authStatus === "checking") {
     return <AuthShell title="Checking access..." />;
   }
@@ -2494,6 +2603,7 @@ export default function LectureVaultApp() {
             ["courses", "Courses"],
             ["capture", "New Lecture"],
             ["archive", "Vault"],
+            ["storage", "Storage"],
             ["builder", "Reviews"]
           ].map(([id, label]) => (
             <button
@@ -2507,7 +2617,13 @@ export default function LectureVaultApp() {
                     : ""
               }
               type="button"
-              onClick={() => setScreen(id as Screen)}
+              onClick={() => {
+                setScreen(id as Screen);
+
+                if (id === "storage") {
+                  void loadStorageFiles();
+                }
+              }}
             >
               {label}
             </button>
@@ -2847,6 +2963,18 @@ export default function LectureVaultApp() {
             )}
             exams={state.exams}
             onAddToExam={addLectureToExam}
+          />
+        ) : null}
+
+        {screen === "storage" ? (
+          <StorageManager
+            bucket={storageBucket}
+            files={storageFiles}
+            isLoading={isStorageLoading}
+            selectedPaths={selectedStoragePaths}
+            onDeleteSelected={() => void deleteSelectedStorageFiles()}
+            onRefresh={() => void loadStorageFiles()}
+            onToggle={toggleStoragePath}
           />
         ) : null}
 
@@ -3404,6 +3532,7 @@ function screenTitle(screen: Screen) {
     archive: "Vault",
     lecture: "Lecture detail",
     capture: "New lecture",
+    storage: "Storage manager",
     builder: "Reviews",
     exams: "Review sets",
     exam: "Review set",
@@ -3732,6 +3861,119 @@ function ArchiveFolderTree({
         );
       })}
     </div>
+  );
+}
+
+function StorageManager({
+  bucket,
+  files,
+  isLoading,
+  selectedPaths,
+  onDeleteSelected,
+  onRefresh,
+  onToggle
+}: {
+  bucket: string;
+  files: SupabaseStorageFile[];
+  isLoading: boolean;
+  selectedPaths: string[];
+  onDeleteSelected: () => void;
+  onRefresh: () => void;
+  onToggle: (path: string) => void;
+}) {
+  const totalBytes = files.reduce((sum, file) => sum + (file.size || 0), 0);
+
+  return (
+    <section className="storage-layout">
+      <article className="panel detail-main">
+        <div className="section-heading">
+          <div>
+            <span className="pill">{bucket || "Supabase Storage"}</span>
+            <h3>Media Storage</h3>
+          </div>
+          <span>
+            {files.length} file{files.length === 1 ? "" : "s"} /{" "}
+            {formatFileSize(totalBytes)}
+          </span>
+        </div>
+        <p>
+          Manage the media files stored in Supabase. Deleting a file removes the
+          storage object only; lecture records that reference it remain in the
+          Vault.
+        </p>
+        <div className="button-row">
+          <button type="button" onClick={onRefresh} disabled={isLoading}>
+            {isLoading ? "Refreshing..." : "Refresh"}
+          </button>
+          <button
+            className="danger"
+            type="button"
+            onClick={onDeleteSelected}
+            disabled={isLoading || !selectedPaths.length}
+          >
+            Delete selected
+          </button>
+        </div>
+
+        <div className="storage-list">
+          {files.map((file) => {
+            const selected = selectedPaths.includes(file.path);
+            const url = storageObjectUrl(file.path, bucket);
+
+            return (
+              <div className={selected ? "storage-row selected" : "storage-row"} key={file.path}>
+                <label className="storage-check">
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={() => onToggle(file.path)}
+                  />
+                  <span>{file.name}</span>
+                </label>
+                <span>{file.mimeType || "unknown type"}</span>
+                <span>{typeof file.size === "number" ? formatFileSize(file.size) : "unknown size"}</span>
+                <span>{file.updatedAt ? new Date(file.updatedAt).toLocaleString() : "No date"}</span>
+                <div className="button-row">
+                  <a href={url} target="_blank" rel="noreferrer">
+                    Open
+                  </a>
+                  <a href={url} download={file.name}>
+                    Download
+                  </a>
+                </div>
+                <small>{file.path}</small>
+              </div>
+            );
+          })}
+          {!files.length ? (
+            <p className="empty panel">
+              {isLoading
+                ? "Loading Supabase media files..."
+                : "No Supabase media files found yet."}
+            </p>
+          ) : null}
+        </div>
+      </article>
+
+      <aside className="panel side-panel">
+        <h3>Storage Notes</h3>
+        <p>
+          Use this screen for cleanup and inspection. Avoid deleting files that
+          are still referenced by saved lectures unless you intend to remove the
+          media preview/source.
+        </p>
+        <div className="source-readiness storage-summary">
+          <div>
+            <strong>{selectedPaths.length}</strong>
+            <span>selected</span>
+          </div>
+          <div>
+            <strong>{formatFileSize(totalBytes)}</strong>
+            <span>stored</span>
+          </div>
+        </div>
+      </aside>
+    </section>
   );
 }
 

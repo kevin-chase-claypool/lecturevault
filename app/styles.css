@@ -119,6 +119,13 @@ textarea {
   font: inherit;
 }
 
+input[type="checkbox"] {
+  width: auto;
+  min-width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+
 button {
   min-height: 38px;
   border: 1px solid var(--border);
@@ -942,6 +949,81 @@ label {
   align-items: flex-start;
 }
 
+.storage-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.storage-list {
+  display: grid;
+  gap: 10px;
+}
+
+.storage-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(120px, 0.7fr) minmax(90px, 0.45fr) minmax(150px, 0.8fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 11px;
+  background:
+    linear-gradient(180deg, #ffffff 0%, var(--panel) 100%);
+  box-shadow: var(--shadow-hairline);
+}
+
+.storage-row.selected {
+  border-color: #8dbab4;
+  background:
+    linear-gradient(180deg, #f7fdfc 0%, #eefaf7 100%);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.storage-row span,
+.storage-row small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.storage-row > small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.storage-check {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.storage-row a {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 9px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.storage-row a:hover {
+  border-color: var(--primary);
+  color: var(--primary-dark);
+}
+
+.storage-summary {
+  grid-template-columns: 1fr;
+}
+
 .exam-builder-layout {
   display: grid;
   grid-template-columns: minmax(260px, 0.38fr) minmax(420px, 1fr) 300px;
@@ -1689,6 +1771,7 @@ label {
   }
 
   .detail-grid,
+  .storage-layout,
   .exam-builder-layout,
   .archive-organizer,
   .content-grid,
@@ -1733,6 +1816,7 @@ label {
   }
 
   .detail-grid,
+  .storage-layout,
   .exam-builder-layout,
   .archive-organizer,
   .content-grid,
@@ -1761,6 +1845,10 @@ label {
   }
 
   .row-card {
+    grid-template-columns: 1fr;
+  }
+
+  .storage-row {
     grid-template-columns: 1fr;
   }
 }
