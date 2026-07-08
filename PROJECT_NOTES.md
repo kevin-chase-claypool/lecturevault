@@ -99,6 +99,15 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Further Professional UI Polish
+
+- Refined global rendering with font smoothing, selection color, and styled scrollbars.
+- Improved button/input focus, active nav, card, metric, panel, and selected-card states.
+- Added more polished gradients/shadows to archive trees, repeated list items, media/concept cards, math/transcript panels, drop zones, and review workflow surfaces.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-07 - Make PDF Download Feedback Visible
 
 - Added a local PDF status/error message inside the Review Set panel, directly below the review actions.
