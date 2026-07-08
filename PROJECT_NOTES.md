@@ -99,6 +99,16 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-08 - Add Review Set GPT Package Export
+
+- Added `Download GPT Package` to review sets.
+- The export builds a ZIP in the browser with `README.md`, `prompt.md`, `source-map.json`, per-lecture transcript markdown files, and attached board/worked-problem image files under `media/`.
+- The package uses existing authenticated Supabase media reads to include actual image files instead of only text references.
+- This gives a low-token path for using ChatGPT manually outside LectureVault while preserving source organization.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-08 - Further Professional UI Polish
 
 - Refined global color tokens, shadows, typography weight, and form control spacing.

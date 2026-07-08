@@ -11,6 +11,7 @@ import {
   useState
 } from "react";
 import type { ReactNode } from "react";
+import JSZip from "jszip";
 import katex from "katex";
 
 type Screen =
@@ -600,6 +601,16 @@ function storageObjectUrl(path: string, bucket?: string) {
   }
 
   return `/api/media/read?${params.toString()}`;
+}
+
+function safePackageName(value: string, fallback = "lecturevault") {
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 90) || fallback
+  );
 }
 
 function buildReviewFigures(lectures: Lecture[], mediaItems: MediaItem[]) {
@@ -2974,6 +2985,229 @@ export default function LectureVaultApp() {
     }
   }
 
+  async function downloadGptPackage(guide = selectedExamGuide) {
+    if (!selectedExam) {
+      setReviewPdfStatus("Create or open a review set before downloading a GPT package.");
+      setStatus("Create or open a review set before downloading a GPT package.");
+      return;
+    }
+
+    if (!selectedExamLectures.length) {
+      setReviewPdfStatus("Add archive sources before downloading a GPT package.");
+      setStatus("Add archive sources before downloading a GPT package.");
+      return;
+    }
+
+    setIsPdfRendering(true);
+    setReviewPdfStatus("Building GPT package...");
+    setStatus("Building GPT context package...");
+
+    try {
+      const zip = new JSZip();
+      const packageName = safePackageName(selectedExam.name, "review-set");
+      const sourceLectureIds = selectedExamLectures.map((lecture) => lecture.id);
+      const selectedTranscripts = state.transcripts.filter((transcript) =>
+        sourceLectureIds.includes(transcript.lectureId)
+      );
+      const selectedConcepts = state.concepts.filter((concept) =>
+        sourceLectureIds.includes(concept.lectureId)
+      );
+      const selectedMediaItems = state.mediaItems.filter((item) =>
+        sourceLectureIds.includes(item.lectureId)
+      );
+      const imageItems = selectedMediaItems.filter((item) => item.kind === "image");
+      const textbookNames = state.textbooks
+        .filter((textbook) => textbook.courseId === selectedExam.courseId)
+        .map((textbook) => textbook.name);
+      const mediaFolder = zip.folder("media");
+      const transcriptFolder = zip.folder("transcripts");
+      const imageReferences: Array<{
+        fileName: string;
+        id: string;
+        lectureId: string;
+        name: string;
+        path?: string;
+      }> = [];
+
+      for (let index = 0; index < imageItems.length; index += 1) {
+        const item = imageItems[index];
+        const extension =
+          item.name.split(".").pop()?.replace(/[^a-zA-Z0-9]/g, "") ||
+          (item.mimeType.includes("png") ? "png" : "jpg");
+        const fileName = `fig-${index + 1}-${safePackageName(item.name, "board-image")}.${extension}`;
+        let blob: Blob | null = null;
+
+        if (item.dataUrl) {
+          blob = await (await fetch(item.dataUrl)).blob();
+        } else if (item.storagePath) {
+          const response = await fetch(
+            storageObjectUrl(item.storagePath, item.storageBucket),
+            { credentials: "include" }
+          );
+
+          if (response.ok) {
+            blob = await response.blob();
+          }
+        }
+
+        if (blob) {
+          mediaFolder?.file(fileName, blob);
+          imageReferences.push({
+            fileName,
+            id: item.id,
+            lectureId: item.lectureId,
+            name: item.name,
+            path: item.storagePath
+          });
+        }
+      }
+
+      for (const lecture of selectedExamLectures) {
+        const transcript = selectedTranscripts.find(
+          (item) => item.lectureId === lecture.id
+        );
+        transcriptFolder?.file(
+          `${safePackageName(lecture.title, "lecture")}.md`,
+          [
+            `# ${lecture.title}`,
+            "",
+            `Course: ${courseLabel(lecture.courseId)}`,
+            `Date: ${lecture.date || "No date"}`,
+            "",
+            "## Summary",
+            lecture.summary || "No summary saved.",
+            "",
+            "## Transcript",
+            transcript?.text || "No transcript saved."
+          ].join("\n")
+        );
+      }
+
+      const sourceMap = selectedExamLectures.map((lecture) => ({
+        concepts: selectedConcepts
+          .filter((concept) => concept.lectureId === lecture.id)
+          .map((concept) => ({
+            detail: concept.detail,
+            sourceSegmentId: concept.sourceSegmentId,
+            title: concept.title
+          })),
+        date: lecture.date,
+        images: imageReferences.filter((image) => image.lectureId === lecture.id),
+        lectureId: lecture.id,
+        media: selectedMediaItems
+          .filter((item) => item.lectureId === lecture.id)
+          .map((item) => ({
+            id: item.id,
+            kind: item.kind,
+            mimeType: item.mimeType,
+            name: item.name,
+            size: item.size,
+            storagePath: item.storagePath
+          })),
+        title: lecture.title,
+        transcriptSegments:
+          selectedTranscripts.find((item) => item.lectureId === lecture.id)
+            ?.segments || []
+      }));
+      const contextMarkdown = [
+        `# GPT Context Package: ${selectedExam.name}`,
+        "",
+        `Course: ${courseLabel(selectedExam.courseId)}`,
+        `Exam date: ${selectedExam.startsOn || "No date set"}`,
+        `Generated: ${new Date().toLocaleString()}`,
+        "",
+        "## How to Use This Package",
+        "Upload this markdown file and the included media folder to ChatGPT. Ask it to use the transcripts, board images, source map, and textbook context to build an exam-focused review.",
+        "",
+        "## Suggested Prompt",
+        "Use the attached LectureVault package to create a source-grounded exam study guide. Prioritize worked problem methods, formulas, assumptions, common mistakes, and practice variations. Reference board images by filename and cite transcript/source details when useful.",
+        "",
+        "## User Instructions",
+        selectedExam.context || DEFAULT_REVIEW_CONTEXT,
+        "",
+        "## Course Textbooks Indexed in LectureVault",
+        textbookNames.length
+          ? textbookNames.map((name) => `- ${name}`).join("\n")
+          : "- No course textbooks indexed.",
+        "",
+        "## Selected Lectures",
+        ...selectedExamLectures.flatMap((lecture) => {
+          const transcript = selectedTranscripts.find(
+            (item) => item.lectureId === lecture.id
+          );
+          const lectureImages = imageReferences.filter(
+            (image) => image.lectureId === lecture.id
+          );
+          const lectureConcepts = selectedConcepts.filter(
+            (concept) => concept.lectureId === lecture.id
+          );
+
+          return [
+            "",
+            `### ${lecture.title}`,
+            `Date: ${lecture.date || "No date"}`,
+            "",
+            "Summary:",
+            lecture.summary || "No summary saved.",
+            "",
+            "Transcript file:",
+            `transcripts/${safePackageName(lecture.title, "lecture")}.md`,
+            "",
+            "Board / Worked Problem Images:",
+            lectureImages.length
+              ? lectureImages
+                  .map((image) => `- ${image.name}: media/${image.fileName}`)
+                  .join("\n")
+              : "- No board images attached.",
+            "",
+            "Extracted Concepts:",
+            lectureConcepts.length
+              ? lectureConcepts
+                  .map((concept) => `- ${concept.title}: ${concept.detail}`)
+                  .join("\n")
+              : "- No extracted concepts saved.",
+            "",
+            "Transcript Preview:",
+            (transcript?.text || "No transcript saved.").slice(0, 2400)
+          ];
+        }),
+        "",
+        "## Existing Generated Review",
+        guide?.content || "No generated in-app review saved yet."
+      ].join("\n");
+
+      zip.file("README.md", contextMarkdown);
+      zip.file("prompt.md", [
+        `# Prompt for ${selectedExam.name}`,
+        "",
+        "Create an exam-focused study guide from this LectureVault package.",
+        "Use the transcripts, board images, extracted concepts, source map, and any textbook context mentioned.",
+        "Focus on worked problem reconstruction, formulas, assumptions, common mistakes, and practice variations.",
+        "Do not ignore the images; treat them as board work and cite image filenames when explaining worked examples."
+      ].join("\n"));
+      zip.file("source-map.json", JSON.stringify(sourceMap, null, 2));
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${packageName}-gpt-package.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setReviewPdfStatus("GPT package downloaded.");
+      setStatus("GPT context package downloaded.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not build GPT package.";
+      setReviewPdfStatus(`GPT package failed: ${message}`);
+      setStatus(`GPT package failed: ${message}`);
+    } finally {
+      setIsPdfRendering(false);
+    }
+  }
+
   function addCaptureFiles(files: File[]) {
     if (!files.length) {
       return;
@@ -4220,6 +4454,7 @@ export default function LectureVaultApp() {
             onRemove={removeLectureFromExam}
             onGenerate={generateGuide}
             onDownloadPdf={downloadExamReviewPdf}
+            onDownloadGptPackage={downloadGptPackage}
             onDelete={() => deleteExam(selectedExam.id)}
             onOpenLecture={(lectureId) => {
               setSelectedLectureId(lectureId);
@@ -5254,6 +5489,7 @@ function ExamDetail({
   onRemove,
   onGenerate,
   onDownloadPdf,
+  onDownloadGptPackage,
   onDelete,
   onOpenLecture
 }: {
@@ -5275,6 +5511,7 @@ function ExamDetail({
   onRemove: (lectureId: string) => void;
   onGenerate: () => void | Promise<void>;
   onDownloadPdf: () => void | Promise<void>;
+  onDownloadGptPackage: () => void | Promise<void>;
   onDelete: () => void;
   onOpenLecture: (lectureId: string) => void;
 }) {
@@ -5568,6 +5805,13 @@ function ExamDetail({
             disabled={isRenderingPdf || isGeneratingReview || !selectedGuide}
           >
             {isRenderingPdf ? "Rendering PDF..." : "Download Review PDF"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void onDownloadGptPackage()}
+            disabled={isRenderingPdf || isGeneratingReview || !lectures.length}
+          >
+            {isRenderingPdf ? "Working..." : "Download GPT Package"}
           </button>
           <button className="danger" type="button" onClick={onDelete}>
             Delete Review Set

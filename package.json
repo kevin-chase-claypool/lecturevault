@@ -11,6 +11,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.110.1",
     "@types/katex": "^0.16.8",
+    "jszip": "^3.10.1",
     "katex": "^0.17.0",
     "next": "^15.3.4",
     "openai": "^6.45.0",
