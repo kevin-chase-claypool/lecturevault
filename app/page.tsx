@@ -5785,38 +5785,85 @@ function ExamDetail({
           </section>
         ) : null}
 
-        <div className="button-row">
-          <button
-            className="primary"
-            type="button"
-            onClick={() => void onGenerate()}
-            disabled={
-              isGeneratingReview ||
-              isRenderingPdf ||
-              !lectures.length ||
-              !selectedTranscriptCount
-            }
-          >
-            {isGeneratingReview ? "Generating..." : "Generate AI Review"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void onDownloadPdf()}
-            disabled={isRenderingPdf || isGeneratingReview || !selectedGuide}
-          >
-            {isRenderingPdf ? "Rendering PDF..." : "Download Review PDF"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void onDownloadGptPackage()}
-            disabled={isRenderingPdf || isGeneratingReview || !lectures.length}
-          >
-            {isRenderingPdf ? "Working..." : "Download GPT Package"}
-          </button>
-          <button className="danger" type="button" onClick={onDelete}>
-            Delete Review Set
-          </button>
-        </div>
+        <section className="review-actions" aria-label="Review actions">
+          <div className="section-heading">
+            <div>
+              <span className="pill">Actions</span>
+              <h3>Review Actions</h3>
+            </div>
+          </div>
+          <div className="review-action-grid">
+            <div className="review-action-card primary-action">
+              <div>
+                <strong>Generate in LectureVault</strong>
+                <span>
+                  Sends selected review-set material to AI, spends API tokens,
+                  and saves the generated review here.
+                </span>
+              </div>
+              <button
+                className="primary"
+                type="button"
+                onClick={() => void onGenerate()}
+                disabled={
+                  isGeneratingReview ||
+                  isRenderingPdf ||
+                  !lectures.length ||
+                  !selectedTranscriptCount
+                }
+              >
+                {isGeneratingReview ? "Generating..." : "Generate AI Review"}
+              </button>
+            </div>
+
+            <div className="review-action-card">
+              <div>
+                <strong>Export saved review</strong>
+                <span>
+                  Renders the already-generated review as a KaTeX PDF. This does
+                  not run AI again.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => void onDownloadPdf()}
+                disabled={isRenderingPdf || isGeneratingReview || !selectedGuide}
+              >
+                {isRenderingPdf ? "Rendering PDF..." : "Download Review PDF"}
+              </button>
+            </div>
+
+            <div className="review-action-card">
+              <div>
+                <strong>Export raw context</strong>
+                <span>
+                  Downloads transcripts, source map, prompt, and board images as
+                  a ZIP for manual ChatGPT use. This does not run AI.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => void onDownloadGptPackage()}
+                disabled={isRenderingPdf || isGeneratingReview || !lectures.length}
+              >
+                {isRenderingPdf ? "Building..." : "Download GPT Package"}
+              </button>
+            </div>
+
+            <div className="review-action-card danger-action">
+              <div>
+                <strong>Remove this review set</strong>
+                <span>
+                  Deletes the review set record. Archived lectures and media stay
+                  in the vault.
+                </span>
+              </div>
+              <button className="danger" type="button" onClick={onDelete}>
+                Delete Review Set
+              </button>
+            </div>
+          </div>
+        </section>
         {pdfStatus ? (
           <p
             className={

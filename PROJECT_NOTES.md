@@ -99,6 +99,15 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-08 - Separate Review Action Workflows
+
+- Replaced the mixed review action button row with grouped `Review Actions` cards.
+- Split actions into: generate in LectureVault, export saved review PDF, export raw GPT context package, and delete review set.
+- Added concise helper text explaining which actions spend OpenAI API tokens and which are exports only.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-08 - Add Review Set GPT Package Export
 
 - Added `Download GPT Package` to review sets.
