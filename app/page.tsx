@@ -2759,6 +2759,7 @@ export default function LectureVaultApp() {
           <VaultMark />
           <div>
             <h1>LectureVault</h1>
+            <p>Kevin C. Claypool</p>
           </div>
         </div>
         <nav className="nav" aria-label="Primary">

@@ -99,6 +99,15 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Sidebar Brand and UI Polish
+
+- Added `Kevin C. Claypool` as smaller italic brand text under `LectureVault` in the left sidebar.
+- Refined the app chrome with a more polished sidebar treatment, topbar surface, panel elevation, status message styling, and navigation/button states.
+- Kept the polish pass visual-only; no workflow or data model changes.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-07 - Add Supabase Media Library
 
 - Added a `Media Library` section to the left navigation.
