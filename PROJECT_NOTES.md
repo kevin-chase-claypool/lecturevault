@@ -99,6 +99,17 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-08 - Further Professional UI Polish
+
+- Refined global color tokens, shadows, typography weight, and form control spacing.
+- Tightened sidebar, topbar, status, metric, panel, lecture-card, row-card, pipeline, and usage-summary surfaces.
+- Improved archive tree, upload dropzone, source cards, review workflow panels, and dense repeated item cards.
+- Improved tablet/mobile button-row behavior so action controls fill space cleanly instead of bunching.
+- Visual-only pass; no data or workflow behavior changed.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-08 - Add AI Pipeline Status and Usage Summary
 
 - Added a visible pipeline status panel for long AI workflows.
