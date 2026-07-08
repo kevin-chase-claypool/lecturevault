@@ -103,6 +103,8 @@ https://production-sfo.browserless.io/pdf
 
 - Added a local PDF status/error message inside the Review Set panel, directly below the review actions.
 - The `Download Review PDF` action now immediately shows progress and any failure near the button instead of only updating the global status banner.
+- Split review generation and PDF rendering busy states so `Generate AI Review` and `Download Review PDF` no longer both show `Working...` for either operation.
+- Clarified the review usage panel copy: PDF downloads do not run AI again or spend review-generation tokens.
 - Hardened PDF error parsing on the client so non-JSON failures do not appear silent.
 - Expanded the missing `BROWSERLESS_TOKEN` server error with a clear Vercel environment-variable instruction.
 - Added non-secret Browserless runtime diagnostics to PDF errors and token fallbacks for `BROWSERLESS_API_KEY` / `BROWSERLESS_KEY`.

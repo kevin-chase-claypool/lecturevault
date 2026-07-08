@@ -1051,6 +1051,7 @@ export default function LectureVaultApp() {
   const [builderSelectedLectureIds, setBuilderSelectedLectureIds] = useState<string[]>([]);
   const [isLectureGenerating, setIsLectureGenerating] = useState(false);
   const [isReviewGenerating, setIsReviewGenerating] = useState(false);
+  const [isPdfRendering, setIsPdfRendering] = useState(false);
   const [reviewPdfStatus, setReviewPdfStatus] = useState("");
   const stateJsonRef = useRef(JSON.stringify(state));
   const skipNextCloudSaveRef = useRef(false);
@@ -2288,7 +2289,7 @@ export default function LectureVaultApp() {
       return;
     }
 
-    setIsReviewGenerating(true);
+    setIsPdfRendering(true);
     setReviewPdfStatus("Rendering PDF with KaTeX...");
     setStatus("Rendering exam review PDF with KaTeX...");
 
@@ -2346,7 +2347,7 @@ export default function LectureVaultApp() {
       setReviewPdfStatus(`PDF download failed: ${message}`);
       setStatus(`PDF download failed: ${message}`);
     } finally {
-      setIsReviewGenerating(false);
+      setIsPdfRendering(false);
     }
   }
 
@@ -3311,7 +3312,8 @@ export default function LectureVaultApp() {
             transcripts={state.transcripts}
             selectedGuide={selectedExamGuide}
             instructions={reviewContext}
-            isGenerating={isReviewGenerating}
+            isGeneratingReview={isReviewGenerating}
+            isRenderingPdf={isPdfRendering}
             pdfStatus={reviewPdfStatus}
             courseLabel={courseLabel}
             onInstructionsChange={updateSelectedReviewContext}
@@ -3928,7 +3930,8 @@ function ExamDetail({
   transcripts,
   selectedGuide,
   instructions,
-  isGenerating,
+  isGeneratingReview,
+  isRenderingPdf,
   pdfStatus,
   courseLabel,
   onInstructionsChange,
@@ -3948,7 +3951,8 @@ function ExamDetail({
   transcripts: Transcript[];
   selectedGuide?: StudyGuide;
   instructions: string;
-  isGenerating: boolean;
+  isGeneratingReview: boolean;
+  isRenderingPdf: boolean;
   pdfStatus: string;
   courseLabel: (id: string) => string;
   onInstructionsChange: (value: string) => void;
@@ -4194,7 +4198,7 @@ function ExamDetail({
             <h4>Review Generation Usage</h4>
             <p>
               {reviewUsage
-                ? `AI review usage: ${reviewUsage}`
+                ? `AI review usage: ${reviewUsage}. PDF downloads do not run AI again.`
                 : selectedGuide
                   ? "Review generated without token usage returned."
                   : "No review-generation usage yet. Usage appears after Generate AI Review runs."}
@@ -4234,16 +4238,21 @@ function ExamDetail({
             className="primary"
             type="button"
             onClick={() => void onGenerate()}
-            disabled={isGenerating || !lectures.length || !selectedTranscriptCount}
+            disabled={
+              isGeneratingReview ||
+              isRenderingPdf ||
+              !lectures.length ||
+              !selectedTranscriptCount
+            }
           >
-            {isGenerating ? "Working..." : "Generate AI Review"}
+            {isGeneratingReview ? "Generating..." : "Generate AI Review"}
           </button>
           <button
             type="button"
             onClick={() => void onDownloadPdf()}
-            disabled={isGenerating || !selectedGuide}
+            disabled={isRenderingPdf || isGeneratingReview || !selectedGuide}
           >
-            {isGenerating ? "Working..." : "Download Review PDF"}
+            {isRenderingPdf ? "Rendering PDF..." : "Download Review PDF"}
           </button>
           <button className="danger" type="button" onClick={onDelete}>
             Delete Review Set
