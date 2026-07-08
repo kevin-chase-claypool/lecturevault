@@ -99,6 +99,17 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-08 - Add AI Pipeline Status and Usage Summary
+
+- Added a visible pipeline status panel for long AI workflows.
+- Textbook indexing now shows upload, extraction, vector indexing, and save stages.
+- Lecture AI generation now shows media upload, transcription, textbook retrieval, artifact generation, and vault save stages.
+- Review AI generation now shows source collection, context preparation, generation, and save stages.
+- Added a dashboard token usage summary separating lecture/transcription usage, textbook embedding/indexing usage, and review generation usage.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-08 - Add Course Textbook PDF Context
 
 - Added course-level textbook PDF support on the Courses screen.

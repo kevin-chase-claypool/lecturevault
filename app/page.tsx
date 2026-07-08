@@ -128,6 +128,13 @@ type TokenUsage = {
   total_tokens?: number;
 };
 
+type PipelineStep = {
+  detail?: string;
+  id: string;
+  label: string;
+  status: "pending" | "active" | "done" | "error";
+};
+
 type ReviewFigure = {
   label: string;
   lectureId: string;
@@ -283,6 +290,24 @@ function formatTokenUsage(usage?: TokenUsage | null) {
   ]
     .filter(Boolean)
     .join(" / ");
+}
+
+function addTokenUsage(first?: TokenUsage | null, second?: TokenUsage | null): TokenUsage {
+  return {
+    input_tokens:
+      ((first?.input_tokens || 0) + (second?.input_tokens || 0)) || undefined,
+    output_tokens:
+      ((first?.output_tokens || 0) + (second?.output_tokens || 0)) || undefined,
+    total_tokens:
+      ((first?.total_tokens || 0) + (second?.total_tokens || 0)) || undefined
+  };
+}
+
+function usageHasTokens(usage?: TokenUsage | null) {
+  return Boolean(
+    usage &&
+      (usage.input_tokens || usage.output_tokens || usage.total_tokens)
+  );
 }
 
 function keywordSet(text: string) {
@@ -1258,6 +1283,8 @@ export default function LectureVaultApp() {
   const [builderFolderId, setBuilderFolderId] = useState("all");
   const [builderQuery, setBuilderQuery] = useState("");
   const [builderSelectedLectureIds, setBuilderSelectedLectureIds] = useState<string[]>([]);
+  const [pipelineTitle, setPipelineTitle] = useState("");
+  const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([]);
   const [isLectureGenerating, setIsLectureGenerating] = useState(false);
   const [isReviewGenerating, setIsReviewGenerating] = useState(false);
   const [isPdfRendering, setIsPdfRendering] = useState(false);
@@ -1695,6 +1722,72 @@ export default function LectureVaultApp() {
     return course ? `${course.code} ${course.name}` : "Unfiled";
   }
 
+  function startPipeline(title: string, steps: Array<Omit<PipelineStep, "status">>) {
+    setPipelineTitle(title);
+    setPipelineSteps(
+      steps.map((step, index) => ({
+        ...step,
+        status: index === 0 ? "active" : "pending"
+      }))
+    );
+  }
+
+  function updatePipelineStep(
+    stepId: string,
+    statusValue: PipelineStep["status"],
+    detail?: string
+  ) {
+    setPipelineSteps((current) =>
+      current.map((step) =>
+        step.id === stepId
+          ? {
+              ...step,
+              detail: detail ?? step.detail,
+              status: statusValue
+            }
+          : step
+      )
+    );
+  }
+
+  function activatePipelineStep(stepId: string, detail?: string) {
+    setPipelineSteps((current) =>
+      current.map((step) =>
+        step.id === stepId
+          ? {
+              ...step,
+              detail: detail ?? step.detail,
+              status: "active"
+            }
+          : step.status === "active"
+            ? { ...step, status: "done" }
+            : step
+      )
+    );
+  }
+
+  function completePipeline(finalDetail?: string) {
+    setPipelineSteps((current) =>
+      current.map((step, index) =>
+        index === current.length - 1 && finalDetail
+          ? { ...step, detail: finalDetail, status: "done" }
+          : { ...step, status: "done" }
+      )
+    );
+  }
+
+  function failPipeline(stepId: string, detail: string) {
+    setPipelineSteps((current) =>
+      current.map((step) =>
+        step.id === stepId
+          ? { ...step, detail, status: "error" }
+          : step.status === "active"
+            ? { ...step, status: "error" }
+            : step
+      )
+    );
+  }
+
   function addCourse(event: FormEvent) {
     event.preventDefault();
     if (!courseForm.name.trim()) {
@@ -1738,16 +1831,41 @@ export default function LectureVaultApp() {
     }
 
     setTextbookProcessingCourseId(courseId);
+    startPipeline("Textbook indexing", [
+      {
+        id: "upload",
+        label: "Uploading textbook",
+        detail: `${pdfFiles.length} PDF file${pdfFiles.length === 1 ? "" : "s"} selected`
+      },
+      {
+        id: "extract",
+        label: "Extracting PDF text",
+        detail: "Reading pages from Supabase Storage"
+      },
+      {
+        id: "index",
+        label: "Indexing textbook chunks",
+        detail: "Creating embeddings and saving vectors in Supabase"
+      },
+      {
+        id: "save",
+        label: "Saving course textbook",
+        detail: "Adding searchable textbook metadata to the course"
+      }
+    ]);
 
     try {
       for (const file of pdfFiles) {
         const textbookId = uid("textbook");
+        activatePipelineStep("upload", `${file.name} (${formatFileSize(file.size)})`);
         setStatus(`Uploading and extracting ${file.name}...`);
         const storage = await uploadMediaFile({
           file,
           lectureId: `textbook-${courseId}`,
           mediaId: textbookId
         });
+        updatePipelineStep("upload", "done", `${file.name} uploaded`);
+        activatePipelineStep("extract", "Extracting page text from the uploaded PDF");
         const response = await fetch("/api/textbook/extract", {
           body: JSON.stringify({
             bucket: storage.storageBucket,
@@ -1776,6 +1894,15 @@ export default function LectureVaultApp() {
           throw new Error(data.error || `Could not extract ${file.name}.`);
         }
 
+        updatePipelineStep("extract", "done", `${data.pageCount || 0} pages read`);
+        updatePipelineStep(
+          "index",
+          "done",
+          `${data.indexedChunkCount || 0} chunks indexed${
+            data.embeddingUsage ? ` (${formatTokenUsage(data.embeddingUsage)})` : ""
+          }`
+        );
+        activatePipelineStep("save", "Saving textbook metadata");
         const chunkCount = data.chunkCount || data.chunks?.length || 0;
         const textbook: CourseTextbook = {
           id: textbookId,
@@ -1800,11 +1927,14 @@ export default function LectureVaultApp() {
         setStatus(
           `Added ${file.name} to ${course.code}. Indexed ${data.indexedChunkCount || 0} textbook chunk${data.indexedChunkCount === 1 ? "" : "s"} for AI search.`
         );
+        updatePipelineStep("save", "done", `${file.name} ready for AI search`);
       }
+      completePipeline("Textbook context is ready for semantic retrieval.");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Could not add textbook PDF.";
       setStatus(message);
+      failPipeline("index", message);
     } finally {
       setTextbookProcessingCourseId("");
     }
@@ -2142,6 +2272,33 @@ export default function LectureVaultApp() {
     try {
       if (useAi) {
         setIsLectureGenerating(true);
+        startPipeline("Lecture AI generation", [
+          {
+            id: "upload",
+            label: "Uploading media",
+            detail: `${captureFiles.length} source file${captureFiles.length === 1 ? "" : "s"} queued`
+          },
+          {
+            id: "transcribe",
+            label: "Transcribing audio",
+            detail: "Audio sources are sent to transcription AI"
+          },
+          {
+            id: "retrieve",
+            label: "Retrieving textbook context",
+            detail: "Searching indexed course textbooks semantically"
+          },
+          {
+            id: "generate",
+            label: "Generating lecture artifact",
+            detail: "Combining transcript, media, notes, and textbook context"
+          },
+          {
+            id: "save",
+            label: "Saving to vault",
+            detail: "Archiving transcript, concepts, media references, and usage"
+          }
+        ]);
         setStatus("Generating lecture study artifact from source media...");
       }
 
@@ -2151,6 +2308,9 @@ export default function LectureVaultApp() {
         let dataUrl: string | undefined;
 
         try {
+          if (useAi) {
+            activatePipelineStep("upload", `Uploading ${file.name}`);
+          }
           storage = await uploadMediaFile({ file, lectureId, mediaId });
         } catch (error) {
           dataUrl = await fileToMediaDataUrl(file);
@@ -2174,10 +2334,21 @@ export default function LectureVaultApp() {
           createdAt
         });
       }
+
+      if (useAi) {
+        updatePipelineStep(
+          "upload",
+          "done",
+          `${mediaItems.length} source file${mediaItems.length === 1 ? "" : "s"} ready`
+        );
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Could not read lecture source files.";
       setStatus(message);
+      if (useAi) {
+        failPipeline("upload", message);
+      }
       setIsLectureGenerating(false);
       return;
     }
@@ -2196,6 +2367,12 @@ export default function LectureVaultApp() {
 
     if (useAi) {
       try {
+        activatePipelineStep(
+          "transcribe",
+          mediaItems.some((item) => item.kind === "audio")
+            ? "Transcribing attached audio and preparing source context"
+            : "No audio file attached; using notes and visible media"
+        );
         const courseTextbooks = state.textbooks.filter(
           (textbook) => textbook.courseId === captureForm.courseId
         );
@@ -2248,6 +2425,26 @@ export default function LectureVaultApp() {
           throw new Error(data.error || "Could not generate lecture study artifact.");
         }
 
+        updatePipelineStep(
+          "transcribe",
+          "done",
+          data.transcribedMediaIds?.length
+            ? `${data.transcribedMediaIds.length} audio source${data.transcribedMediaIds.length === 1 ? "" : "s"} transcribed`
+            : "No audio transcription was returned"
+        );
+        updatePipelineStep(
+          "retrieve",
+          "done",
+          courseTextbooks.length
+            ? "Course textbook vectors searched for relevant context"
+            : "No course textbooks attached"
+        );
+        updatePipelineStep(
+          "generate",
+          "done",
+          data.usage ? `Lecture artifact generated (${formatTokenUsage(data.usage)})` : "Lecture artifact generated"
+        );
+        activatePipelineStep("save", "Saving generated transcript and concepts");
         transcriptText = data.transcriptText || transcriptText;
         transcriptUsage = data.usage || null;
         generatedBy = data.generatedBy || "openai";
@@ -2271,6 +2468,7 @@ export default function LectureVaultApp() {
             ? error.message
             : "Could not generate lecture study artifact.";
         setStatus(message);
+        failPipeline("generate", message);
         setIsLectureGenerating(false);
         return;
       }
@@ -2340,6 +2538,9 @@ export default function LectureVaultApp() {
         ? `Generated and saved ${title} to the permanent archive.`
         : `Saved ${title} to the permanent archive.`
     );
+    if (useAi) {
+      completePipeline("Lecture saved to the vault.");
+    }
     setIsLectureGenerating(false);
     setScreen("lecture");
   }
@@ -2582,6 +2783,28 @@ export default function LectureVaultApp() {
 
     setIsReviewGenerating(true);
     setReviewPdfStatus("");
+    startPipeline("Review AI generation", [
+      {
+        id: "collect",
+        label: "Collecting review sources",
+        detail: `${selectedExamLectures.length} lecture source${selectedExamLectures.length === 1 ? "" : "s"} selected`
+      },
+      {
+        id: "prepare",
+        label: "Preparing AI context",
+        detail: "Combining transcripts, concepts, images, and instructions"
+      },
+      {
+        id: "generate",
+        label: "Generating review",
+        detail: "Creating one exam-focused study artifact"
+      },
+      {
+        id: "save",
+        label: "Saving review set output",
+        detail: "Saving generated review and token usage"
+      }
+    ]);
     setStatus("Generating AI review from selected review-set materials...");
     const submittedContext = reviewContext.trim();
 
@@ -2596,8 +2819,16 @@ export default function LectureVaultApp() {
         ? { ...item, dataUrl: embeddedDataUrlForMedia(item) }
         : item
     );
+    updatePipelineStep(
+      "collect",
+      "done",
+      `${selectedTranscripts.length} transcript${selectedTranscripts.length === 1 ? "" : "s"}, ${selectedConcepts.length} concept${selectedConcepts.length === 1 ? "" : "s"}, ${selectedMediaItems.length} media item${selectedMediaItems.length === 1 ? "" : "s"}`
+    );
+    activatePipelineStep("prepare", "Preparing selected review-set context");
 
     try {
+      updatePipelineStep("prepare", "done", "Context package ready");
+      activatePipelineStep("generate", "Sending review context to AI");
       const response = await fetch("/api/exam-review", {
         method: "POST",
         headers: {
@@ -2625,6 +2856,12 @@ export default function LectureVaultApp() {
         throw new Error(data.error || "Could not generate exam review.");
       }
 
+      updatePipelineStep(
+        "generate",
+        "done",
+        data.usage ? `Review generated (${formatTokenUsage(data.usage)})` : "Review generated"
+      );
+      activatePipelineStep("save", "Saving generated review");
       const guide: StudyGuide = {
         id: uid("guide"),
         examWorkspaceId: selectedExam.id,
@@ -2657,10 +2894,12 @@ export default function LectureVaultApp() {
               formatTokenUsage(data.usage) ? ` (${formatTokenUsage(data.usage)})` : ""
             }.`
       );
+      completePipeline("Review output saved.");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Could not generate exam review.";
       setStatus(message);
+      failPipeline("generate", message);
     } finally {
       setIsReviewGenerating(false);
     }
@@ -3090,6 +3329,7 @@ export default function LectureVaultApp() {
         <p className="status" role="status">
           {status}
         </p>
+        <PipelineStatus title={pipelineTitle} steps={pipelineSteps} />
 
         {screen === "dashboard" ? (
           <Dashboard
@@ -4129,6 +4369,22 @@ function Dashboard({
 }) {
   const recentLectures = state.lectures.slice(0, 4);
   const activeExams = state.exams.slice(0, 4);
+  const transcriptionUsage = state.transcripts.reduce(
+    (total, transcript) => addTokenUsage(total, transcript.usage),
+    {} as TokenUsage
+  );
+  const reviewUsage = state.studyGuides.reduce(
+    (total, guide) => addTokenUsage(total, guide.usage),
+    {} as TokenUsage
+  );
+  const textbookEmbeddingUsage = state.textbooks.reduce(
+    (total, textbook) => addTokenUsage(total, textbook.embeddingUsage),
+    {} as TokenUsage
+  );
+  const totalUsage = [transcriptionUsage, reviewUsage, textbookEmbeddingUsage].reduce(
+    (total, usage) => addTokenUsage(total, usage),
+    {} as TokenUsage
+  );
 
   return (
     <section className="dashboard">
@@ -4150,6 +4406,34 @@ function Dashboard({
           <span>Review sets</span>
         </div>
       </div>
+
+      <section className="panel usage-dashboard">
+        <div className="section-heading">
+          <div>
+            <span className="pill">AI Usage</span>
+            <h3>Token Usage Summary</h3>
+          </div>
+          <span>
+            {usageHasTokens(totalUsage)
+              ? formatTokenUsage(totalUsage)
+              : "No token usage recorded yet"}
+          </span>
+        </div>
+        <div className="usage-dashboard-grid">
+          <UsageSummaryCard
+            label="Lecture transcription and artifact generation"
+            usage={transcriptionUsage}
+          />
+          <UsageSummaryCard
+            label="Textbook embedding and indexing"
+            usage={textbookEmbeddingUsage}
+          />
+          <UsageSummaryCard
+            label="Review generation"
+            usage={reviewUsage}
+          />
+        </div>
+      </section>
 
       <div className="dashboard-grid">
         <section className="panel action-panel capture-action">
@@ -4224,6 +4508,55 @@ function Dashboard({
         </section>
       </div>
     </section>
+  );
+}
+
+function PipelineStatus({
+  steps,
+  title
+}: {
+  steps: PipelineStep[];
+  title: string;
+}) {
+  if (!steps.length) {
+    return null;
+  }
+
+  return (
+    <section className="pipeline-panel" aria-label={title || "AI pipeline status"}>
+      <div className="section-heading">
+        <div>
+          <span className="pill">Pipeline</span>
+          <h3>{title || "Working"}</h3>
+        </div>
+      </div>
+      <div className="pipeline-steps">
+        {steps.map((step) => (
+          <div className={`pipeline-step ${step.status}`} key={step.id}>
+            <span aria-hidden="true" />
+            <div>
+              <strong>{step.label}</strong>
+              {step.detail ? <small>{step.detail}</small> : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function UsageSummaryCard({
+  label,
+  usage
+}: {
+  label: string;
+  usage?: TokenUsage | null;
+}) {
+  return (
+    <div className="usage-summary-card">
+      <strong>{usageHasTokens(usage) ? formatTokenUsage(usage) : "No usage yet"}</strong>
+      <span>{label}</span>
+    </div>
   );
 }
 
