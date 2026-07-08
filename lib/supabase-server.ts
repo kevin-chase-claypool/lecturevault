@@ -70,3 +70,31 @@ export async function storageObjectToDataUrl({
 
   return `data:${type};base64,${buffer.toString("base64")}`;
 }
+
+export async function storageObjectToBuffer({
+  bucket,
+  path
+}: {
+  bucket?: string;
+  path?: string;
+}) {
+  if (!path) {
+    return null;
+  }
+
+  const client = supabaseServerClient();
+
+  if (!client) {
+    return null;
+  }
+
+  const { data, error } = await client.storage
+    .from(bucket || SUPABASE_MEDIA_BUCKET)
+    .download(path);
+
+  if (error || !data) {
+    return null;
+  }
+
+  return Buffer.from(await data.arrayBuffer());
+}

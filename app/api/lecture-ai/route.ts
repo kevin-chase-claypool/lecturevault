@@ -21,6 +21,15 @@ type LectureMediaItem = {
   storagePath?: string;
 };
 
+type TextbookContextChunk = {
+  id?: string;
+  pageEnd?: number;
+  pageStart?: number;
+  text?: string;
+  textbookId?: string;
+  textbookName?: string;
+};
+
 type TokenUsage = {
   input_tokens?: number;
   output_tokens?: number;
@@ -152,8 +161,12 @@ export async function POST(request: Request) {
       courseName?: string;
       notes?: string;
       mediaItems?: LectureMediaItem[];
+      textbookContext?: TextbookContextChunk[];
     };
     const mediaItems = Array.isArray(body.mediaItems) ? body.mediaItems : [];
+    const textbookContext = Array.isArray(body.textbookContext)
+      ? body.textbookContext.slice(0, 10)
+      : [];
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     let totalUsage: TokenUsage = {};
     const audioTranscripts: string[] = [];
@@ -219,6 +232,26 @@ export async function POST(request: Request) {
           `${index + 1}. ${cleanString(item.name) || "Unnamed media"} | ${cleanString(item.kind) || "media"} | ${cleanString(item.mimeType) || "unknown type"} | id: ${cleanString(item.id)}`
       )
       .join("\n");
+    const textbookContextText = textbookContext
+      .map((chunk, index) => {
+        const pageStart = Number.isFinite(chunk.pageStart) ? chunk.pageStart : undefined;
+        const pageEnd = Number.isFinite(chunk.pageEnd) ? chunk.pageEnd : pageStart;
+        const pageLabel =
+          pageStart && pageEnd && pageEnd !== pageStart
+            ? `pp. ${pageStart}-${pageEnd}`
+            : pageStart
+              ? `p. ${pageStart}`
+              : "page unknown";
+
+        return [
+          `Textbook excerpt ${index + 1}: ${cleanString(chunk.textbookName) || "Course textbook"} (${pageLabel})`,
+          cleanString(chunk.text)
+        ]
+          .filter(Boolean)
+          .join("\n");
+      })
+      .filter(Boolean)
+      .join("\n\n---\n\n");
     const content: ResponseInputMessageContentList = [
       {
         type: "input_text",
@@ -230,6 +263,9 @@ export async function POST(request: Request) {
             ? `User notes/context:\n${cleanString(body.notes)}`
             : "",
           mediaManifest ? `Source media manifest:\n${mediaManifest}` : "",
+          textbookContextText
+            ? `Relevant course textbook excerpts:\n${textbookContextText}`
+            : "No course textbook excerpts were selected for this lecture.",
           audioTranscripts.length
             ? `Audio transcription text:\n${audioTranscripts.join("\n\n---\n\n")}`
             : "No audio transcription text was available. Use the notes and visible images.",
@@ -237,10 +273,10 @@ export async function POST(request: Request) {
             "Return strict JSON with this shape:",
             "{",
             '  "summary": "exam-focused lecture summary with important formulas in LaTeX",',
-            '  "transcriptText": "cleaned transcript/study notes in Markdown; include a Source Media Used section and refer to images as Fig. 1, Fig. 2 when useful",',
+            '  "transcriptText": "cleaned transcript/study notes in Markdown; include Source Media Used and Textbook Context Used sections; cite textbook pages when useful; refer to images as Fig. 1, Fig. 2 when useful",',
             '  "concepts": [{"title": "short concept title", "detail": "exam-useful explanation", "sourceMediaId": "optional media id"}]',
             "}",
-            "Do not invent facts not supported by the source media, transcript, or notes."
+            "Do not invent facts not supported by the source media, transcript, notes, or textbook excerpts."
           ].join("\n")
         ]
           .filter(Boolean)
@@ -256,6 +292,7 @@ export async function POST(request: Request) {
       input: [{ role: "user", content }],
       instructions: [
         "You create source-grounded engineering/math lecture study artifacts from lecture audio transcripts, board images, screenshots, PDFs/notes metadata, and user notes.",
+        "Course textbook excerpts are supporting context, not a replacement for the lecture. Use them to clarify formulas, definitions, and exam-relevant connections, and cite page numbers when they are used.",
         "Images are first-class study material. Refer to uploaded images as figures in the transcriptText where they support formulas, diagrams, board work, or worked examples.",
         "The output must be useful for exam preparation, not just a summary.",
         "Use LaTeX-compatible math syntax for formulas."

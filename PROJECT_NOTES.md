@@ -99,6 +99,19 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-08 - Add Course Textbook PDF Context
+
+- Added course-level textbook PDF support on the Courses screen.
+- Textbook PDFs upload directly to Supabase Storage using the existing signed-upload path, so large PDFs do not route through Vercel request bodies.
+- Added `/api/textbook/extract` to read the stored PDF from Supabase and extract per-page text chunks server-side.
+- Added `textbooks` and `textbookChunks` to the shared Vault state.
+- Lecture AI generation now selects relevant textbook chunks for the course and sends only those excerpts into `/api/lecture-ai`.
+- Lecture AI instructions now require a `Textbook Context Used` section and page citations when textbook excerpts are used.
+- Current limitation: textbook chunks are selected with local keyword matching, not embeddings/vector search yet.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-07 - Sidebar Brand and UI Polish
 
 - Added `Kevin C. Claypool` as smaller italic brand text under `LectureVault` in the left sidebar.

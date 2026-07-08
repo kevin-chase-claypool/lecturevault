@@ -144,6 +144,45 @@ button {
     transform 140ms ease;
 }
 
+button,
+.button-like {
+  user-select: none;
+}
+
+.button-like {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 13px;
+  background: linear-gradient(180deg, #ffffff 0%, #f6f9fc 100%);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.button-like:hover {
+  border-color: var(--primary);
+  box-shadow:
+    0 8px 18px rgba(11, 102, 118, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  transform: translateY(-1px);
+}
+
+.button-like input {
+  display: none;
+}
+
 button.primary,
 button.danger,
 .cart-button {
@@ -949,6 +988,45 @@ label {
   padding: 12px;
   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
   box-shadow: var(--shadow-soft);
+}
+
+.course-textbook-upload {
+  white-space: nowrap;
+}
+
+.course-textbook-list {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid #dde6ef;
+  padding-top: 10px;
+}
+
+.course-textbook-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #d4e1eb;
+  border-radius: 8px;
+  padding: 9px 10px;
+  background:
+    linear-gradient(180deg, #fbfdff 0%, #f5f9fc 100%);
+}
+
+.course-textbook-item strong,
+.course-textbook-item small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-textbook-item small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-weight: 750;
 }
 
 .row-card > div:first-child {

@@ -160,6 +160,27 @@ type MediaLibraryPlacement = {
   folderId: string;
 };
 
+type CourseTextbook = {
+  id: string;
+  courseId: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  storageBucket?: string;
+  storagePath?: string;
+  pageCount?: number;
+  chunkCount: number;
+  createdAt: string;
+};
+
+type TextbookChunk = {
+  id: string;
+  textbookId: string;
+  pageStart: number;
+  pageEnd: number;
+  text: string;
+};
+
 type VaultState = {
   courses: Course[];
   archiveFolders: ArchiveFolder[];
@@ -167,6 +188,8 @@ type VaultState = {
   mediaItems: MediaItem[];
   mediaLibraryFolders: MediaLibraryFolder[];
   mediaLibraryPlacements: MediaLibraryPlacement[];
+  textbooks: CourseTextbook[];
+  textbookChunks: TextbookChunk[];
   transcripts: Transcript[];
   concepts: ExtractedConcept[];
   exams: ExamWorkspace[];
@@ -192,6 +215,8 @@ const emptyState: VaultState = {
   mediaItems: [],
   mediaLibraryFolders: [],
   mediaLibraryPlacements: [],
+  textbooks: [],
+  textbookChunks: [],
   transcripts: [],
   concepts: [],
   exams: [],
@@ -256,6 +281,53 @@ function formatTokenUsage(usage?: TokenUsage | null) {
   ]
     .filter(Boolean)
     .join(" / ");
+}
+
+function keywordSet(text: string) {
+  return new Set(
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]+/g, " ")
+      .split(/\s+/)
+      .filter((word) => word.length >= 4)
+  );
+}
+
+function relevantTextbookChunks({
+  chunks,
+  limit = 8,
+  query,
+  textbooks
+}: {
+  chunks: TextbookChunk[];
+  limit?: number;
+  query: string;
+  textbooks: CourseTextbook[];
+}) {
+  const keywords = keywordSet(query);
+  const textbookById = new Map(textbooks.map((textbook) => [textbook.id, textbook]));
+
+  return chunks
+    .map((chunk) => {
+      const chunkText = chunk.text.toLowerCase();
+      let score = 0;
+
+      for (const keyword of keywords) {
+        if (chunkText.includes(keyword)) {
+          score += keyword.length > 7 ? 2 : 1;
+        }
+      }
+
+      return {
+        ...chunk,
+        score,
+        textbookName: textbookById.get(chunk.textbookId)?.name || "Course textbook"
+      };
+    })
+    .filter((chunk) => chunk.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(({ score, ...chunk }) => chunk);
 }
 
 function transcriptUsageLabel(transcript?: Transcript) {
@@ -681,6 +753,8 @@ function removeLegacyDemoRecords(state: VaultState): VaultState {
     ),
     mediaLibraryFolders: state.mediaLibraryFolders,
     mediaLibraryPlacements: state.mediaLibraryPlacements,
+    textbooks: state.textbooks,
+    textbookChunks: state.textbookChunks,
     transcripts: state.transcripts.filter(
       (transcript) => !legacyLectureIds.has(transcript.lectureId)
     ),
@@ -1085,6 +1159,12 @@ function loadState(): VaultState {
         : [],
       mediaLibraryPlacements: Array.isArray(parsed.mediaLibraryPlacements)
         ? parsed.mediaLibraryPlacements
+        : [],
+      textbooks: Array.isArray(parsed.textbooks)
+        ? parsed.textbooks
+        : [],
+      textbookChunks: Array.isArray(parsed.textbookChunks)
+        ? parsed.textbookChunks
         : []
     };
     return ensureCourseLectureFolders(removeLegacyDemoRecords(normalized));
@@ -1110,6 +1190,12 @@ function normalizeState(input: unknown): VaultState {
         : [],
       mediaLibraryPlacements: Array.isArray(parsed.mediaLibraryPlacements)
         ? parsed.mediaLibraryPlacements
+        : [],
+      textbooks: Array.isArray(parsed.textbooks)
+        ? parsed.textbooks
+        : [],
+      textbookChunks: Array.isArray(parsed.textbookChunks)
+        ? parsed.textbookChunks
         : []
     })
   );
@@ -1123,6 +1209,8 @@ function stateHasUserData(state: VaultState) {
       state.mediaItems.length ||
       state.mediaLibraryFolders.length ||
       state.mediaLibraryPlacements.length ||
+      state.textbooks.length ||
+      state.textbookChunks.length ||
       state.transcripts.length ||
       state.concepts.length ||
       state.exams.length ||
@@ -1171,6 +1259,7 @@ export default function LectureVaultApp() {
   const [isLectureGenerating, setIsLectureGenerating] = useState(false);
   const [isReviewGenerating, setIsReviewGenerating] = useState(false);
   const [isPdfRendering, setIsPdfRendering] = useState(false);
+  const [textbookProcessingCourseId, setTextbookProcessingCourseId] = useState("");
   const [reviewPdfStatus, setReviewPdfStatus] = useState("");
   const [storageBucket, setStorageBucket] = useState("");
   const [storageFiles, setStorageFiles] = useState<SupabaseStorageFile[]>([]);
@@ -1630,6 +1719,114 @@ export default function LectureVaultApp() {
     setStatus(`Created ${course.code} with a default Lectures folder.`);
   }
 
+  async function addCourseTextbooks(courseId: string, files: File[]) {
+    const pdfFiles = files.filter(
+      (file) => file.type.includes("pdf") || file.name.toLowerCase().endsWith(".pdf")
+    );
+    const course = state.courses.find((item) => item.id === courseId);
+
+    if (!course) {
+      setStatus("Choose a course before adding textbooks.");
+      return;
+    }
+
+    if (!pdfFiles.length) {
+      setStatus("Choose at least one PDF textbook.");
+      return;
+    }
+
+    setTextbookProcessingCourseId(courseId);
+
+    try {
+      for (const file of pdfFiles) {
+        const textbookId = uid("textbook");
+        setStatus(`Uploading and extracting ${file.name}...`);
+        const storage = await uploadMediaFile({
+          file,
+          lectureId: `textbook-${courseId}`,
+          mediaId: textbookId
+        });
+        const response = await fetch("/api/textbook/extract", {
+          body: JSON.stringify({
+            bucket: storage.storageBucket,
+            mimeType: file.type || "application/pdf",
+            name: file.name,
+            path: storage.storagePath,
+            textbookId
+          }),
+          credentials: "include",
+          headers: {
+            "content-type": "application/json"
+          },
+          method: "POST"
+        });
+        const data = (await response.json()) as {
+          chunks?: TextbookChunk[];
+          error?: string;
+          pageCount?: number;
+        };
+
+        if (!response.ok) {
+          throw new Error(data.error || `Could not extract ${file.name}.`);
+        }
+
+        const chunks = data.chunks || [];
+        const textbook: CourseTextbook = {
+          id: textbookId,
+          courseId,
+          name: file.name,
+          mimeType: file.type || "application/pdf",
+          size: file.size,
+          storageBucket: storage.storageBucket,
+          storagePath: storage.storagePath,
+          pageCount: data.pageCount,
+          chunkCount: chunks.length,
+          createdAt: new Date().toISOString()
+        };
+
+        setState((current) => ({
+          ...current,
+          textbooks: [textbook, ...current.textbooks],
+          textbookChunks: [...chunks, ...current.textbookChunks]
+        }));
+        setStatus(
+          `Added ${file.name} to ${course.code}. Extracted ${chunks.length} textbook chunk${chunks.length === 1 ? "" : "s"}.`
+        );
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not add textbook PDF.";
+      setStatus(message);
+    } finally {
+      setTextbookProcessingCourseId("");
+    }
+  }
+
+  function deleteTextbook(textbookId: string) {
+    const textbook = state.textbooks.find((item) => item.id === textbookId);
+
+    if (!textbook) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Remove ${textbook.name} from this course? This removes the extracted AI context from LectureVault, but does not delete the Supabase file.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      textbooks: current.textbooks.filter((item) => item.id !== textbookId),
+      textbookChunks: current.textbookChunks.filter(
+        (chunk) => chunk.textbookId !== textbookId
+      )
+    }));
+    setStatus(`Removed ${textbook.name} from course textbook context.`);
+  }
+
   function deleteCourse(courseId: string) {
     const course = state.courses.find((item) => item.id === courseId);
 
@@ -1661,6 +1858,11 @@ export default function LectureVaultApp() {
         .filter((exam) => exam.courseId === courseId)
         .map((exam) => exam.id)
     );
+    const deletedTextbookIds = new Set(
+      state.textbooks
+        .filter((textbook) => textbook.courseId === courseId)
+        .map((textbook) => textbook.id)
+    );
     const nextCourse = state.courses.find((item) => item.id !== courseId);
     const nextCourseId = nextCourse?.id || "";
     const nextLecture = state.lectures.find(
@@ -1677,6 +1879,12 @@ export default function LectureVaultApp() {
       lectures: current.lectures.filter((lecture) => lecture.courseId !== courseId),
       mediaItems: current.mediaItems.filter(
         (item) => !deletedLectureIds.has(item.lectureId)
+      ),
+      textbooks: current.textbooks.filter(
+        (textbook) => textbook.courseId !== courseId
+      ),
+      textbookChunks: current.textbookChunks.filter(
+        (chunk) => !deletedTextbookIds.has(chunk.textbookId)
       ),
       transcripts: current.transcripts.filter(
         (transcript) => !deletedLectureIds.has(transcript.lectureId)
@@ -1960,6 +2168,21 @@ export default function LectureVaultApp() {
 
     if (useAi) {
       try {
+        const courseTextbooks = state.textbooks.filter(
+          (textbook) => textbook.courseId === captureForm.courseId
+        );
+        const courseTextbookIds = new Set(
+          courseTextbooks.map((textbook) => textbook.id)
+        );
+        const textbookContext = relevantTextbookChunks({
+          chunks: state.textbookChunks.filter((chunk) =>
+            courseTextbookIds.has(chunk.textbookId)
+          ),
+          query: [title, captureForm.summary.trim(), pastedTranscript]
+            .filter(Boolean)
+            .join("\n\n"),
+          textbooks: courseTextbooks
+        });
         const response = await fetch("/api/lecture-ai", {
           body: JSON.stringify({
             courseName: courseLabel(captureForm.courseId),
@@ -1968,6 +2191,7 @@ export default function LectureVaultApp() {
             notes: [captureForm.summary.trim(), pastedTranscript]
               .filter(Boolean)
               .join("\n\n"),
+            textbookContext,
             title
           }),
           credentials: "include",
@@ -2913,10 +3137,34 @@ export default function LectureVaultApp() {
                           (lecture) => lecture.courseId === course.id
                         ).length
                       }{" "}
-                      items
+                      items -{" "}
+                      {
+                        state.textbooks.filter(
+                          (textbook) => textbook.courseId === course.id
+                        ).length
+                      }{" "}
+                      textbooks
                     </small>
                   </div>
                   <div className="button-row">
+                    <label className="button-like course-textbook-upload">
+                      {textbookProcessingCourseId === course.id
+                        ? "Processing..."
+                        : "Add textbook PDF"}
+                      <input
+                        type="file"
+                        multiple
+                        accept="application/pdf,.pdf"
+                        disabled={Boolean(textbookProcessingCourseId)}
+                        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                          void addCourseTextbooks(
+                            course.id,
+                            Array.from(event.target.files || [])
+                          );
+                          event.target.value = "";
+                        }}
+                      />
+                    </label>
                     <button
                       type="button"
                       onClick={() => {
@@ -2934,6 +3182,30 @@ export default function LectureVaultApp() {
                       Delete course
                     </button>
                   </div>
+                  {state.textbooks.some((textbook) => textbook.courseId === course.id) ? (
+                    <div className="course-textbook-list">
+                      {state.textbooks
+                        .filter((textbook) => textbook.courseId === course.id)
+                        .map((textbook) => (
+                          <div className="course-textbook-item" key={textbook.id}>
+                            <div>
+                              <strong>{textbook.name}</strong>
+                              <small>
+                                {formatFileSize(textbook.size)} -{" "}
+                                {textbook.pageCount || 0} pages -{" "}
+                                {textbook.chunkCount} AI chunks
+                              </small>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => deleteTextbook(textbook.id)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  ) : null}
                 </div>
               ))}
               {!state.courses.length ? (
