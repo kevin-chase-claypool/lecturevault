@@ -1,14 +1,19 @@
 import OpenAI, { toFile } from "openai";
 import type { ResponseInputMessageContentList } from "openai/resources/responses/responses";
 import { requireAuthenticatedRequest } from "../../../lib/auth";
-import { storageObjectToDataUrl } from "../../../lib/supabase-server";
+import {
+  storageObjectToDataUrl,
+  supabaseServerClient
+} from "../../../lib/supabase-server";
 
 export const runtime = "nodejs";
 
 const DEFAULT_LECTURE_MODEL = "gpt-4.1-mini";
 const DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-transcribe";
+const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
 const MAX_IMAGE_INPUTS = 30;
 const MAX_AUDIO_INPUTS = 3;
+const MAX_TEXTBOOK_CONTEXT = 10;
 
 type LectureMediaItem = {
   id?: string;
@@ -28,6 +33,16 @@ type TextbookContextChunk = {
   text?: string;
   textbookId?: string;
   textbookName?: string;
+};
+
+type MatchTextbookChunk = {
+  content?: string;
+  id?: string;
+  page_end?: number;
+  page_start?: number;
+  similarity?: number;
+  textbook_id?: string;
+  textbook_name?: string;
 };
 
 type TokenUsage = {
@@ -119,6 +134,27 @@ function addUsage(first: TokenUsage, second: TokenUsage): TokenUsage {
   };
 }
 
+function usageFromEmbedding(usage: unknown): TokenUsage {
+  if (!usage || typeof usage !== "object") {
+    return {};
+  }
+
+  const record = usage as Record<string, unknown>;
+  const input =
+    typeof record.prompt_tokens === "number"
+      ? record.prompt_tokens
+      : typeof record.input_tokens === "number"
+        ? record.input_tokens
+        : undefined;
+  const total =
+    typeof record.total_tokens === "number" ? record.total_tokens : input;
+
+  return {
+    input_tokens: input,
+    total_tokens: total
+  };
+}
+
 function extractJson(text: string) {
   const trimmed = text.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]+?)\s*```/i);
@@ -157,6 +193,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
       title?: string;
+      courseId?: string;
       date?: string;
       courseName?: string;
       notes?: string;
@@ -164,7 +201,7 @@ export async function POST(request: Request) {
       textbookContext?: TextbookContextChunk[];
     };
     const mediaItems = Array.isArray(body.mediaItems) ? body.mediaItems : [];
-    const textbookContext = Array.isArray(body.textbookContext)
+    let textbookContext = Array.isArray(body.textbookContext)
       ? body.textbookContext.slice(0, 10)
       : [];
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -232,6 +269,45 @@ export async function POST(request: Request) {
           `${index + 1}. ${cleanString(item.name) || "Unnamed media"} | ${cleanString(item.kind) || "media"} | ${cleanString(item.mimeType) || "unknown type"} | id: ${cleanString(item.id)}`
       )
       .join("\n");
+    const textbookQuery = [
+      cleanString(body.title),
+      cleanString(body.courseName),
+      cleanString(body.notes),
+      audioTranscripts.join("\n\n")
+    ]
+      .filter(Boolean)
+      .join("\n\n")
+      .slice(0, 12000);
+
+    if (cleanString(body.courseId) && textbookQuery) {
+      const supabase = supabaseServerClient();
+
+      if (supabase) {
+        const embeddingResponse = await client.embeddings.create({
+          input: textbookQuery,
+          model: process.env.OPENAI_EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL
+        });
+        totalUsage = addUsage(totalUsage, usageFromEmbedding(embeddingResponse.usage));
+
+        const { data } = await supabase.rpc("match_textbook_chunks", {
+          match_count: MAX_TEXTBOOK_CONTEXT,
+          match_course_id: cleanString(body.courseId),
+          query_embedding: embeddingResponse.data[0]?.embedding || []
+        });
+
+        if (Array.isArray(data) && data.length) {
+          textbookContext = (data as MatchTextbookChunk[]).map((chunk) => ({
+            id: cleanString(chunk.id),
+            pageEnd: typeof chunk.page_end === "number" ? chunk.page_end : undefined,
+            pageStart:
+              typeof chunk.page_start === "number" ? chunk.page_start : undefined,
+            text: cleanString(chunk.content),
+            textbookId: cleanString(chunk.textbook_id),
+            textbookName: cleanString(chunk.textbook_name)
+          }));
+        }
+      }
+    }
     const textbookContextText = textbookContext
       .map((chunk, index) => {
         const pageStart = Number.isFinite(chunk.pageStart) ? chunk.pageStart : undefined;

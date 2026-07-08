@@ -170,6 +170,8 @@ type CourseTextbook = {
   storagePath?: string;
   pageCount?: number;
   chunkCount: number;
+  indexedChunkCount?: number;
+  embeddingUsage?: TokenUsage | null;
   createdAt: string;
 };
 
@@ -1749,6 +1751,7 @@ export default function LectureVaultApp() {
         const response = await fetch("/api/textbook/extract", {
           body: JSON.stringify({
             bucket: storage.storageBucket,
+            courseId,
             mimeType: file.type || "application/pdf",
             name: file.name,
             path: storage.storagePath,
@@ -1761,8 +1764,11 @@ export default function LectureVaultApp() {
           method: "POST"
         });
         const data = (await response.json()) as {
+          chunkCount?: number;
           chunks?: TextbookChunk[];
+          embeddingUsage?: TokenUsage | null;
           error?: string;
+          indexedChunkCount?: number;
           pageCount?: number;
         };
 
@@ -1770,7 +1776,7 @@ export default function LectureVaultApp() {
           throw new Error(data.error || `Could not extract ${file.name}.`);
         }
 
-        const chunks = data.chunks || [];
+        const chunkCount = data.chunkCount || data.chunks?.length || 0;
         const textbook: CourseTextbook = {
           id: textbookId,
           courseId,
@@ -1780,17 +1786,19 @@ export default function LectureVaultApp() {
           storageBucket: storage.storageBucket,
           storagePath: storage.storagePath,
           pageCount: data.pageCount,
-          chunkCount: chunks.length,
+          chunkCount,
+          indexedChunkCount: data.indexedChunkCount || 0,
+          embeddingUsage: data.embeddingUsage || null,
           createdAt: new Date().toISOString()
         };
 
         setState((current) => ({
           ...current,
           textbooks: [textbook, ...current.textbooks],
-          textbookChunks: [...chunks, ...current.textbookChunks]
+          textbookChunks: current.textbookChunks
         }));
         setStatus(
-          `Added ${file.name} to ${course.code}. Extracted ${chunks.length} textbook chunk${chunks.length === 1 ? "" : "s"}.`
+          `Added ${file.name} to ${course.code}. Indexed ${data.indexedChunkCount || 0} textbook chunk${data.indexedChunkCount === 1 ? "" : "s"} for AI search.`
         );
       }
     } catch (error) {
@@ -1802,7 +1810,7 @@ export default function LectureVaultApp() {
     }
   }
 
-  function deleteTextbook(textbookId: string) {
+  async function deleteTextbook(textbookId: string) {
     const textbook = state.textbooks.find((item) => item.id === textbookId);
 
     if (!textbook) {
@@ -1817,14 +1825,34 @@ export default function LectureVaultApp() {
       return;
     }
 
-    setState((current) => ({
-      ...current,
-      textbooks: current.textbooks.filter((item) => item.id !== textbookId),
-      textbookChunks: current.textbookChunks.filter(
-        (chunk) => chunk.textbookId !== textbookId
-      )
-    }));
-    setStatus(`Removed ${textbook.name} from course textbook context.`);
+    try {
+      const response = await fetch("/api/textbook/extract", {
+        body: JSON.stringify({ textbookId }),
+        credentials: "include",
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "DELETE"
+      });
+      const data = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Could not remove textbook vectors.");
+      }
+
+      setState((current) => ({
+        ...current,
+        textbooks: current.textbooks.filter((item) => item.id !== textbookId),
+        textbookChunks: current.textbookChunks.filter(
+          (chunk) => chunk.textbookId !== textbookId
+        )
+      }));
+      setStatus(`Removed ${textbook.name} from course textbook context.`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not remove textbook.";
+      setStatus(message);
+    }
   }
 
   function deleteCourse(courseId: string) {
@@ -2186,6 +2214,7 @@ export default function LectureVaultApp() {
         const response = await fetch("/api/lecture-ai", {
           body: JSON.stringify({
             courseName: courseLabel(captureForm.courseId),
+            courseId: captureForm.courseId,
             date: captureForm.date,
             mediaItems,
             notes: [captureForm.summary.trim(), pastedTranscript]
@@ -3193,12 +3222,15 @@ export default function LectureVaultApp() {
                               <small>
                                 {formatFileSize(textbook.size)} -{" "}
                                 {textbook.pageCount || 0} pages -{" "}
-                                {textbook.chunkCount} AI chunks
+                                {textbook.indexedChunkCount || 0} indexed AI chunks
+                                {textbook.embeddingUsage
+                                  ? ` - ${formatTokenUsage(textbook.embeddingUsage)} embedding usage`
+                                  : ""}
                               </small>
                             </div>
                             <button
                               type="button"
-                              onClick={() => deleteTextbook(textbook.id)}
+                              onClick={() => void deleteTextbook(textbook.id)}
                             >
                               Remove
                             </button>

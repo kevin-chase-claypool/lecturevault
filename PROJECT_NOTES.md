@@ -105,9 +105,11 @@ https://production-sfo.browserless.io/pdf
 - Textbook PDFs upload directly to Supabase Storage using the existing signed-upload path, so large PDFs do not route through Vercel request bodies.
 - Added `/api/textbook/extract` to read the stored PDF from Supabase and extract per-page text chunks server-side.
 - Added `textbooks` and `textbookChunks` to the shared Vault state.
-- Lecture AI generation now selects relevant textbook chunks for the course and sends only those excerpts into `/api/lecture-ai`.
+- Textbook extraction now generates OpenAI embeddings and upserts chunk vectors into Supabase `public.textbook_chunks`.
+- New textbook uploads keep full chunk text in Supabase vector rows rather than bloating the shared JSON app state.
+- Lecture AI generation now uses the Supabase `match_textbook_chunks` RPC for semantic textbook retrieval when a course id is available.
 - Lecture AI instructions now require a `Textbook Context Used` section and page citations when textbook excerpts are used.
-- Current limitation: textbook chunks are selected with local keyword matching, not embeddings/vector search yet.
+- Removing a textbook deletes its vector rows from Supabase before removing local metadata.
 - Verified with:
   - `npm run build`
   - `npm run typecheck`
