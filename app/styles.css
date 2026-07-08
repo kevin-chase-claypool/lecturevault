@@ -951,9 +951,95 @@ label {
 
 .storage-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: 14px;
   align-items: flex-start;
+}
+
+.storage-browser-panel {
+  position: sticky;
+  top: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.storage-folder-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.storage-folder-form input {
+  min-width: 0;
+}
+
+.storage-folder-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.storage-folder-tree {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbfd 100%);
+}
+
+.storage-folder-branch,
+.storage-folder-children {
+  display: grid;
+  gap: 6px;
+}
+
+.storage-folder-children {
+  margin-left: 10px;
+  padding-left: 9px;
+  border-left: 1px solid #d8e3ec;
+}
+
+.storage-folder-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 7px 8px 7px calc(8px + (var(--depth, 0) * 10px));
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 850;
+  text-align: left;
+  box-shadow: none;
+}
+
+.storage-folder-button:hover {
+  border-color: #b9ccd8;
+  background: #f5f9fb;
+}
+
+.storage-folder-button.active {
+  border-color: #8dbab4;
+  background: linear-gradient(180deg, #effbf8 0%, #e8f6f4 100%);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.storage-folder-button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.storage-folder-button small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
 }
 
 .storage-list {
@@ -963,7 +1049,13 @@ label {
 
 .storage-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) minmax(120px, 0.7fr) minmax(90px, 0.45fr) minmax(150px, 0.8fr) auto;
+  grid-template-columns:
+    minmax(210px, 1.35fr)
+    minmax(120px, 0.65fr)
+    minmax(88px, 0.45fr)
+    minmax(145px, 0.7fr)
+    minmax(140px, 0.65fr)
+    auto;
   gap: 10px;
   align-items: center;
   border: 1px solid var(--border);
@@ -972,6 +1064,11 @@ label {
   background:
     linear-gradient(180deg, #ffffff 0%, var(--panel) 100%);
   box-shadow: var(--shadow-hairline);
+  cursor: grab;
+}
+
+.storage-row:active {
+  cursor: grabbing;
 }
 
 .storage-row.selected {
@@ -1791,6 +1888,7 @@ label {
 
   .archive-explorer,
   .archive-folder-panel,
+  .storage-browser-panel,
   .source-inspector {
     position: static;
     max-height: none;
@@ -1839,6 +1937,7 @@ label {
 
   .archive-explorer,
   .archive-folder-panel,
+  .storage-browser-panel,
   .source-inspector {
     position: static;
     max-height: none;

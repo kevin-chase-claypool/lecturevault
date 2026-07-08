@@ -99,11 +99,13 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
-### 2026-07-07 - Add Supabase Storage Manager
+### 2026-07-07 - Add Supabase Media Library
 
-- Added a `Storage` section to the left navigation.
+- Added a `Media Library` section to the left navigation.
 - Added `/api/media/objects` for authenticated recursive listing and deletion of Supabase Storage media objects.
-- Added a Storage Manager screen showing bucket, file count, total stored size, object path, MIME type, size, updated date, and open/download actions.
+- Added a file-explorer-style Media Library screen showing bucket, file count, total stored size, object path, MIME type, size, updated date, usage references, and open/download actions.
+- Added virtual folders with drag-and-drop file organization. Moving files in the Media Library only updates LectureVault placement metadata; it does not rename or move the Supabase object, so saved lecture/review links keep working.
+- Added virtual-folder create, rename, delete, all-files, and unfiled views.
 - Added guarded multi-select deletion for Supabase files, with a warning that deleting storage objects does not remove lecture records.
 - Verified with:
   - `npm run build`

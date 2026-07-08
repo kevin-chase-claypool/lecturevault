@@ -148,11 +148,25 @@ type SupabaseStorageFile = {
   updatedAt?: string;
 };
 
+type MediaLibraryFolder = {
+  id: string;
+  parentId?: string;
+  name: string;
+  createdAt: string;
+};
+
+type MediaLibraryPlacement = {
+  storagePath: string;
+  folderId: string;
+};
+
 type VaultState = {
   courses: Course[];
   archiveFolders: ArchiveFolder[];
   lectures: Lecture[];
   mediaItems: MediaItem[];
+  mediaLibraryFolders: MediaLibraryFolder[];
+  mediaLibraryPlacements: MediaLibraryPlacement[];
   transcripts: Transcript[];
   concepts: ExtractedConcept[];
   exams: ExamWorkspace[];
@@ -176,6 +190,8 @@ const emptyState: VaultState = {
   archiveFolders: [],
   lectures: [],
   mediaItems: [],
+  mediaLibraryFolders: [],
+  mediaLibraryPlacements: [],
   transcripts: [],
   concepts: [],
   exams: [],
@@ -554,6 +570,28 @@ function folderLectureCount(
     .length;
 }
 
+function mediaFolderDescendantIds(folders: MediaLibraryFolder[], folderId: string) {
+  const ids = new Set<string>();
+  const stack = [folderId];
+
+  while (stack.length) {
+    const current = stack.pop();
+
+    if (!current || ids.has(current)) {
+      continue;
+    }
+
+    ids.add(current);
+    for (const folder of folders) {
+      if (folder.parentId === current) {
+        stack.push(folder.id);
+      }
+    }
+  }
+
+  return ids;
+}
+
 function examItemExists(
   examItems: ExamWorkspaceItem[],
   examWorkspaceId: string,
@@ -641,6 +679,8 @@ function removeLegacyDemoRecords(state: VaultState): VaultState {
     mediaItems: state.mediaItems.filter(
       (item) => !legacyLectureIds.has(item.lectureId)
     ),
+    mediaLibraryFolders: state.mediaLibraryFolders,
+    mediaLibraryPlacements: state.mediaLibraryPlacements,
     transcripts: state.transcripts.filter(
       (transcript) => !legacyLectureIds.has(transcript.lectureId)
     ),
@@ -1039,6 +1079,12 @@ function loadState(): VaultState {
       ...parsed,
       archiveFolders: Array.isArray(parsed.archiveFolders)
         ? parsed.archiveFolders
+        : [],
+      mediaLibraryFolders: Array.isArray(parsed.mediaLibraryFolders)
+        ? parsed.mediaLibraryFolders
+        : [],
+      mediaLibraryPlacements: Array.isArray(parsed.mediaLibraryPlacements)
+        ? parsed.mediaLibraryPlacements
         : []
     };
     return ensureCourseLectureFolders(removeLegacyDemoRecords(normalized));
@@ -1058,6 +1104,12 @@ function normalizeState(input: unknown): VaultState {
       ...parsed,
       archiveFolders: Array.isArray(parsed.archiveFolders)
         ? parsed.archiveFolders
+        : [],
+      mediaLibraryFolders: Array.isArray(parsed.mediaLibraryFolders)
+        ? parsed.mediaLibraryFolders
+        : [],
+      mediaLibraryPlacements: Array.isArray(parsed.mediaLibraryPlacements)
+        ? parsed.mediaLibraryPlacements
         : []
     })
   );
@@ -1069,6 +1121,8 @@ function stateHasUserData(state: VaultState) {
       state.archiveFolders.length ||
       state.lectures.length ||
       state.mediaItems.length ||
+      state.mediaLibraryFolders.length ||
+      state.mediaLibraryPlacements.length ||
       state.transcripts.length ||
       state.concepts.length ||
       state.exams.length ||
@@ -1121,6 +1175,8 @@ export default function LectureVaultApp() {
   const [storageBucket, setStorageBucket] = useState("");
   const [storageFiles, setStorageFiles] = useState<SupabaseStorageFile[]>([]);
   const [selectedStoragePaths, setSelectedStoragePaths] = useState<string[]>([]);
+  const [selectedStorageFolderId, setSelectedStorageFolderId] = useState("all");
+  const [storageFolderName, setStorageFolderName] = useState("");
   const [isStorageLoading, setIsStorageLoading] = useState(false);
   const stateJsonRef = useRef(JSON.stringify(state));
   const skipNextCloudSaveRef = useRef(false);
@@ -2527,6 +2583,108 @@ export default function LectureVaultApp() {
     );
   }
 
+  function createStorageFolder(event: FormEvent) {
+    event.preventDefault();
+    const name = storageFolderName.trim();
+
+    if (!name) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const parentId =
+      selectedStorageFolderId === "all" || selectedStorageFolderId === "unfiled"
+        ? undefined
+        : selectedStorageFolderId;
+
+    setState((current) => ({
+      ...current,
+      mediaLibraryFolders: [
+        {
+          id: uid("media-folder"),
+          parentId,
+          name,
+          createdAt: now
+        },
+        ...current.mediaLibraryFolders
+      ]
+    }));
+    setStorageFolderName("");
+    setStatus(`Created storage folder ${name}.`);
+  }
+
+  function renameStorageFolder() {
+    const name = storageFolderName.trim();
+
+    if (!name || selectedStorageFolderId === "all" || selectedStorageFolderId === "unfiled") {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      mediaLibraryFolders: current.mediaLibraryFolders.map((folder) =>
+        folder.id === selectedStorageFolderId ? { ...folder, name } : folder
+      )
+    }));
+    setStorageFolderName("");
+    setStatus(`Renamed storage folder to ${name}.`);
+  }
+
+  function deleteStorageFolder() {
+    if (selectedStorageFolderId === "all" || selectedStorageFolderId === "unfiled") {
+      return;
+    }
+
+    const folder = state.mediaLibraryFolders.find(
+      (item) => item.id === selectedStorageFolderId
+    );
+    const ids = mediaFolderDescendantIds(
+      state.mediaLibraryFolders,
+      selectedStorageFolderId
+    );
+
+    setState((current) => ({
+      ...current,
+      mediaLibraryFolders: current.mediaLibraryFolders.filter(
+        (item) => !ids.has(item.id)
+      ),
+      mediaLibraryPlacements: current.mediaLibraryPlacements.filter(
+        (placement) => !ids.has(placement.folderId)
+      )
+    }));
+    setSelectedStorageFolderId("all");
+    setStatus(
+      `${folder?.name || "Storage folder"} removed. Files remain in Supabase and are now unfiled.`
+    );
+  }
+
+  function moveStoragePathsToFolder(paths: string[], folderId?: string) {
+    if (!paths.length) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      mediaLibraryPlacements: [
+        ...current.mediaLibraryPlacements.filter(
+          (placement) => !paths.includes(placement.storagePath)
+        ),
+        ...(folderId
+          ? paths.map((path) => ({
+              folderId,
+              storagePath: path
+            }))
+          : [])
+      ]
+    }));
+    setSelectedStoragePaths([]);
+    setStatus(
+      folderId
+        ? `Moved ${paths.length} file${paths.length === 1 ? "" : "s"} in the media library. Supabase file links were not changed.`
+        : `Moved ${paths.length} file${paths.length === 1 ? "" : "s"} to Unfiled. Supabase file links were not changed.`
+    );
+  }
+
   async function deleteSelectedStorageFiles() {
     if (!selectedStoragePaths.length) {
       setStatus("Select at least one Supabase file to delete.");
@@ -2560,6 +2718,12 @@ export default function LectureVaultApp() {
       }
 
       setSelectedStoragePaths([]);
+      setState((current) => ({
+        ...current,
+        mediaLibraryPlacements: current.mediaLibraryPlacements.filter(
+          (placement) => !selectedStoragePaths.includes(placement.storagePath)
+        )
+      }));
       setStatus(`Deleted ${data.deleted || 0} Supabase media object${data.deleted === 1 ? "" : "s"}.`);
       await loadStorageFiles();
     } catch (error) {
@@ -2603,7 +2767,7 @@ export default function LectureVaultApp() {
             ["courses", "Courses"],
             ["capture", "New Lecture"],
             ["archive", "Vault"],
-            ["storage", "Storage"],
+            ["storage", "Media Library"],
             ["builder", "Reviews"]
           ].map(([id, label]) => (
             <button
@@ -2970,10 +3134,21 @@ export default function LectureVaultApp() {
           <StorageManager
             bucket={storageBucket}
             files={storageFiles}
+            folders={state.mediaLibraryFolders}
             isLoading={isStorageLoading}
+            mediaItems={state.mediaItems}
+            newFolderName={storageFolderName}
+            placements={state.mediaLibraryPlacements}
+            selectedFolderId={selectedStorageFolderId}
             selectedPaths={selectedStoragePaths}
+            onCreateFolder={createStorageFolder}
             onDeleteSelected={() => void deleteSelectedStorageFiles()}
+            onDeleteFolder={deleteStorageFolder}
+            onMoveFiles={moveStoragePathsToFolder}
+            onRenameFolder={renameStorageFolder}
             onRefresh={() => void loadStorageFiles()}
+            onSelectFolder={setSelectedStorageFolderId}
+            onSetNewFolderName={setStorageFolderName}
             onToggle={toggleStoragePath}
           />
         ) : null}
@@ -3532,7 +3707,7 @@ function screenTitle(screen: Screen) {
     archive: "Vault",
     lecture: "Lecture detail",
     capture: "New lecture",
-    storage: "Storage manager",
+    storage: "Media Library",
     builder: "Reviews",
     exams: "Review sets",
     exam: "Review set",
@@ -3867,39 +4042,254 @@ function ArchiveFolderTree({
 function StorageManager({
   bucket,
   files,
+  folders,
   isLoading,
+  mediaItems,
+  newFolderName,
+  placements,
+  selectedFolderId,
   selectedPaths,
+  onCreateFolder,
   onDeleteSelected,
+  onDeleteFolder,
+  onMoveFiles,
+  onRenameFolder,
   onRefresh,
+  onSelectFolder,
+  onSetNewFolderName,
   onToggle
 }: {
   bucket: string;
   files: SupabaseStorageFile[];
+  folders: MediaLibraryFolder[];
   isLoading: boolean;
+  mediaItems: MediaItem[];
+  newFolderName: string;
+  placements: MediaLibraryPlacement[];
+  selectedFolderId: string;
   selectedPaths: string[];
+  onCreateFolder: (event: FormEvent) => void;
   onDeleteSelected: () => void;
+  onDeleteFolder: () => void;
+  onMoveFiles: (paths: string[], folderId?: string) => void;
+  onRenameFolder: () => void;
   onRefresh: () => void;
+  onSelectFolder: (folderId: string) => void;
+  onSetNewFolderName: (value: string) => void;
   onToggle: (path: string) => void;
 }) {
   const totalBytes = files.reduce((sum, file) => sum + (file.size || 0), 0);
+  const folderIds = new Set(folders.map((folder) => folder.id));
+  const selectedFolderIds =
+    selectedFolderId === "all" || selectedFolderId === "unfiled"
+      ? new Set<string>()
+      : mediaFolderDescendantIds(folders, selectedFolderId);
+  const folderById = new Map(folders.map((folder) => [folder.id, folder]));
+  const placementByPath = new Map(
+    placements
+      .filter((placement) => folderIds.has(placement.folderId))
+      .map((placement) => [placement.storagePath, placement.folderId])
+  );
+  const visibleFiles = files.filter((file) => {
+    const placement = placementByPath.get(file.path);
+
+    if (selectedFolderId === "all") {
+      return true;
+    }
+
+    if (selectedFolderId === "unfiled") {
+      return !placement;
+    }
+
+    return placement ? selectedFolderIds.has(placement) : false;
+  });
+  const visibleBytes = visibleFiles.reduce((sum, file) => sum + (file.size || 0), 0);
+  const selectedFolder =
+    selectedFolderId === "all"
+      ? "All files"
+      : selectedFolderId === "unfiled"
+        ? "Unfiled"
+        : folderById.get(selectedFolderId)?.name || "Folder";
+  const selectedFolderCanEdit =
+    selectedFolderId !== "all" && selectedFolderId !== "unfiled";
+
+  function pathsFromDrop(event: DragEvent<HTMLElement>) {
+    const raw = event.dataTransfer.getData("application/json");
+
+    if (!raw) {
+      return [];
+    }
+
+    try {
+      const paths = JSON.parse(raw);
+      return Array.isArray(paths)
+        ? paths.filter((path): path is string => typeof path === "string")
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function dragFiles(event: DragEvent<HTMLElement>, path: string) {
+    const paths = selectedPaths.includes(path) ? selectedPaths : [path];
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("application/json", JSON.stringify(paths));
+  }
+
+  function dropOnFolder(event: DragEvent<HTMLElement>, folderId?: string) {
+    event.preventDefault();
+    const paths = pathsFromDrop(event);
+
+    if (paths.length) {
+      onMoveFiles(paths, folderId);
+    }
+  }
+
+  function allowDrop(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }
+
+  function fileCountForFolder(folderId?: string) {
+    if (!folderId) {
+      return files.filter((file) => !placementByPath.get(file.path)).length;
+    }
+
+    const ids = mediaFolderDescendantIds(folders, folderId);
+    return files.filter((file) => {
+      const placement = placementByPath.get(file.path);
+      return placement ? ids.has(placement) : false;
+    }).length;
+  }
+
+  function renderFolder(folder: MediaLibraryFolder, depth = 0): ReactNode {
+    const children = folders
+      .filter((item) => item.parentId === folder.id)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const active = selectedFolderId === folder.id;
+
+    return (
+      <div className="storage-folder-branch" key={folder.id}>
+        <button
+          className={active ? "storage-folder-button active" : "storage-folder-button"}
+          onClick={() => onSelectFolder(folder.id)}
+          onDragOver={allowDrop}
+          onDrop={(event) => dropOnFolder(event, folder.id)}
+          style={{ "--depth": depth } as CSSProperties}
+          type="button"
+        >
+          <span className="folder-icon" aria-hidden="true" />
+          <span>{folder.name}</span>
+          <small>{fileCountForFolder(folder.id)}</small>
+        </button>
+        {children.length ? (
+          <div className="storage-folder-children">
+            {children.map((child) => renderFolder(child, depth + 1))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  const rootFolders = folders
+    .filter((folder) => !folder.parentId)
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <section className="storage-layout">
-      <article className="panel detail-main">
+      <aside className="panel side-panel storage-browser-panel">
         <div className="section-heading">
           <div>
             <span className="pill">{bucket || "Supabase Storage"}</span>
-            <h3>Media Storage</h3>
+            <h3>Media Library</h3>
+          </div>
+        </div>
+        <p>
+          Organize files here without renaming or moving the actual Supabase
+          objects. Lecture and review links keep pointing to the original file
+          paths.
+        </p>
+
+        <form className="storage-folder-form" onSubmit={onCreateFolder}>
+          <input
+            aria-label="New storage folder"
+            onChange={(event) => onSetNewFolderName(event.target.value)}
+            placeholder="New folder"
+            value={newFolderName}
+          />
+          <button type="submit">Add</button>
+        </form>
+        <div className="storage-folder-actions">
+          <button
+            type="button"
+            onClick={onRenameFolder}
+            disabled={!selectedFolderCanEdit || !newFolderName.trim()}
+          >
+            Rename
+          </button>
+          <button
+            className="danger"
+            type="button"
+            onClick={onDeleteFolder}
+            disabled={!selectedFolderCanEdit}
+          >
+            Delete
+          </button>
+        </div>
+
+        <div className="storage-folder-tree">
+          <button
+            className={
+              selectedFolderId === "all"
+                ? "storage-folder-button active"
+                : "storage-folder-button"
+            }
+            onClick={() => onSelectFolder("all")}
+            onDragOver={allowDrop}
+            onDrop={(event) => dropOnFolder(event, undefined)}
+            style={{ "--depth": 0 } as CSSProperties}
+            type="button"
+          >
+            <span className="folder-icon" aria-hidden="true" />
+            <span>All files</span>
+            <small>{files.length}</small>
+          </button>
+          <button
+            className={
+              selectedFolderId === "unfiled"
+                ? "storage-folder-button active"
+                : "storage-folder-button"
+            }
+            onClick={() => onSelectFolder("unfiled")}
+            onDragOver={allowDrop}
+            onDrop={(event) => dropOnFolder(event, undefined)}
+            style={{ "--depth": 0 } as CSSProperties}
+            type="button"
+          >
+            <span className="folder-icon" aria-hidden="true" />
+            <span>Unfiled</span>
+            <small>{fileCountForFolder()}</small>
+          </button>
+          {rootFolders.map((folder) => renderFolder(folder))}
+        </div>
+      </aside>
+
+      <article className="panel detail-main">
+        <div className="section-heading">
+          <div>
+            <span className="pill">
+              {visibleFiles.length} file{visibleFiles.length === 1 ? "" : "s"}
+            </span>
+            <h3>{selectedFolder}</h3>
           </div>
           <span>
-            {files.length} file{files.length === 1 ? "" : "s"} /{" "}
-            {formatFileSize(totalBytes)}
+            {formatFileSize(visibleBytes)} visible / {formatFileSize(totalBytes)} stored
           </span>
         </div>
         <p>
-          Manage the media files stored in Supabase. Deleting a file removes the
-          storage object only; lecture records that reference it remain in the
-          Vault.
+          Drag files into folders to keep the media library readable. This only
+          changes LectureVault organization metadata; it does not change the
+          Supabase object path used by saved lectures and generated reviews.
         </p>
         <div className="button-row">
           <button type="button" onClick={onRefresh} disabled={isLoading}>
@@ -3916,12 +4306,20 @@ function StorageManager({
         </div>
 
         <div className="storage-list">
-          {files.map((file) => {
+          {visibleFiles.map((file) => {
             const selected = selectedPaths.includes(file.path);
             const url = storageObjectUrl(file.path, bucket);
+            const usageCount = mediaItems.filter(
+              (item) => item.storagePath === file.path
+            ).length;
 
             return (
-              <div className={selected ? "storage-row selected" : "storage-row"} key={file.path}>
+              <div
+                className={selected ? "storage-row selected" : "storage-row"}
+                draggable
+                key={file.path}
+                onDragStart={(event) => dragFiles(event, file.path)}
+              >
                 <label className="storage-check">
                   <input
                     type="checkbox"
@@ -3933,6 +4331,11 @@ function StorageManager({
                 <span>{file.mimeType || "unknown type"}</span>
                 <span>{typeof file.size === "number" ? formatFileSize(file.size) : "unknown size"}</span>
                 <span>{file.updatedAt ? new Date(file.updatedAt).toLocaleString() : "No date"}</span>
+                <span>
+                  {usageCount
+                    ? `Used by ${usageCount} lecture item${usageCount === 1 ? "" : "s"}`
+                    : "No lecture reference"}
+                </span>
                 <div className="button-row">
                   <a href={url} target="_blank" rel="noreferrer">
                     Open
@@ -3945,34 +4348,15 @@ function StorageManager({
               </div>
             );
           })}
-          {!files.length ? (
+          {!visibleFiles.length ? (
             <p className="empty panel">
               {isLoading
                 ? "Loading Supabase media files..."
-                : "No Supabase media files found yet."}
+                : "No files in this folder yet. Drag files here or upload lecture media."}
             </p>
           ) : null}
         </div>
       </article>
-
-      <aside className="panel side-panel">
-        <h3>Storage Notes</h3>
-        <p>
-          Use this screen for cleanup and inspection. Avoid deleting files that
-          are still referenced by saved lectures unless you intend to remove the
-          media preview/source.
-        </p>
-        <div className="source-readiness storage-summary">
-          <div>
-            <strong>{selectedPaths.length}</strong>
-            <span>selected</span>
-          </div>
-          <div>
-            <strong>{formatFileSize(totalBytes)}</strong>
-            <span>stored</span>
-          </div>
-        </div>
-      </aside>
     </section>
   );
 }
