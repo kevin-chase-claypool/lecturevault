@@ -811,6 +811,51 @@ async function uploadMediaFile({
   lectureId: string;
   mediaId: string;
 }) {
+  const signedResponse = await fetch("/api/media/signed-upload", {
+    body: JSON.stringify({
+      fileName: file.name,
+      lectureId,
+      mediaId
+    }),
+    credentials: "include",
+    headers: {
+      "content-type": "application/json"
+    },
+    method: "POST"
+  });
+  const signedData = (await signedResponse.json()) as {
+    bucket?: string;
+    error?: string;
+    path?: string;
+    signedUrl?: string;
+  };
+
+  if (signedResponse.ok && signedData.path && signedData.signedUrl) {
+    const uploadBody = new FormData();
+    uploadBody.append("cacheControl", "3600");
+    uploadBody.append("", file);
+
+    const directUpload = await fetch(signedData.signedUrl, {
+      body: uploadBody,
+      method: "PUT"
+    });
+
+    if (!directUpload.ok) {
+      throw new Error(`Could not upload ${file.name} directly to Supabase.`);
+    }
+
+    return {
+      storageBucket: signedData.bucket,
+      storagePath: signedData.path
+    };
+  }
+
+  if (file.size > 4 * 1024 * 1024) {
+    throw new Error(
+      signedData.error || `Could not create a direct Supabase upload for ${file.name}.`
+    );
+  }
+
   const form = new FormData();
   form.set("file", file);
   form.set("lectureId", lectureId);
@@ -1791,8 +1836,14 @@ export default function LectureVaultApp() {
 
         try {
           storage = await uploadMediaFile({ file, lectureId, mediaId });
-        } catch {
+        } catch (error) {
           dataUrl = await fileToMediaDataUrl(file);
+
+          if (!dataUrl) {
+            throw error instanceof Error
+              ? error
+              : new Error(`Could not upload ${file.name}.`);
+          }
         }
 
         mediaItems.push({

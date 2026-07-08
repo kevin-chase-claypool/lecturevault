@@ -99,6 +99,16 @@ https://production-sfo.browserless.io/pdf
 
 ## Recent Changes
 
+### 2026-07-07 - Direct Supabase Media Uploads
+
+- Added `/api/media/signed-upload` to create short-lived Supabase Storage signed upload URLs for authenticated users.
+- Lecture media now uploads directly from the browser to Supabase Storage using the signed URL, avoiding Vercel function payload limits for large MP3/image uploads.
+- Kept the existing server upload route only as a fallback for small files under 4 MB.
+- Large files now fail visibly if direct Supabase upload cannot be created or completed, instead of silently saving metadata-only media.
+- Verified with:
+  - `npm run build`
+  - `npm run typecheck`
+
 ### 2026-07-07 - Further Professional UI Polish
 
 - Refined global rendering with font smoothing, selection color, and styled scrollbars.
