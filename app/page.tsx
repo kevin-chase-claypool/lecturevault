@@ -1299,6 +1299,7 @@ export default function LectureVaultApp() {
   const [isLectureGenerating, setIsLectureGenerating] = useState(false);
   const [isReviewGenerating, setIsReviewGenerating] = useState(false);
   const [isPdfRendering, setIsPdfRendering] = useState(false);
+  const [isGptPackageBuilding, setIsGptPackageBuilding] = useState(false);
   const [textbookProcessingCourseId, setTextbookProcessingCourseId] = useState("");
   const [reviewPdfStatus, setReviewPdfStatus] = useState("");
   const [storageBucket, setStorageBucket] = useState("");
@@ -2998,7 +2999,7 @@ export default function LectureVaultApp() {
       return;
     }
 
-    setIsPdfRendering(true);
+    setIsGptPackageBuilding(true);
     setReviewPdfStatus("Building GPT package...");
     setStatus("Building GPT context package...");
 
@@ -3204,7 +3205,7 @@ export default function LectureVaultApp() {
       setReviewPdfStatus(`GPT package failed: ${message}`);
       setStatus(`GPT package failed: ${message}`);
     } finally {
-      setIsPdfRendering(false);
+      setIsGptPackageBuilding(false);
     }
   }
 
@@ -4184,7 +4185,7 @@ export default function LectureVaultApp() {
                   onClick={addBuilderVisibleLectures}
                   disabled={!builderLectures.length}
                 >
-                  Add visible sources
+                  Add Shown Lectures to Review
                 </button>
               </div>
               <div className="lecture-grid compact">
@@ -4447,6 +4448,7 @@ export default function LectureVaultApp() {
             instructions={reviewContext}
             isGeneratingReview={isReviewGenerating}
             isRenderingPdf={isPdfRendering}
+            isBuildingGptPackage={isGptPackageBuilding}
             pdfStatus={reviewPdfStatus}
             courseLabel={courseLabel}
             onInstructionsChange={updateSelectedReviewContext}
@@ -5482,6 +5484,7 @@ function ExamDetail({
   instructions,
   isGeneratingReview,
   isRenderingPdf,
+  isBuildingGptPackage,
   pdfStatus,
   courseLabel,
   onInstructionsChange,
@@ -5504,6 +5507,7 @@ function ExamDetail({
   instructions: string;
   isGeneratingReview: boolean;
   isRenderingPdf: boolean;
+  isBuildingGptPackage: boolean;
   pdfStatus: string;
   courseLabel: (id: string) => string;
   onInstructionsChange: (value: string) => void;
@@ -5808,6 +5812,7 @@ function ExamDetail({
                 disabled={
                   isGeneratingReview ||
                   isRenderingPdf ||
+                  isBuildingGptPackage ||
                   !lectures.length ||
                   !selectedTranscriptCount
                 }
@@ -5827,7 +5832,12 @@ function ExamDetail({
               <button
                 type="button"
                 onClick={() => void onDownloadPdf()}
-                disabled={isRenderingPdf || isGeneratingReview || !selectedGuide}
+                disabled={
+                  isRenderingPdf ||
+                  isGeneratingReview ||
+                  isBuildingGptPackage ||
+                  !selectedGuide
+                }
               >
                 {isRenderingPdf ? "Rendering PDF..." : "Download Review PDF"}
               </button>
@@ -5844,9 +5854,14 @@ function ExamDetail({
               <button
                 type="button"
                 onClick={() => void onDownloadGptPackage()}
-                disabled={isRenderingPdf || isGeneratingReview || !lectures.length}
+                disabled={
+                  isRenderingPdf ||
+                  isGeneratingReview ||
+                  isBuildingGptPackage ||
+                  !lectures.length
+                }
               >
-                {isRenderingPdf ? "Building..." : "Download GPT Package"}
+                {isBuildingGptPackage ? "Building ZIP..." : "Download GPT Package"}
               </button>
             </div>
 

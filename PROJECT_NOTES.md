@@ -28,6 +28,15 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Main UI: `app/page.tsx`.
 - Styles: `app/styles.css`.
 
+## Latest Changes
+
+### 2026-07-08 - Professional polish pass
+
+- Refined the sidebar, brand mark, navigation active states, app background, topbar, status panels, cards, pills, and review action cards for a calmer professional interface.
+- Renamed the review bulk action from `Add visible sources` to `Add Shown Lectures to Review` so the button describes exactly what it does.
+- Split GPT package export busy state from PDF rendering busy state. Downloading a GPT package now shows `Building ZIP...` only on that action instead of making the PDF action appear busy.
+- Verification: run `npm run build`, then run `npm run typecheck` as a standalone command.
+
 ## AI Boundaries
 
 Lecture-level AI and exam-level AI should remain separate.
