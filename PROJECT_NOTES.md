@@ -30,6 +30,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-12 - Fix tablet Media Library row overflow
+
+- Reworked Media Library file rows from loose table-like columns into grouped file identity, metadata, actions, and path regions.
+- Added tablet-specific storage row card styling so filenames wrap cleanly and `Open` / `Download` actions stay inside the row boundary.
+- Phone storage rows reuse the same grouped layout as a single-column card.
+- Verification: run `npm run build`, then run `npm run typecheck` as a standalone command.
+
 ### 2026-07-12 - Collapsible tablet navigation
 
 - Extended the brand/logo-triggered hidden navigation menu to tablet widths.

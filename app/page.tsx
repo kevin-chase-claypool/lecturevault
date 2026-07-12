@@ -5218,15 +5218,17 @@ function StorageManager({
                   />
                   <span>{file.name}</span>
                 </label>
-                <span>{file.mimeType || "unknown type"}</span>
-                <span>{typeof file.size === "number" ? formatFileSize(file.size) : "unknown size"}</span>
-                <span>{file.updatedAt ? new Date(file.updatedAt).toLocaleString() : "No date"}</span>
-                <span>
-                  {usageCount
-                    ? `Used by ${usageCount} lecture item${usageCount === 1 ? "" : "s"}`
-                    : "No lecture reference"}
-                </span>
-                <div className="button-row">
+                <div className="storage-meta">
+                  <span>{file.mimeType || "unknown type"}</span>
+                  <span>{typeof file.size === "number" ? formatFileSize(file.size) : "unknown size"}</span>
+                  <span>{file.updatedAt ? new Date(file.updatedAt).toLocaleString() : "No date"}</span>
+                  <span>
+                    {usageCount
+                      ? `Used by ${usageCount} lecture item${usageCount === 1 ? "" : "s"}`
+                      : "No lecture reference"}
+                  </span>
+                </div>
+                <div className="button-row storage-actions">
                   <a href={url} target="_blank" rel="noreferrer">
                     Open
                   </a>
