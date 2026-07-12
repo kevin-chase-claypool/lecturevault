@@ -366,18 +366,18 @@ function transcriptUsageLabel(transcript?: Transcript) {
   const usage = formatTokenUsage(transcript.usage);
 
   if (usage) {
-    return `AI transcription usage: ${usage}`;
+    return `AI reconstruction usage: ${usage}`;
   }
 
   if (transcript.generatedBy === "placeholder") {
-    return "No AI transcription usage recorded. This lecture is using placeholder transcript text.";
+    return "No AI reconstruction usage recorded. This item is using placeholder text.";
   }
 
   if (transcript.generatedBy === "openai") {
-    return "AI transcription completed, but token usage was not returned.";
+    return "AI reconstruction completed, but token usage was not returned.";
   }
 
-  return "No AI transcription usage recorded. Transcript text was pasted or saved manually.";
+  return "No AI reconstruction usage recorded. Text was pasted or saved manually.";
 }
 
 function renderMathMarkup(text: string) {
@@ -2276,7 +2276,7 @@ export default function LectureVaultApp() {
   }
 
   async function persistCapture(useAi: boolean) {
-    const title = captureForm.title.trim() || "Untitled lecture";
+    const title = captureForm.title.trim() || "Untitled reconstruction";
     const lectureId = uid("lecture");
     const createdAt = new Date().toISOString();
     const pastedTranscript = captureForm.transcript.trim();
@@ -2285,7 +2285,7 @@ export default function LectureVaultApp() {
     try {
       if (useAi) {
         setIsLectureGenerating(true);
-        startPipeline("Lecture AI generation", [
+        startPipeline("Lecture Reconstruction build", [
           {
             id: "upload",
             label: "Uploading media",
@@ -2293,8 +2293,8 @@ export default function LectureVaultApp() {
           },
           {
             id: "transcribe",
-            label: "Transcribing audio",
-            detail: "Audio sources are sent to transcription AI"
+            label: "Transcribing available audio",
+            detail: "Audio is used when attached; other sources remain optional"
           },
           {
             id: "retrieve",
@@ -2303,16 +2303,16 @@ export default function LectureVaultApp() {
           },
           {
             id: "generate",
-            label: "Generating lecture artifact",
-            detail: "Combining transcript, media, notes, and textbook context"
+            label: "Building reconstruction",
+            detail: "Combining audio transcript, notes, media, and textbook context"
           },
           {
             id: "save",
             label: "Saving to vault",
-            detail: "Archiving transcript, concepts, media references, and usage"
+            detail: "Archiving reconstruction, concepts, source references, and usage"
           }
         ]);
-        setStatus("Generating lecture study artifact from source media...");
+        setStatus("Building lecture reconstruction from available source material...");
       }
 
       for (const file of captureFiles) {
@@ -2357,7 +2357,7 @@ export default function LectureVaultApp() {
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Could not read lecture source files.";
+        error instanceof Error ? error.message : "Could not read reconstruction source files.";
       setStatus(message);
       if (useAi) {
         failPipeline("upload", message);
@@ -2435,7 +2435,7 @@ export default function LectureVaultApp() {
         };
 
         if (!response.ok) {
-          throw new Error(data.error || "Could not generate lecture study artifact.");
+          throw new Error(data.error || "Could not build lecture reconstruction.");
         }
 
         updatePipelineStep(
@@ -2443,7 +2443,7 @@ export default function LectureVaultApp() {
           "done",
           data.transcribedMediaIds?.length
             ? `${data.transcribedMediaIds.length} audio source${data.transcribedMediaIds.length === 1 ? "" : "s"} transcribed`
-            : "No audio transcription was returned"
+            : "No audio was transcribed; reconstruction used other available sources"
         );
         updatePipelineStep(
           "retrieve",
@@ -2455,9 +2455,9 @@ export default function LectureVaultApp() {
         updatePipelineStep(
           "generate",
           "done",
-          data.usage ? `Lecture artifact generated (${formatTokenUsage(data.usage)})` : "Lecture artifact generated"
+          data.usage ? `Reconstruction built (${formatTokenUsage(data.usage)})` : "Reconstruction built"
         );
-        activatePipelineStep("save", "Saving generated transcript and concepts");
+        activatePipelineStep("save", "Saving generated reconstruction and concepts");
         transcriptText = data.transcriptText || transcriptText;
         transcriptUsage = data.usage || null;
         generatedBy = data.generatedBy || "openai";
@@ -2479,7 +2479,7 @@ export default function LectureVaultApp() {
         const message =
           error instanceof Error
             ? error.message
-            : "Could not generate lecture study artifact.";
+            : "Could not build lecture reconstruction.";
         setStatus(message);
         failPipeline("generate", message);
         setIsLectureGenerating(false);
@@ -2548,11 +2548,11 @@ export default function LectureVaultApp() {
     }));
     setStatus(
       useAi
-        ? `Generated and saved ${title} to the permanent archive.`
+        ? `Built and saved ${title} as a lecture reconstruction.`
         : `Saved ${title} to the permanent archive.`
     );
     if (useAi) {
-      completePipeline("Lecture saved to the vault.");
+      completePipeline("Lecture reconstruction saved to the vault.");
     }
     setIsLectureGenerating(false);
     setScreen("lecture");
@@ -3231,7 +3231,7 @@ export default function LectureVaultApp() {
       return next;
     });
     setStatus(
-      `${files.length} media file${files.length === 1 ? "" : "s"} queued for this lecture.`
+      `${files.length} source file${files.length === 1 ? "" : "s"} queued for this reconstruction.`
     );
   }
 
@@ -3463,6 +3463,22 @@ export default function LectureVaultApp() {
     }
   }
 
+  const reconstructionAudioCount = captureFiles.filter(
+    (file) => fileKind(file) === "audio" || fileKind(file) === "video"
+  ).length;
+  const reconstructionImageCount = captureFiles.filter(
+    (file) => fileKind(file) === "image"
+  ).length;
+  const reconstructionDocumentCount = captureFiles.filter(
+    (file) => fileKind(file) === "document"
+  ).length;
+  const reconstructionNotesReady = Boolean(
+    captureForm.transcript.trim() || captureForm.summary.trim()
+  );
+  const reconstructionTextbookCount = state.textbooks.filter(
+    (textbook) => textbook.courseId === captureForm.courseId
+  ).length;
+
   if (authStatus === "checking") {
     return <AuthShell title="Checking access..." />;
   }
@@ -3507,7 +3523,7 @@ export default function LectureVaultApp() {
           {[
             ["dashboard", "Dashboard"],
             ["courses", "Courses"],
-            ["capture", "New Lecture"],
+            ["capture", "New Reconstruction"],
             ["archive", "Vault"],
             ["storage", "Media Library"],
             ["builder", "Reviews"]
@@ -3568,7 +3584,7 @@ export default function LectureVaultApp() {
               <strong>{basketCount}</strong>
             </button>
             <button type="button" onClick={() => setScreen("capture")}>
-              New Lecture
+              New Reconstruction
             </button>
             <button type="button" onClick={() => void logout()}>
               Log out
@@ -3953,18 +3969,41 @@ export default function LectureVaultApp() {
           <form className="capture panel capture-workflow" onSubmit={saveCapture}>
             <div className="capture-hero">
               <div>
-                <span className="eyebrow">New Lecture</span>
-                <h3>Upload an MP3 lecture into the vault</h3>
+                <span className="eyebrow">New Reconstruction</span>
+                <h3>Reconstruct a class meeting</h3>
                 <p>
-                  Add lecture audio first, attach board photos when useful,
-                  then save a searchable lecture record for exam review.
+                  Build one daily class record from whatever sources you have:
+                  audio, OneNote notes, board images, textbook context, or rough
+                  notes.
                 </p>
               </div>
               <div className="capture-steps" aria-label="Capture workflow">
                 <span>1 Details</span>
-                <span>2 Media</span>
-                <span>3 Notes</span>
-                <span>4 Save</span>
+                <span>2 Sources</span>
+                <span>3 Context</span>
+                <span>4 Build</span>
+              </div>
+            </div>
+            <div className="source-readiness reconstruction-readiness" aria-label="Reconstruction source readiness">
+              <div>
+                <strong>{reconstructionAudioCount}</strong>
+                <span>audio/video</span>
+              </div>
+              <div>
+                <strong>{reconstructionImageCount}</strong>
+                <span>board images</span>
+              </div>
+              <div>
+                <strong>{reconstructionDocumentCount}</strong>
+                <span>documents</span>
+              </div>
+              <div>
+                <strong>{reconstructionNotesReady ? "Ready" : "Optional"}</strong>
+                <span>notes</span>
+              </div>
+              <div>
+                <strong>{reconstructionTextbookCount}</strong>
+                <span>textbooks</span>
               </div>
             </div>
             <div className="form-grid">
@@ -3987,7 +4026,7 @@ export default function LectureVaultApp() {
                 </select>
               </label>
               <label>
-                Lecture title
+                Reconstruction topic
                 <input
                   value={captureForm.title}
                   onChange={(event) =>
@@ -3996,7 +4035,7 @@ export default function LectureVaultApp() {
                       title: event.target.value
                     }))
                   }
-                  placeholder="Photosynthesis overview"
+                  placeholder="Laplace transform examples"
                 />
               </label>
               <label>
@@ -4022,7 +4061,7 @@ export default function LectureVaultApp() {
                 addCaptureFiles(Array.from(event.dataTransfer.files || []));
               }}
             >
-              <span>Lecture source files</span>
+              <span>Reconstruction source files</span>
               <input
                 type="file"
                 multiple
@@ -4034,12 +4073,12 @@ export default function LectureVaultApp() {
               />
               <strong>
                 {captureFiles.length
-                  ? `${captureFiles.length} media file${captureFiles.length === 1 ? "" : "s"} attached`
-                  : "Drop or choose an MP3 lecture"}
+                  ? `${captureFiles.length} source file${captureFiles.length === 1 ? "" : "s"} attached`
+                  : "Drop audio, board images, PDFs, or notes"}
               </strong>
               <small>
-                MP3 and other audio/video files are the main input. Add board
-                photos, PDFs, or notes in the same lecture record when needed.
+                Every source type is optional. Add whichever materials you have
+                for this class day; at least one meaningful source is needed.
               </small>
             </label>
 
@@ -4047,8 +4086,8 @@ export default function LectureVaultApp() {
               <div className="capture-media-panel">
                 <div className="section-heading">
                   <div>
-                    <span className="pill">Vault Sources</span>
-                    <h3>Attached Media</h3>
+                    <span className="pill">Source Bundle</span>
+                    <h3>Attached Sources</h3>
                   </div>
                   <button
                     type="button"
@@ -4086,7 +4125,7 @@ export default function LectureVaultApp() {
             ) : null}
 
             <label>
-              Transcript or rough notes
+              Transcript, OneNote text, or rough notes
               <textarea
                 value={captureForm.transcript}
                 onChange={(event) =>
@@ -4096,12 +4135,12 @@ export default function LectureVaultApp() {
                   }))
                 }
                 rows={9}
-                placeholder="Paste transcript text or rough notes. If you only attach an MP3 for now, the lecture is still saved as an archive item."
+                placeholder="Paste OneNote text, a partial transcript, or rough notes. This is optional if you attached audio, images, or documents."
               />
             </label>
 
             <label>
-              Summary / board context
+              Instructor emphasis / board context
               <textarea
                 value={captureForm.summary}
                 onChange={(event) =>
@@ -4111,7 +4150,7 @@ export default function LectureVaultApp() {
                   }))
                 }
                 rows={4}
-                placeholder="Definitions, board diagrams, formulas, instructor emphasis..."
+                placeholder="Definitions, board diagrams, formulas, worked problem steps, instructor emphasis..."
               />
             </label>
 
@@ -4127,10 +4166,10 @@ export default function LectureVaultApp() {
                     !captureForm.summary.trim())
                 }
               >
-                {isLectureGenerating ? "Working..." : "Generate AI Lecture"}
+                {isLectureGenerating ? "Working..." : "Build Reconstruction"}
               </button>
               <button type="submit" disabled={isLectureGenerating}>
-                Save to Vault
+                Save Source Bundle
               </button>
               <button
                 type="button"
@@ -4144,7 +4183,7 @@ export default function LectureVaultApp() {
                   }))
                 }
               >
-                Draft Transcript
+                Draft Notes
               </button>
             </div>
           </form>
@@ -4503,8 +4542,8 @@ function screenTitle(screen: Screen) {
     dashboard: "Dashboard",
     courses: "Course list",
     archive: "Vault",
-    lecture: "Lecture detail",
-    capture: "New lecture",
+    lecture: "Reconstruction detail",
+    capture: "New reconstruction",
     storage: "Media Library",
     builder: "Reviews",
     exams: "Review sets",
@@ -4648,11 +4687,11 @@ function Dashboard({
         </div>
         <div className="metric">
           <strong>{state.lectures.length}</strong>
-          <span>Lecture/media items</span>
+          <span>Reconstructions</span>
         </div>
         <div className="metric">
           <strong>{state.transcripts.length}</strong>
-          <span>Transcripts</span>
+          <span>Artifacts</span>
         </div>
         <div className="metric">
           <strong>{state.exams.length}</strong>
@@ -4674,7 +4713,7 @@ function Dashboard({
         </div>
         <div className="usage-dashboard-grid">
           <UsageSummaryCard
-            label="Lecture transcription and artifact generation"
+            label="Reconstruction transcription and artifact generation"
             usage={transcriptionUsage}
           />
           <UsageSummaryCard
@@ -4692,16 +4731,16 @@ function Dashboard({
         <section className="panel action-panel capture-action">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">New Lecture</span>
-              <h3>Transcribe an MP3 lecture</h3>
+              <span className="eyebrow">New Reconstruction</span>
+              <h3>Reconstruct a class meeting</h3>
             </div>
             <button className="primary" type="button" onClick={() => setScreen("capture")}>
-              Add Lecture
+              New Reconstruction
             </button>
           </div>
           <p>
-            Start with audio, add board photos or rough notes, then save the
-            lecture into the permanent vault.
+            Combine audio, notes, board images, and textbook context into one
+            daily source-grounded reconstruction.
           </p>
         </section>
 
@@ -4709,14 +4748,14 @@ function Dashboard({
           <div className="section-heading">
             <div>
               <span className="eyebrow">Reviews</span>
-              <h3>Build from saved lectures</h3>
+              <h3>Build from saved reconstructions</h3>
             </div>
             <button type="button" onClick={() => setScreen("builder")}>
               Create Review Set
             </button>
           </div>
           <p>
-            Select archived lecture sources, create a review set, and
+            Select archived reconstruction sources, create a review set, and
             generate one focused AI review with PDF export.
           </p>
         </section>
@@ -5387,7 +5426,7 @@ function LectureDetail({
 
         <section className="usage-panel" aria-label="Transcription usage">
           <div>
-            <h4>Transcription Usage</h4>
+            <h4>Reconstruction AI Usage</h4>
             <p>{transcriptUsageLabel(transcript)}</p>
           </div>
           {transcript?.sourceMediaIds?.length ? (

@@ -1986,6 +1986,21 @@ label {
   text-transform: uppercase;
 }
 
+.reconstruction-readiness {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.reconstruction-readiness div {
+  border-color: #bdd4dc;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f6fbfc 100%);
+}
+
+.reconstruction-readiness strong {
+  color: var(--primary-dark);
+  font-size: 1rem;
+}
+
 .exam-instructions,
 .review-preview {
   display: grid;

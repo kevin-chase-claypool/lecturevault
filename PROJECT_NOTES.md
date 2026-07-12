@@ -30,6 +30,14 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-12 - Shift intake workflow to Lecture Reconstruction
+
+- Reframed the capture workflow from `New Lecture` / transcription into `New Reconstruction` / daily class-meeting reconstruction.
+- Added source-readiness indicators for optional source types: audio/video, board images, documents, notes, and indexed textbooks.
+- Updated the lecture AI route instructions so missing source types are expected and the model builds the best reconstruction from the available source bundle without inventing missing context.
+- Kept the existing `Lecture` data model for compatibility with saved records while changing the user-facing workflow language.
+- Verification: run `npm run build`, then run `npm run typecheck` as a standalone command.
+
 ### 2026-07-12 - Cross-device polish pass
 
 - Replaced the internal `Local-first MVP` header fallback with `LectureVault Workspace`.
