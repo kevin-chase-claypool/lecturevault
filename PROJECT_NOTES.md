@@ -30,6 +30,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-12 - Phone UI modernization
+
+- Reworked the phone layout so the desktop sidebar becomes a compact sticky mobile header with brand, author line, and horizontally scrollable pill navigation.
+- Tightened the mobile topbar, status panel, metrics, lecture cards, review action cards, and panels for a sleeker app-like experience while keeping all existing sections and actions reachable.
+- Improved mobile touch targets for form controls and toolbar actions, while keeping lecture-card actions compact in a two-column layout when space allows.
+- Verification: run `npm run build`, then run `npm run typecheck` as a standalone command.
+
 ### 2026-07-08 - Professional polish pass
 
 - Refined the sidebar, brand mark, navigation active states, app background, topbar, status panels, cards, pills, and review action cards for a calmer professional interface.
