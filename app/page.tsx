@@ -1264,6 +1264,7 @@ export default function LectureVaultApp() {
   const [cloudSyncEnabled, setCloudSyncEnabled] = useState(false);
   const [cloudUpdatedAt, setCloudUpdatedAt] = useState("");
   const [screen, setScreen] = useState<Screen>("dashboard");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedLectureId, setSelectedLectureId] = useState("");
   const [selectedExamId, setSelectedExamId] = useState("");
@@ -3482,14 +3483,27 @@ export default function LectureVaultApp() {
   return (
     <main className="app-shell">
       <aside className="sidebar">
-        <div className="brand">
+        <button
+          className="brand brand-button"
+          type="button"
+          aria-controls="primary-navigation"
+          aria-expanded={isMobileMenuOpen}
+          onClick={() => setIsMobileMenuOpen((current) => !current)}
+        >
           <VaultMark />
           <div>
             <h1>LectureVault</h1>
             <p>Kevin C. Claypool</p>
           </div>
-        </div>
-        <nav className="nav" aria-label="Primary">
+          <span className="mobile-menu-cue" aria-hidden="true">
+            Menu
+          </span>
+        </button>
+        <nav
+          id="primary-navigation"
+          className={isMobileMenuOpen ? "nav mobile-open" : "nav"}
+          aria-label="Primary"
+        >
           {[
             ["dashboard", "Dashboard"],
             ["courses", "Courses"],
@@ -3511,6 +3525,7 @@ export default function LectureVaultApp() {
               type="button"
               onClick={() => {
                 setScreen(id as Screen);
+                setIsMobileMenuOpen(false);
 
                 if (id === "storage") {
                   void loadStorageFiles();

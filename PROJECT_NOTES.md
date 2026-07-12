@@ -30,6 +30,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-12 - Collapsible phone navigation
+
+- Replaced the overflowing horizontal phone navigation with a hidden mobile menu opened from the LectureVault brand/logo header.
+- Kept the mobile header sticky at the top of the viewport so navigation remains reachable while scrolling.
+- Mobile menu items render as a compact two-column panel and close after selecting a section.
+- Verification: run `npm run build`, then run `npm run typecheck` as a standalone command.
+
 ### 2026-07-12 - Phone UI modernization
 
 - Reworked the phone layout so the desktop sidebar becomes a compact sticky mobile header with brand, author line, and horizontally scrollable pill navigation.
