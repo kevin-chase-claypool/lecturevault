@@ -30,6 +30,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-12 - Cross-device polish pass
+
+- Replaced the internal `Local-first MVP` header fallback with `LectureVault Workspace`.
+- Refined global design tokens, shadows, radii, button styling, focus outlines, panels, dashboard action cards, repeated rows, Media Library rows, capture panels, and review workflow surfaces.
+- Tightened tablet and phone spacing so the same visual system holds across desktop, tablet, and mobile without removing any features.
+- Verification: run `npm run build`, then run `npm run typecheck` as a standalone command.
+
 ### 2026-07-12 - Name Media Library usage references
 
 - Media Library file rows now show which lecture title references a stored file, for example `Used by: Calc`, instead of only showing a generic count.

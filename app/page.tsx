@@ -3554,7 +3554,7 @@ export default function LectureVaultApp() {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">{selectedCourse?.term || "Local-first MVP"}</p>
+            <p className="eyebrow">{selectedCourse?.term || "LectureVault Workspace"}</p>
             <h2>{screenTitle(screen)}</h2>
           </div>
           <div className="topbar-actions">
