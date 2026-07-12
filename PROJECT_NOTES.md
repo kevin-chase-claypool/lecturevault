@@ -30,6 +30,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-12 - Collapsible tablet navigation
+
+- Extended the brand/logo-triggered hidden navigation menu to tablet widths.
+- Tablet now uses a sticky top app header instead of a narrow left rail, keeping section navigation reachable without permanently occupying horizontal space.
+- The opened tablet menu uses a compact three-column layout; phone remains two-column.
+- Verification: run `npm run build`, then run `npm run typecheck` as a standalone command.
+
 ### 2026-07-12 - Collapsible phone navigation
 
 - Replaced the overflowing horizontal phone navigation with a hidden mobile menu opened from the LectureVault brand/logo header.
