@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-12 - Name Media Library usage references
+
+- Media Library file rows now show which lecture title references a stored file, for example `Used by: Calc`, instead of only showing a generic count.
+- Multiple lecture references are deduplicated and listed by title; legacy records without a matching lecture still fall back to the count.
+- Verification: run `npm run build`, then run `npm run typecheck` as a standalone command.
+
 ### 2026-07-12 - Fix tablet Media Library row overflow
 
 - Reworked Media Library file rows from loose table-like columns into grouped file identity, metadata, actions, and path regions.

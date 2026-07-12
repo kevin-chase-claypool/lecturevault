@@ -3931,6 +3931,7 @@ export default function LectureVaultApp() {
             files={storageFiles}
             folders={state.mediaLibraryFolders}
             isLoading={isStorageLoading}
+            lectures={state.lectures}
             mediaItems={state.mediaItems}
             newFolderName={storageFolderName}
             placements={state.mediaLibraryPlacements}
@@ -4934,6 +4935,7 @@ function StorageManager({
   files,
   folders,
   isLoading,
+  lectures,
   mediaItems,
   newFolderName,
   placements,
@@ -4953,6 +4955,7 @@ function StorageManager({
   files: SupabaseStorageFile[];
   folders: MediaLibraryFolder[];
   isLoading: boolean;
+  lectures: Lecture[];
   mediaItems: MediaItem[];
   newFolderName: string;
   placements: MediaLibraryPlacement[];
@@ -5002,6 +5005,7 @@ function StorageManager({
         : folderById.get(selectedFolderId)?.name || "Folder";
   const selectedFolderCanEdit =
     selectedFolderId !== "all" && selectedFolderId !== "unfiled";
+  const lectureById = new Map(lectures.map((lecture) => [lecture.id, lecture]));
 
   function pathsFromDrop(event: DragEvent<HTMLElement>) {
     const raw = event.dataTransfer.getData("application/json");
@@ -5199,9 +5203,21 @@ function StorageManager({
           {visibleFiles.map((file) => {
             const selected = selectedPaths.includes(file.path);
             const url = storageObjectUrl(file.path, bucket);
-            const usageCount = mediaItems.filter(
+            const usageItems = mediaItems.filter(
               (item) => item.storagePath === file.path
-            ).length;
+            );
+            const usageLectureNames = Array.from(
+              new Set(
+                usageItems
+                  .map((item) => lectureById.get(item.lectureId)?.title)
+                  .filter((title): title is string => Boolean(title))
+              )
+            );
+            const usageLabel = usageLectureNames.length
+              ? `Used by: ${usageLectureNames.join(", ")}`
+              : usageItems.length
+                ? `Used by ${usageItems.length} lecture item${usageItems.length === 1 ? "" : "s"}`
+                : "No lecture reference";
 
             return (
               <div
@@ -5222,11 +5238,7 @@ function StorageManager({
                   <span>{file.mimeType || "unknown type"}</span>
                   <span>{typeof file.size === "number" ? formatFileSize(file.size) : "unknown size"}</span>
                   <span>{file.updatedAt ? new Date(file.updatedAt).toLocaleString() : "No date"}</span>
-                  <span>
-                    {usageCount
-                      ? `Used by ${usageCount} lecture item${usageCount === 1 ? "" : "s"}`
-                      : "No lecture reference"}
-                  </span>
+                  <span>{usageLabel}</span>
                 </div>
                 <div className="button-row storage-actions">
                   <a href={url} target="_blank" rel="noreferrer">

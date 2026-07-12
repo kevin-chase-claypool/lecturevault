@@ -1415,6 +1415,7 @@ label {
   font-size: 0.86rem;
   font-weight: 700;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .storage-actions {
