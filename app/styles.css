@@ -380,9 +380,23 @@ label {
 
 .nav {
   display: grid;
-  gap: 6px;
+  gap: 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding-bottom: 17px;
+}
+
+.nav-group {
+  display: grid;
+  gap: 5px;
+}
+
+.nav-label {
+  padding: 0 12px 2px;
+  color: #8295a7;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .nav button {
@@ -2612,6 +2626,14 @@ label {
     display: none;
   }
 
+  .nav-group {
+    display: contents;
+  }
+
+  .nav-label {
+    display: none;
+  }
+
   .nav button {
     min-height: 40px;
     border-color: rgba(255, 255, 255, 0.12);
@@ -2854,6 +2876,14 @@ label {
   }
 
   .nav {
+    display: none;
+  }
+
+  .nav-group {
+    display: contents;
+  }
+
+  .nav-label {
     display: none;
   }
 

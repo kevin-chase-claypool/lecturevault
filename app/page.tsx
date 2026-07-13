@@ -3519,35 +3519,53 @@ export default function LectureVaultApp() {
           aria-label="Primary"
         >
           {[
-            ["dashboard", "Dashboard"],
-            ["courses", "Courses"],
-            ["capture", "New Reconstruction"],
-            ["archive", "Vault"],
-            ["storage", "Media Library"],
-            ["builder", "Reviews"]
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              className={
-                id === "builder" &&
-                ["builder", "exams", "exam", "guide"].includes(screen)
-                  ? "active"
-                  : screen === id
-                    ? "active"
-                    : ""
-              }
-              type="button"
-              onClick={() => {
-                setScreen(id as Screen);
-                setIsMobileMenuOpen(false);
+            {
+              label: "Workspace",
+              items: [
+                ["dashboard", "Dashboard"],
+                ["courses", "Courses"],
+                ["capture", "New Reconstruction"]
+              ]
+            },
+            {
+              label: "Library",
+              items: [
+                ["archive", "Vault"],
+                ["storage", "Media Library"]
+              ]
+            },
+            {
+              label: "Study",
+              items: [["builder", "Reviews"]]
+            }
+          ].map((group) => (
+            <div className="nav-group" key={group.label}>
+              <span className="nav-label">{group.label}</span>
+              {group.items.map(([id, label]) => (
+                <button
+                  key={id}
+                  className={
+                    id === "builder" &&
+                    ["builder", "exams", "exam", "guide"].includes(screen)
+                      ? "active"
+                      : screen === id
+                        ? "active"
+                        : ""
+                  }
+                  type="button"
+                  onClick={() => {
+                    setScreen(id as Screen);
+                    setIsMobileMenuOpen(false);
 
-                if (id === "storage") {
-                  void loadStorageFiles();
-                }
-              }}
-            >
-              {label}
-            </button>
+                    if (id === "storage") {
+                      void loadStorageFiles();
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="sidebar-note">
