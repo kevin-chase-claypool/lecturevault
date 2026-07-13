@@ -1481,7 +1481,8 @@ button.review-draft-button:disabled {
   position: sticky;
   top: 18px;
   max-height: calc(100dvh - 44px);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .selected-lecture-kicker {
