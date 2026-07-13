@@ -969,6 +969,7 @@ For archive organization changes, manually verify:
 - Tightened the shared control and surface system with calmer secondary actions, tactile button feedback, centered desktop composition, and more legible dashboard rows.
 - Reworked phone header actions so the primary reconstruction action has a full row, with the review draft and log-out controls placed beneath it.
 - Matched the Vault course selector width to the Details inspector for clearer alignment in the archive workspace.
+- Replaced Review source cards with a compact, sortable file-explorer list and a focused selected-reconstruction preview.
 
 - Add direct browser-to-Supabase signed uploads if deployment body limits block large MP3 uploads.
 - Replace single-row Supabase JSON state with relational tables and conflict-aware sync if multi-user editing becomes important.

@@ -1269,6 +1269,35 @@ label {
   gap: 12px;
 }
 
+.builder-list-heading {
+  margin: 2px 0 -2px;
+}
+
+.builder-source-preview {
+  display: grid;
+  gap: 10px;
+  border-color: #b8d6df;
+  background: linear-gradient(135deg, rgba(13, 95, 119, 0.06), transparent 46%), #ffffff;
+}
+
+.builder-source-preview .section-heading {
+  margin-bottom: 0;
+}
+
+.builder-source-preview p {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.42;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.builder-source-preview > button {
+  justify-self: start;
+}
+
 .lecture-list {
   display: grid;
   gap: 8px;

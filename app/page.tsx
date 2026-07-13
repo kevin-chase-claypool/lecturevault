@@ -1462,6 +1462,9 @@ export default function LectureVaultApp() {
   const [builderCourseId, setBuilderCourseId] = useState("");
   const [builderFolderId, setBuilderFolderId] = useState("all");
   const [builderQuery, setBuilderQuery] = useState("");
+  const [builderSortKey, setBuilderSortKey] = useState<ArchiveSortKey>("date");
+  const [builderSortDirection, setBuilderSortDirection] = useState<SortDirection>("desc");
+  const [selectedBuilderLectureId, setSelectedBuilderLectureId] = useState("");
   const [builderSelectedLectureIds, setBuilderSelectedLectureIds] = useState<string[]>([]);
   const [pipelineTitle, setPipelineTitle] = useState("");
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([]);
@@ -1999,8 +2002,25 @@ export default function LectureVaultApp() {
         .join(" ")
         .toLowerCase()
         .includes(term);
+    }).sort((first, second) => {
+      const firstSize = state.mediaItems
+        .filter((item) => item.lectureId === first.id)
+        .reduce((total, item) => total + item.size, 0);
+      const secondSize = state.mediaItems
+        .filter((item) => item.lectureId === second.id)
+        .reduce((total, item) => total + item.size, 0);
+      const comparison =
+        builderSortKey === "size"
+          ? firstSize - secondSize
+          : builderSortKey === "date"
+            ? first.date.localeCompare(second.date)
+            : first.title.localeCompare(second.title, undefined, { sensitivity: "base" });
+      return builderSortDirection === "asc" ? comparison : -comparison;
     });
-  }, [builderCourseId, builderFolderId, builderQuery, state]);
+  }, [builderCourseId, builderFolderId, builderQuery, builderSortDirection, builderSortKey, state]);
+  const selectedBuilderLecture =
+    builderLectures.find((lecture) => lecture.id === selectedBuilderLectureId) ||
+    builderLectures[0];
   const builderSelectedLectures = builderSelectedLectureIds
     .map((id) => state.lectures.find((lecture) => lecture.id === id))
     .filter((lecture): lecture is Lecture =>
@@ -3101,6 +3121,7 @@ export default function LectureVaultApp() {
   function setExamBuilderCourse(courseId: string) {
     setBuilderCourseId(courseId);
     setBuilderFolderId("all");
+    setSelectedBuilderLectureId("");
     setBuilderSelectedLectureIds((current) =>
       current.filter((id) =>
         state.lectures.some(
@@ -3163,6 +3184,16 @@ export default function LectureVaultApp() {
       return Array.from(next);
     });
     setStatus("Added visible archive materials to the review set draft.");
+  }
+
+  function changeBuilderSort(key: ArchiveSortKey) {
+    if (builderSortKey === key) {
+      setBuilderSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setBuilderSortKey(key);
+    setBuilderSortDirection(key === "name" ? "asc" : "desc");
   }
 
   function createWorkspaceFromBuilder(event: FormEvent) {
@@ -5269,44 +5300,89 @@ export default function LectureVaultApp() {
                   Add Shown Lectures to Review
                 </button>
               </div>
-              <div className="lecture-grid compact">
-                {builderLectures.map((lecture) => {
-                  const selected = builderSelectedLectureIds.includes(lecture.id);
-
-                  return (
-                    <LectureCard
-                      key={lecture.id}
-                      lecture={lecture}
-                      courseLabel={courseLabel}
-                      compact
-                      selected={selected}
-                      mediaCount={
-                        state.mediaItems.filter(
-                          (item) => item.lectureId === lecture.id
-                        ).length
-                      }
-                      conceptCount={
-                        state.concepts.filter(
-                          (concept) => concept.lectureId === lecture.id
-                        ).length
-                      }
-                      addLabel={selected ? "Selected" : "Add to Review"}
-                      addPrimary={selected}
-                      onSelect={() => toggleBuilderLecture(lecture.id)}
-                      onOpen={() => {
-                        setSelectedLectureId(lecture.id);
-                        setScreen("lecture");
-                      }}
-                      onAdd={() => toggleBuilderLecture(lecture.id)}
-                    />
-                  );
-                })}
+              <div className="section-heading compact-heading builder-list-heading">
+                <div>
+                  <span className="pill">
+                    {builderLectures.length} reconstruction{builderLectures.length === 1 ? "" : "s"}
+                  </span>
+                  <h3>Course Reconstructions</h3>
+                </div>
+                <span className={basketCount ? "draft-status active" : "draft-status"}>
+                  {basketCount ? `${basketCount} in review draft` : "Select sources to review"}
+                </span>
+              </div>
+              <div className="lecture-list explorer-list" aria-label="Course reconstructions">
+                <div className="lecture-list-header">
+                  {([
+                    ["name", "Name"],
+                    ["date", "Date"],
+                    ["size", "Source size"]
+                  ] as Array<[ArchiveSortKey, string]>).map(([key, label]) => {
+                    const isActive = builderSortKey === key;
+                    const direction = builderSortDirection === "asc" ? "ascending" : "descending";
+                    return (
+                      <button
+                        key={key}
+                        className={isActive ? "sort-header active" : "sort-header"}
+                        type="button"
+                        aria-label={`Sort by ${label}${isActive ? `, currently ${direction}` : ""}`}
+                        onClick={() => changeBuilderSort(key)}
+                      >
+                        {label}
+                        <span aria-hidden="true">{isActive ? (builderSortDirection === "asc" ? "Asc" : "Desc") : "Sort"}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {builderLectures.map((lecture) => (
+                  <LectureListRow
+                    key={lecture.id}
+                    lecture={lecture}
+                    selected={selectedBuilderLecture?.id === lecture.id}
+                    sourceSize={state.mediaItems
+                      .filter((item) => item.lectureId === lecture.id)
+                      .reduce((total, item) => total + item.size, 0)}
+                    onSelect={() => setSelectedBuilderLectureId(lecture.id)}
+                  />
+                ))}
                 {!builderLectures.length ? (
                   <p className="empty panel">
                     No archive materials match this course, folder, and search.
                   </p>
                 ) : null}
               </div>
+              {selectedBuilderLecture ? (
+                <section className="panel builder-source-preview">
+                  <div className="section-heading compact-heading">
+                    <div>
+                      <span className="selected-lecture-kicker">Selected reconstruction</span>
+                      <h3>{selectedBuilderLecture.title}</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedLectureId(selectedBuilderLecture.id);
+                        setScreen("lecture");
+                      }}
+                    >
+                      Open detail
+                    </button>
+                  </div>
+                  <div className="selected-lecture-meta">
+                    <span>{selectedBuilderLecture.date}</span>
+                    <span>{state.mediaItems.filter((item) => item.lectureId === selectedBuilderLecture.id).length} media</span>
+                    <span>{state.concepts.filter((concept) => concept.lectureId === selectedBuilderLecture.id).length} concepts</span>
+                  </div>
+                  <p>{selectedBuilderLecture.summary}</p>
+                  <button
+                    className={builderSelectedLectureIds.includes(selectedBuilderLecture.id) ? "review-draft-button" : "primary"}
+                    type="button"
+                    onClick={() => toggleBuilderLecture(selectedBuilderLecture.id)}
+                  >
+                    {builderSelectedLectureIds.includes(selectedBuilderLecture.id) ? "Remove from Review" : "Add to Review"}
+                  </button>
+                </section>
+              ) : null}
             </section>
 
             <aside className="panel side-panel source-inspector">
