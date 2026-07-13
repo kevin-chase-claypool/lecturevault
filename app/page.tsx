@@ -4337,103 +4337,120 @@ export default function LectureVaultApp() {
               One source is enough. Add audio when you have it, board images when
               they matter, and notes or OneNote text when they clarify what happened.
             </p>
-            <div className="source-readiness reconstruction-readiness" aria-label="Reconstruction source readiness">
-              <div>
-                <strong>{reconstructionAudioCount}</strong>
-                <span>audio/video</span>
+            <section className="capture-stage" aria-labelledby="reconstruction-details-heading">
+              <div className="capture-stage-heading">
+                <span>1</span>
+                <div>
+                  <h2 id="reconstruction-details-heading">Details</h2>
+                  <p>Set the class, date, and a useful topic name for this record.</p>
+                </div>
               </div>
-              <div>
-                <strong>{reconstructionImageCount}</strong>
-                <span>board images</span>
+              <div className="form-grid">
+                <label>
+                  Course
+                  <select
+                    value={captureForm.courseId}
+                    onChange={(event) =>
+                      setCaptureForm((current) => ({
+                        ...current,
+                        courseId: event.target.value
+                      }))
+                    }
+                  >
+                    {state.courses.map((course) => (
+                      <option key={course.id} value={course.id}>
+                        {course.code} {course.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Reconstruction topic
+                  <input
+                    value={captureForm.title}
+                    onChange={(event) =>
+                      setCaptureForm((current) => ({
+                        ...current,
+                        title: event.target.value
+                      }))
+                    }
+                    placeholder="Laplace transform examples"
+                  />
+                </label>
+                <label>
+                  Date
+                  <input
+                    type="date"
+                    value={captureForm.date}
+                    onChange={(event) =>
+                      setCaptureForm((current) => ({
+                        ...current,
+                        date: event.target.value
+                      }))
+                    }
+                  />
+                </label>
               </div>
-              <div>
-                <strong>{reconstructionDocumentCount}</strong>
-                <span>documents</span>
-              </div>
-              <div>
-                <strong>{reconstructionNotesReady ? "Ready" : "Optional"}</strong>
-                <span>notes</span>
-              </div>
-              <div>
-                <strong>{reconstructionTextbookCount}</strong>
-                <span>textbooks</span>
-              </div>
-            </div>
-            <div className="form-grid">
-              <label>
-                Course
-                <select
-                  value={captureForm.courseId}
-                  onChange={(event) =>
-                    setCaptureForm((current) => ({
-                      ...current,
-                      courseId: event.target.value
-                    }))
-                  }
-                >
-                  {state.courses.map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {course.code} {course.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Reconstruction topic
-                <input
-                  value={captureForm.title}
-                  onChange={(event) =>
-                    setCaptureForm((current) => ({
-                      ...current,
-                      title: event.target.value
-                    }))
-                  }
-                  placeholder="Laplace transform examples"
-                />
-              </label>
-              <label>
-                Date
-                <input
-                  type="date"
-                  value={captureForm.date}
-                  onChange={(event) =>
-                    setCaptureForm((current) => ({
-                      ...current,
-                      date: event.target.value
-                    }))
-                  }
-                />
-              </label>
-            </div>
+            </section>
 
-            <label
-              className="dropzone lecture-dropzone"
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                addCaptureFiles(Array.from(event.dataTransfer.files || []));
-              }}
-            >
-              <span>Files for this reconstruction</span>
-              <input
-                type="file"
-                multiple
-                accept="audio/*,video/*,image/*,.pdf,.txt"
-                onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                  addCaptureFiles(Array.from(event.target.files || []));
-                  event.target.value = "";
+            <section className="capture-stage" aria-labelledby="reconstruction-sources-heading">
+              <div className="capture-stage-heading">
+                <span>2</span>
+                <div>
+                  <h2 id="reconstruction-sources-heading">Sources</h2>
+                  <p>Add the materials that document this class meeting.</p>
+                </div>
+              </div>
+              <div className="source-readiness reconstruction-readiness" aria-label="Reconstruction source readiness">
+                <div>
+                  <strong>{reconstructionAudioCount}</strong>
+                  <span>audio/video</span>
+                </div>
+                <div>
+                  <strong>{reconstructionImageCount}</strong>
+                  <span>board images</span>
+                </div>
+                <div>
+                  <strong>{reconstructionDocumentCount}</strong>
+                  <span>documents</span>
+                </div>
+                <div>
+                  <strong>{reconstructionNotesReady ? "Ready" : "Optional"}</strong>
+                  <span>notes</span>
+                </div>
+                <div>
+                  <strong>{reconstructionTextbookCount}</strong>
+                  <span>textbooks</span>
+                </div>
+              </div>
+              <label
+                className="dropzone lecture-dropzone"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  addCaptureFiles(Array.from(event.dataTransfer.files || []));
                 }}
-              />
-              <strong>
-                {captureFiles.length
-                  ? `${captureFiles.length} source file${captureFiles.length === 1 ? "" : "s"} attached`
-                  : "Drop audio, board images, PDFs, or notes"}
-              </strong>
-              <small>
-                Every source type is optional. Add whichever materials you have
-                for this class day; at least one meaningful source is needed.
-              </small>
-            </label>
+              >
+                <span>Files for this reconstruction</span>
+                <input
+                  type="file"
+                  multiple
+                  accept="audio/*,video/*,image/*,.pdf,.txt"
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                    addCaptureFiles(Array.from(event.target.files || []));
+                    event.target.value = "";
+                  }}
+                />
+                <strong>
+                  {captureFiles.length
+                    ? `${captureFiles.length} source file${captureFiles.length === 1 ? "" : "s"} attached`
+                    : "Drop audio, board images, PDFs, or notes"}
+                </strong>
+                <small>
+                  Every source type is optional. Add whichever materials you have
+                  for this class day; at least one meaningful source is needed.
+                </small>
+              </label>
 
             {captureFiles.length ? (
               <div className="capture-media-panel">
@@ -4514,7 +4531,7 @@ export default function LectureVaultApp() {
                 )}
               </div>
               <p>
-                Select only the pages that belong to this class day. LectureVault saves a text snapshot with the reconstruction, so later edits in OneNote do not change your archived record.
+                Select only the pages that belong to this class day. LectureVault saves OneNote&apos;s readable text as a snapshot, so later edits do not change your archived record. Handwritten ink and page images are not imported here; add them as files when they matter.
               </p>
               {!oneNoteStatus.configured ? (
                 <small>OneNote connection is not configured on this deployment yet. Add its environment variables, redeploy, then connect it here.</small>
@@ -4549,107 +4566,126 @@ export default function LectureVaultApp() {
               ) : null}
             </section>
 
-            <label>
-              Transcript, OneNote text, or rough notes
-              <textarea
-                value={captureForm.transcript}
-                onChange={(event) =>
-                  setCaptureForm((current) => ({
-                    ...current,
-                    transcript: event.target.value
-                  }))
-                }
-                rows={9}
-                placeholder="Paste OneNote text, a partial transcript, or rough notes. This is optional if you attached audio, images, or documents."
-              />
-            </label>
-
-            <div className="capture-brief">
-              <div className="section-heading compact-heading">
-                <div>
-                  <span className="pill">Optional AI context</span>
-                  <h3>Reconstruction Brief</h3>
-                </div>
-              </div>
-              <p>
-                Add only what the source bundle cannot say on its own. This context is saved with the reconstruction request.
-              </p>
-              <div className="form-grid">
-                <label>
-                  Today&apos;s objective
-                  <input
-                    value={captureForm.objective}
-                    onChange={(event) =>
-                      setCaptureForm((current) => ({ ...current, objective: event.target.value }))
-                    }
-                    placeholder="Apply nodal analysis to multi-source circuits"
-                  />
-                </label>
-                <label>
-                  Instructor emphasis / board context
-                  <textarea
-                    value={captureForm.emphasis}
-                    onChange={(event) =>
-                      setCaptureForm((current) => ({ ...current, emphasis: event.target.value }))
-                    }
-                    rows={4}
-                    placeholder="Worked problem on the left board is exam-relevant. Preserve the method and why each step is used."
-                  />
-                </label>
-                <label>
-                  Unresolved question <small>Optional</small>
-                  <textarea
-                    value={captureForm.questions}
-                    onChange={(event) =>
-                      setCaptureForm((current) => ({ ...current, questions: event.target.value }))
-                    }
-                    rows={4}
-                    placeholder="The final substitution was hard to hear; flag it rather than guessing."
-                  />
-                </label>
-              </div>
-              <label className="ai-context-preview">
-                Full AI build context <small>Read-only</small>
-                <textarea value={reconstructionAiContextPreview} readOnly rows={12} />
-                <span>
-                  This shows the organizing instructions, output contract, and current source context. Audio transcription and the retrieved textbook excerpts are added during the build.
-                </span>
-              </label>
-            </div>
-
-            <div className="capture-actions">
-              <div className="capture-action-copy">
-                <span className="eyebrow">Ready when you are</span>
-                <p>
-                  Add the sources you have, then build one complete reconstruction
-                  for this class day.
-                </p>
-              </div>
-              <div className="button-row">
-                <button
-                  className="primary"
-                  type="button"
-                  onClick={() => void buildReconstruction()}
-                  disabled={isLectureGenerating || !reconstructionHasSource}
-                >
-                  {isLectureGenerating ? "Working..." : "Build Reconstruction"}
-                </button>
-                <button
-                  type="button"
-                  disabled={isLectureGenerating}
-                  onClick={() =>
+              <label>
+                Transcript, OneNote text, or rough notes
+                <textarea
+                  value={captureForm.transcript}
+                  onChange={(event) =>
                     setCaptureForm((current) => ({
                       ...current,
-                      transcript:
-                        current.transcript ||
-                        "Today we introduced the main definition, worked through an example, and identified common exam mistakes. Use inline math like $F=ma$ or display math like $$E=mc^2$$ when formulas matter."
+                      transcript: event.target.value
                     }))
                   }
-                >
-                  Draft Notes
-                </button>
+                  rows={9}
+                  placeholder="Paste OneNote text, a partial transcript, or rough notes. This is optional if you attached audio, images, or documents."
+                />
+              </label>
+            </section>
+
+            <section className="capture-stage" aria-labelledby="reconstruction-context-heading">
+              <div className="capture-stage-heading">
+                <span>3</span>
+                <div>
+                  <h2 id="reconstruction-context-heading">Context</h2>
+                  <p>Clarify what matters when the source materials cannot say it themselves.</p>
+                </div>
               </div>
-            </div>
+              <div className="capture-brief">
+                <div className="section-heading compact-heading">
+                  <div>
+                    <span className="pill">Optional AI context</span>
+                    <h3>Reconstruction Brief</h3>
+                  </div>
+                </div>
+                <p>
+                  Add only what the source bundle cannot say on its own. This context is saved with the reconstruction request.
+                </p>
+                <div className="form-grid">
+                  <label>
+                    Today&apos;s objective
+                    <input
+                      value={captureForm.objective}
+                      onChange={(event) =>
+                        setCaptureForm((current) => ({ ...current, objective: event.target.value }))
+                      }
+                      placeholder="Apply nodal analysis to multi-source circuits"
+                    />
+                  </label>
+                  <label>
+                    Instructor emphasis / board context
+                    <textarea
+                      value={captureForm.emphasis}
+                      onChange={(event) =>
+                        setCaptureForm((current) => ({ ...current, emphasis: event.target.value }))
+                      }
+                      rows={4}
+                      placeholder="Worked problem on the left board is exam-relevant. Preserve the method and why each step is used."
+                    />
+                  </label>
+                  <label>
+                    Unresolved question <small>Optional</small>
+                    <textarea
+                      value={captureForm.questions}
+                      onChange={(event) =>
+                        setCaptureForm((current) => ({ ...current, questions: event.target.value }))
+                      }
+                      rows={4}
+                      placeholder="The final substitution was hard to hear; flag it rather than guessing."
+                    />
+                  </label>
+                </div>
+                <label className="ai-context-preview">
+                  Full AI build context <small>Read-only</small>
+                  <textarea value={reconstructionAiContextPreview} readOnly rows={12} />
+                  <span>
+                    This shows the organizing instructions, output contract, and current source context. Audio transcription and the retrieved textbook excerpts are added during the build.
+                  </span>
+                </label>
+              </div>
+            </section>
+
+            <section className="capture-stage" aria-labelledby="reconstruction-build-heading">
+              <div className="capture-stage-heading">
+                <span>4</span>
+                <div>
+                  <h2 id="reconstruction-build-heading">Build</h2>
+                  <p>Generate and save the completed class-day reconstruction.</p>
+                </div>
+              </div>
+              <div className="capture-actions">
+                <div className="capture-action-copy">
+                  <span className="eyebrow">Ready when you are</span>
+                  <p>
+                    Add the sources you have, then build one complete reconstruction
+                    for this class day.
+                  </p>
+                </div>
+                <div className="button-row">
+                  <button
+                    className="primary"
+                    type="button"
+                    onClick={() => void buildReconstruction()}
+                    disabled={isLectureGenerating || !reconstructionHasSource}
+                  >
+                    {isLectureGenerating ? "Working..." : "Build Reconstruction"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isLectureGenerating}
+                    onClick={() =>
+                      setCaptureForm((current) => ({
+                        ...current,
+                        transcript:
+                          current.transcript ||
+                          "Today we introduced the main definition, worked through an example, and identified common exam mistakes. Use inline math like $F=ma$ or display math like $$E=mc^2$$ when formulas matter."
+                      }))
+                    }
+                  >
+                    Draft Notes
+                  </button>
+                </div>
+              </div>
+            </section>
           </form>
         ) : null}
 

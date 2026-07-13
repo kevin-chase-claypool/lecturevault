@@ -1983,6 +1983,54 @@ button.review-draft-button:disabled {
   gap: 16px;
 }
 
+.capture-stage {
+  display: grid;
+  gap: 12px;
+}
+
+.capture-stage + .capture-stage {
+  border-top: 1px solid rgba(188, 201, 214, 0.82);
+  padding-top: 18px;
+}
+
+.capture-stage-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.capture-stage-heading > span {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  place-items: center;
+  border: 1px solid #9acbd2;
+  border-radius: 999px;
+  background: #eefafa;
+  color: var(--primary-dark);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.capture-stage-heading h2,
+.capture-stage-heading p {
+  margin: 0;
+}
+
+.capture-stage-heading h2 {
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.capture-stage-heading p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
 .capture-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

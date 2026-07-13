@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Reconstruction Workflow Sections
+
+- Organized New Reconstruction into explicit `1 Details`, `2 Sources`, `3 Context`, and `4 Build` sections that match the workflow navigator at the top of the page.
+- Clarified the OneNote source picker: it imports and saves only readable OneNote page text, not handwritten ink or OneNote page images. Handwritten notes and images must be added as source files for AI to inspect them.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Compact Reconstruction Source Status
 
 - Replaced the large stacked source-readiness cards with a compact, wrapping metadata strip for audio/video, board images, documents, notes, and textbooks.
