@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Compact Reconstruction Guidance and Record Discard
+
+- Replaced the large static New Reconstruction guidance copy with a compact vertically scrolling source-to-reconstruction ticker that fades at its entry and exit.
+- Added `Discard class record` to the active course-locked record. It clears the temporary shared bucket and its attached-source references after confirmation, while retaining the original files in Supabase Media Library.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Course-First Reconstruction Start
 
 - Reordered New Reconstruction so the user selects a course and starts its class record directly in Step 1 before sources, context, and build controls appear.

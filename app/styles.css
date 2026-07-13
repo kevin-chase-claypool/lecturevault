@@ -2046,6 +2046,17 @@ button.review-draft-button:disabled {
   font-weight: 850;
 }
 
+.capture-record-status button {
+  justify-self: start;
+  min-height: 28px;
+  margin-top: 3px;
+  border-color: #efb9b3;
+  padding: 4px 7px;
+  background: #fff8f7;
+  color: #b42318;
+  font-size: 0.7rem;
+}
+
 .capture-next-step {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
@@ -2137,8 +2148,7 @@ button.review-draft-button:disabled {
     inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
-.capture-hero h3,
-.capture-hero p {
+.capture-hero h3 {
   margin: 0;
 }
 
@@ -2147,11 +2157,39 @@ button.review-draft-button:disabled {
   font-size: clamp(1.2rem, 2vw, 1.55rem);
 }
 
-.capture-hero p {
-  margin-top: 6px;
-  max-width: 64ch;
+.capture-guidance-ticker {
+  position: relative;
+  height: 23px;
+  max-width: 70ch;
+  margin-top: 7px;
+  overflow: hidden;
   color: var(--muted);
   line-height: 1.45;
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 26%, #000 74%, transparent 100%);
+}
+
+.capture-guidance-track {
+  display: grid;
+  gap: 7px;
+  animation: capture-guidance-scroll 12s ease-in-out infinite;
+}
+
+.capture-guidance-track span {
+  display: block;
+  min-height: 23px;
+}
+
+@keyframes capture-guidance-scroll {
+  0%, 23% { transform: translateY(0); }
+  33%, 56% { transform: translateY(-30px); }
+  66%, 89% { transform: translateY(-60px); }
+  100% { transform: translateY(-90px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capture-guidance-track {
+    animation: none;
+  }
 }
 
 .capture-steps {

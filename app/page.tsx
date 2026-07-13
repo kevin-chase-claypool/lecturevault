@@ -3700,6 +3700,33 @@ export default function LectureVaultApp() {
     setStatus("Current class record started. Add audio on your phone and OneNote PDFs on your tablet.");
   }
 
+  function discardClassDayRecord() {
+    const record = state.reconstructionDrafts.find((draft) => draft.id === activeDraftId) || state.reconstructionDrafts[0];
+    if (!record) return;
+
+    const confirmed = window.confirm(
+      "Discard this active class record and clear its attached-source references? The original files remain in Supabase Media Library."
+    );
+    if (!confirmed) return;
+
+    setState((current) => ({ ...current, reconstructionDrafts: [] }));
+    setActiveDraftId("");
+    loadedDraftVersionRef.current = "";
+    suppressDraftSaveRef.current = false;
+    setCaptureFiles([]);
+    setOneNoteSources([]);
+    setCaptureForm({
+      courseId: record.courseId,
+      title: "",
+      date: new Date().toISOString().slice(0, 10),
+      transcript: "",
+      objective: "",
+      emphasis: "",
+      questions: ""
+    });
+    setStatus("Class record discarded. Original uploaded files remain available in Media Library.");
+  }
+
   function openClassDayDraft(id: string) {
     const draft = state.reconstructionDrafts.find((item) => item.id === id);
     if (!draft) return;
@@ -4723,11 +4750,17 @@ export default function LectureVaultApp() {
               <div>
                 <span className="eyebrow">New Reconstruction</span>
                 <h3>Reconstruct a class meeting</h3>
-                <p>
-                  Build one daily class record from whatever sources you have:
-                  audio, visual OneNote pages, board images, textbook context, or
-                  rough notes.
-                </p>
+                <div
+                  className="capture-guidance-ticker"
+                  aria-label="Add source materials to one class record, then build a reconstruction."
+                >
+                  <div className="capture-guidance-track" aria-hidden="true">
+                    <span>Sources: audio, handwritten OneNote PDFs, board images, or rough notes.</span>
+                    <span>Class record: keep everything from this meeting together.</span>
+                    <span>Destination: one source-grounded reconstruction for the selected course.</span>
+                    <span>Sources: audio, handwritten OneNote PDFs, board images, or rough notes.</span>
+                  </div>
+                </div>
               </div>
               <div>
                 <span className={reconstructionReadyToBuild ? "readiness-badge ready" : "readiness-badge"}>
@@ -4741,10 +4774,6 @@ export default function LectureVaultApp() {
                 </div>
               </div>
             </div>
-            <p className="workflow-helper">
-              One source is enough. Add audio when you have it, board images when
-              they matter, and a shared OneNote PDF when handwriting or diagrams clarify what happened.
-            </p>
             <section className="capture-stage" aria-labelledby="reconstruction-details-heading">
               <div className="capture-stage-heading">
                 <span>1</span>
@@ -4778,6 +4807,9 @@ export default function LectureVaultApp() {
                     <div className="capture-record-status">
                       <strong>Class record active</strong>
                       <span>{courseLabel(activeDraft.courseId)} · shared across devices</span>
+                      <button type="button" onClick={discardClassDayRecord}>
+                        Discard class record
+                      </button>
                     </div>
                   ) : (
                     <button
