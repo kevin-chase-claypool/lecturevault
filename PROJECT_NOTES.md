@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Vault Explorer List
+
+- Replaced the Vault reconstruction card list with a compact explorer-style Name, Date, and Source Size list; selection keeps all remaining reconstruction information and actions in the Details pane.
+- Added sortable list headers for alphabetical name, date, and total attached-source size, with ascending/descending toggles and responsive table sizing for phone and tablet layouts.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Reconstruction Flow Refinement
 
 - Removed the fade treatment from the compact vertical guidance ticker while keeping its restrained source-to-reconstruction motion.

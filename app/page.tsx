@@ -71,6 +71,9 @@ type MediaItem = {
   createdAt: string;
 };
 
+type ArchiveSortKey = "name" | "date" | "size";
+type SortDirection = "asc" | "desc";
+
 type CaptureSource = {
   file: File;
   role: string;
@@ -1413,6 +1416,8 @@ export default function LectureVaultApp() {
   const [selectedLectureId, setSelectedLectureId] = useState("");
   const [selectedExamId, setSelectedExamId] = useState("");
   const [selectedArchiveFolderId, setSelectedArchiveFolderId] = useState("all");
+  const [archiveSortKey, setArchiveSortKey] = useState<ArchiveSortKey>("date");
+  const [archiveSortDirection, setArchiveSortDirection] = useState<SortDirection>("desc");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("Local archive ready.");
   const [archiveFolderName, setArchiveFolderName] = useState("");
@@ -1901,6 +1906,14 @@ export default function LectureVaultApp() {
   const archiveLectures = useMemo(() => {
     const term = query.trim().toLowerCase();
 
+    const mediaSizeByLecture = new Map<string, number>();
+    for (const item of state.mediaItems) {
+      mediaSizeByLecture.set(
+        item.lectureId,
+        (mediaSizeByLecture.get(item.lectureId) || 0) + item.size
+      );
+    }
+
     return archiveLecturesForLocation(
       state,
       selectedCourseId,
@@ -1915,8 +1928,16 @@ export default function LectureVaultApp() {
         .join(" ")
         .toLowerCase()
         .includes(term);
+    }).sort((first, second) => {
+      const comparison =
+        archiveSortKey === "size"
+          ? (mediaSizeByLecture.get(first.id) || 0) - (mediaSizeByLecture.get(second.id) || 0)
+          : archiveSortKey === "date"
+            ? first.date.localeCompare(second.date)
+            : first.title.localeCompare(second.title, undefined, { sensitivity: "base" });
+      return archiveSortDirection === "asc" ? comparison : -comparison;
     });
-  }, [query, selectedArchiveFolderId, selectedCourseId, state]);
+  }, [archiveSortDirection, archiveSortKey, query, selectedArchiveFolderId, selectedCourseId, state]);
 
   const selectedExamLectures = selectedExam
     ? state.examItems
@@ -3891,6 +3912,16 @@ export default function LectureVaultApp() {
     setSelectedLectureId(nextLectures[0]?.id || "");
   }
 
+  function changeArchiveSort(key: ArchiveSortKey) {
+    if (archiveSortKey === key) {
+      setArchiveSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setArchiveSortKey(key);
+    setArchiveSortDirection(key === "name" ? "asc" : "desc");
+  }
+
   async function logout() {
     await fetch("/api/auth/logout", {
       credentials: "include",
@@ -4606,30 +4637,38 @@ export default function LectureVaultApp() {
                       : "No review sources selected"}
                   </span>
                 </div>
-                <div className="lecture-list" aria-label="Lectures in this folder">
+                <div className="lecture-list explorer-list" aria-label="Reconstructions in this folder">
+                  <div className="lecture-list-header">
+                    {([
+                      ["name", "Name"],
+                      ["date", "Date"],
+                      ["size", "Source size"]
+                    ] as Array<[ArchiveSortKey, string]>).map(([key, label]) => {
+                      const isActive = archiveSortKey === key;
+                      const direction = archiveSortDirection === "asc" ? "ascending" : "descending";
+                      return (
+                        <button
+                          key={key}
+                          className={isActive ? "sort-header active" : "sort-header"}
+                          type="button"
+                          aria-label={`Sort by ${label}${isActive ? `, currently ${direction}` : ""}`}
+                          onClick={() => changeArchiveSort(key)}
+                        >
+                          {label}
+                          <span aria-hidden="true">{isActive ? (archiveSortDirection === "asc" ? "Asc" : "Desc") : "Sort"}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                   {archiveLectures.map((lecture) => (
                     <LectureListRow
                       key={lecture.id}
                       lecture={lecture}
-                      courseLabel={courseLabel}
-                      inReviewDraft={builderSelectedLectureIds.includes(lecture.id)}
                       selected={selectedLectureId === lecture.id}
-                      mediaCount={
-                        state.mediaItems.filter(
-                          (item) => item.lectureId === lecture.id
-                        ).length
-                      }
-                      conceptCount={
-                        state.concepts.filter(
-                          (concept) => concept.lectureId === lecture.id
-                        ).length
-                      }
+                      sourceSize={state.mediaItems
+                        .filter((item) => item.lectureId === lecture.id)
+                        .reduce((total, item) => total + item.size, 0)}
                       onSelect={() => setSelectedLectureId(lecture.id)}
-                      onOpen={() => {
-                        setSelectedLectureId(lecture.id);
-                        setScreen("lecture");
-                      }}
-                      onAdd={() => addLectureToBasket(lecture.id)}
                     />
                   ))}
                   {!archiveLectures.length ? (
@@ -4659,6 +4698,13 @@ export default function LectureVaultApp() {
                         {state.concepts.filter(
                           (concept) => concept.lectureId === selectedArchiveLecture.id
                         ).length} concepts
+                      </span>
+                      <span>
+                        {formatFileSize(
+                          state.mediaItems
+                            .filter((item) => item.lectureId === selectedArchiveLecture.id)
+                            .reduce((total, item) => total + item.size, 0)
+                        )} source size
                       </span>
                     </div>
                     <p>
@@ -6375,28 +6421,18 @@ function LectureCard({
 
 function LectureListRow({
   lecture,
-  courseLabel,
-  mediaCount,
-  conceptCount,
-  inReviewDraft = false,
+  sourceSize,
   selected = false,
-  onSelect,
-  onOpen,
-  onAdd
+  onSelect
 }: {
   lecture: Lecture;
-  courseLabel: (id: string) => string;
-  mediaCount: number;
-  conceptCount: number;
-  inReviewDraft?: boolean;
+  sourceSize: number;
   selected?: boolean;
-  onSelect?: () => void;
-  onOpen: () => void;
-  onAdd: () => void;
+  onSelect: () => void;
 }) {
   return (
     <article
-      className={selected ? "lecture-list-row selected" : "lecture-list-row"}
+      className={selected ? "lecture-list-row explorer-row selected" : "lecture-list-row explorer-row"}
       draggable
       role="button"
       tabIndex={0}
@@ -6411,33 +6447,9 @@ function LectureListRow({
         event.dataTransfer.setData("text/lecture-id", lecture.id)
       }
     >
-      <div className="lecture-list-main">
-        <div className="lecture-list-heading">
-          <span className="pill">{courseLabel(lecture.courseId)}</span>
-          <strong>{lecture.title}</strong>
-        </div>
-        <p>
-          <MathPreview text={lecture.summary} />
-        </p>
-      </div>
-      <div className="card-meta">
-        <span>{lecture.date}</span>
-        <span>{mediaCount} media</span>
-        <span>{conceptCount} concepts</span>
-      </div>
-      <div className="button-row" onClick={(event) => event.stopPropagation()}>
-        <button type="button" onClick={onOpen}>
-          Open
-        </button>
-        <button
-          className={inReviewDraft ? "review-draft-button" : "primary"}
-          type="button"
-          onClick={onAdd}
-          disabled={inReviewDraft}
-        >
-          {inReviewDraft ? "In Review Draft" : "Add to Review"}
-        </button>
-      </div>
+      <strong className="explorer-row-name" title={lecture.title}>{lecture.title}</strong>
+      <time dateTime={lecture.date}>{lecture.date}</time>
+      <span>{formatFileSize(sourceSize)}</span>
     </article>
   );
 }
