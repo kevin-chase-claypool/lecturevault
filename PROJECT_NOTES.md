@@ -40,6 +40,11 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Added required Vercel variable `ONENOTE_TOKEN_ENCRYPTION_KEY`, a random 32-byte base64 value used only to encrypt the stored OAuth tokens.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 
+### 2026-07-13 - Fix OneNote OAuth Redirect
+
+- Replaced immutable native redirect responses with `NextResponse` in the OneNote connect and callback routes, allowing the OAuth verification cookie to be set and cleared correctly.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Source-Grounded AI Context
 
 - Reworked the read-only preview into `Full AI build context`. It now displays the exact shared organizing instructions and output contract used by the reconstruction API before the current course, notes, source manifest, and textbook-retrieval context.

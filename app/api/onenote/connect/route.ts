@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import { NextResponse } from "next/server";
 import { requireAuthenticatedRequest } from "../../../../lib/auth";
 import { oneNoteAuthorizationUrl } from "../../../../lib/onenote";
 
@@ -10,18 +11,16 @@ export async function GET(request: Request) {
 
   try {
     const state = randomBytes(24).toString("base64url");
-    const response = Response.redirect(oneNoteAuthorizationUrl(state));
-    response.headers.append(
-      "Set-Cookie",
-      [
-        `lecturevault_onenote_state=${state}`,
-        "HttpOnly",
-        "Path=/",
-        "SameSite=Lax",
-        "Max-Age=600",
-        process.env.NODE_ENV === "production" ? "Secure" : ""
-      ].filter(Boolean).join("; ")
-    );
+    const response = NextResponse.redirect(oneNoteAuthorizationUrl(state));
+    response.cookies.set({
+      httpOnly: true,
+      maxAge: 600,
+      name: "lecturevault_onenote_state",
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      value: state
+    });
     return response;
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Could not begin OneNote connection." }, { status: 503 });

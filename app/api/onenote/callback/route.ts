@@ -1,4 +1,5 @@
 import { saveOneNoteAuthorizationCode } from "../../../../lib/onenote";
+import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
@@ -30,7 +31,15 @@ export async function GET(request: Request) {
     }
   }
 
-  const response = Response.redirect(redirect);
-  response.headers.append("Set-Cookie", ["lecturevault_onenote_state=", "HttpOnly", "Path=/", "SameSite=Lax", "Max-Age=0", process.env.NODE_ENV === "production" ? "Secure" : ""].filter(Boolean).join("; "));
+  const response = NextResponse.redirect(redirect);
+  response.cookies.set({
+    httpOnly: true,
+    maxAge: 0,
+    name: "lecturevault_onenote_state",
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    value: ""
+  });
   return response;
 }
