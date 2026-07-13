@@ -80,6 +80,29 @@ type CaptureSource = {
   storagePath?: string;
 };
 
+type ClassDayDraft = {
+  id: string;
+  courseId: string;
+  title: string;
+  date: string;
+  transcript: string;
+  objective: string;
+  emphasis: string;
+  questions: string;
+  sources: Array<{
+    id: string;
+    name: string;
+    mimeType: string;
+    size: number;
+    role: string;
+    caption: string;
+    storageBucket?: string;
+    storagePath?: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+};
+
 type SharedPwaSource = {
   id: string;
   mimeType: string;
@@ -259,6 +282,7 @@ type VaultState = {
   exams: ExamWorkspace[];
   examItems: ExamWorkspaceItem[];
   studyGuides: StudyGuide[];
+  reconstructionDrafts: ClassDayDraft[];
 };
 
 const STORAGE_KEY = "lecturevault-state-v1";
@@ -285,7 +309,8 @@ const emptyState: VaultState = {
   concepts: [],
   exams: [],
   examItems: [],
-  studyGuides: []
+  studyGuides: [],
+  reconstructionDrafts: []
 };
 
 function uid(prefix: string) {
@@ -1298,6 +1323,9 @@ function loadState(): VaultState {
         : [],
       textbookChunks: Array.isArray(parsed.textbookChunks)
         ? parsed.textbookChunks
+        : [],
+      reconstructionDrafts: Array.isArray(parsed.reconstructionDrafts)
+        ? parsed.reconstructionDrafts
         : []
     };
     return ensureCourseLectureFolders(removeLegacyDemoRecords(normalized));
@@ -1329,6 +1357,9 @@ function normalizeState(input: unknown): VaultState {
         : [],
       textbookChunks: Array.isArray(parsed.textbookChunks)
         ? parsed.textbookChunks
+        : [],
+      reconstructionDrafts: Array.isArray(parsed.reconstructionDrafts)
+        ? parsed.reconstructionDrafts
         : []
     })
   );
@@ -1384,6 +1415,7 @@ export default function LectureVaultApp() {
     questions: ""
   });
   const [captureFiles, setCaptureFiles] = useState<CaptureSource[]>([]);
+  const [activeDraftId, setActiveDraftId] = useState("");
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [oneNoteSources, setOneNoteSources] = useState<OneNoteSource[]>([]);
   const [oneNoteStatus, setOneNoteStatus] = useState<{
@@ -1423,6 +1455,7 @@ export default function LectureVaultApp() {
   const [isStorageLoading, setIsStorageLoading] = useState(false);
   const stateJsonRef = useRef(JSON.stringify(state));
   const skipNextCloudSaveRef = useRef(false);
+  const draftUploadsRef = useRef(new Set<string>());
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -1739,6 +1772,34 @@ export default function LectureVaultApp() {
     (lecture) => lecture.id === selectedLectureId
   );
   const selectedExam = state.exams.find((exam) => exam.id === selectedExamId);
+  const activeDraft = state.reconstructionDrafts.find((draft) => draft.id === activeDraftId);
+
+  useEffect(() => {
+    if (!activeDraftId) return;
+    const sources = captureFiles.map((source) => ({
+      id: fileKey(source.file), name: source.file.name, mimeType: source.file.type || "application/octet-stream",
+      size: source.size ?? source.file.size, role: source.role, caption: source.caption,
+      storageBucket: source.storageBucket, storagePath: source.storagePath
+    }));
+    setState((current) => ({ ...current, reconstructionDrafts: current.reconstructionDrafts.map((draft) =>
+      draft.id === activeDraftId ? { ...draft, ...captureForm, sources, updatedAt: new Date().toISOString() } : draft
+    ) }));
+  }, [activeDraftId, captureFiles, captureForm]);
+
+  useEffect(() => {
+    if (!activeDraftId) return;
+    for (const source of captureFiles) {
+      const key = fileKey(source.file);
+      if (source.storagePath || !source.file.size || draftUploadsRef.current.has(key)) continue;
+      draftUploadsRef.current.add(key);
+      void uploadMediaFile({ file: source.file, lectureId: `draft-${activeDraftId}`, mediaId: uid("media") })
+        .then((storage) => setCaptureFiles((current) => current.map((item) =>
+          fileKey(item.file) === key ? { ...item, ...storage } : item
+        )))
+        .catch((error) => setStatus(error instanceof Error ? error.message : `Could not upload ${source.file.name}.`))
+        .finally(() => draftUploadsRef.current.delete(key));
+    }
+  }, [activeDraftId, captureFiles]);
   const archiveLectures = useMemo(() => {
     const term = query.trim().toLowerCase();
 
@@ -2262,6 +2323,7 @@ export default function LectureVaultApp() {
     setState((current) => ({
       ...current,
       courses: current.courses.filter((item) => item.id !== courseId),
+      reconstructionDrafts: current.reconstructionDrafts.filter((draft) => draft.courseId !== courseId),
       archiveFolders: current.archiveFolders.filter(
         (folder) => folder.courseId !== courseId
       ),
@@ -3470,6 +3532,51 @@ export default function LectureVaultApp() {
     );
   }
 
+  function createClassDayDraft() {
+    const now = new Date().toISOString();
+    const draft: ClassDayDraft = {
+      id: uid("draft"),
+      courseId: captureForm.courseId || state.courses[0]?.id || "",
+      title: captureForm.title,
+      date: captureForm.date,
+      transcript: captureForm.transcript,
+      objective: captureForm.objective,
+      emphasis: captureForm.emphasis,
+      questions: captureForm.questions,
+      sources: [],
+      createdAt: now,
+      updatedAt: now
+    };
+    setState((current) => ({ ...current, reconstructionDrafts: [draft, ...current.reconstructionDrafts] }));
+    setActiveDraftId(draft.id);
+    setCaptureFiles([]);
+    setStatus("Shared class-day draft created. Add audio on your phone or OneNote pages on your tablet.");
+  }
+
+  function openClassDayDraft(id: string) {
+    const draft = state.reconstructionDrafts.find((item) => item.id === id);
+    if (!draft) return;
+    setActiveDraftId(id);
+    setCaptureForm({
+      courseId: draft.courseId,
+      title: draft.title,
+      date: draft.date,
+      transcript: draft.transcript,
+      objective: draft.objective,
+      emphasis: draft.emphasis,
+      questions: draft.questions
+    });
+    setCaptureFiles(draft.sources.map((source) => ({
+      file: new File([], source.name, { type: source.mimeType }),
+      role: source.role,
+      caption: source.caption,
+      size: source.size,
+      storageBucket: source.storageBucket,
+      storagePath: source.storagePath
+    })));
+    setScreen("capture");
+  }
+
   function removeCaptureFile(key: string) {
     setCaptureFiles((current) =>
       current.filter((source) => fileKey(source.file) !== key)
@@ -4473,6 +4580,22 @@ export default function LectureVaultApp() {
               One source is enough. Add audio when you have it, board images when
               they matter, and notes or OneNote text when they clarify what happened.
             </p>
+            <section className="pwa-share-panel" aria-label="Shared class-day draft">
+              <div className="section-heading compact-heading">
+                <div>
+                  <span className="pill">Shared draft</span>
+                  <h3>Class-day workspace</h3>
+                </div>
+                <button type="button" onClick={createClassDayDraft}>New draft</button>
+              </div>
+              <select value={activeDraftId} onChange={(event) => openClassDayDraft(event.target.value)}>
+                <option value="">Choose a shared draft</option>
+                {state.reconstructionDrafts.map((draft) => (
+                  <option key={draft.id} value={draft.id}>{courseLabel(draft.courseId)} - {draft.date} - {draft.title || "Untitled"}</option>
+                ))}
+              </select>
+              <p>{activeDraft ? "Changes to this draft sync through Supabase before reconstruction. Add sources from either device, then build when ready." : "Create or open a shared draft before adding cross-device sources."}</p>
+            </section>
             <section className="capture-stage" aria-labelledby="reconstruction-details-heading">
               <div className="capture-stage-heading">
                 <span>1</span>

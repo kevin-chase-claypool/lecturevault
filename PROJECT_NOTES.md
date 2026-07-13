@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Shared Class-Day Drafts
+
+- Added Supabase-synced pre-reconstruction drafts for a course/date/topic, notes, and permanent source references. A draft can be opened on phone or tablet before AI reconstruction.
+- New sources in an active draft upload directly to Supabase immediately, then the draft metadata syncs to the other device before Build Reconstruction is used.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Responsive Header Empty-State Fix
 
 - Prevented the tablet and phone sidebar from stretching to an empty grid row after course state changes, such as deleting the final course. The compact header now keeps only its real content height.
