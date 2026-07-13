@@ -4816,7 +4816,15 @@ button.review-draft-button:disabled {
   }
 
   .storage-explorer-list {
-    max-height: none;
+    max-height: 276px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .storage-explorer-header {
+    position: sticky;
+    z-index: 1;
+    top: 0;
   }
 
   .storage-explorer-header,

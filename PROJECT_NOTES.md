@@ -975,6 +975,7 @@ For archive organization changes, manually verify:
 - Reduced sidebar and mobile usage labels to total-token counts, with full input/output breakdowns retained in native hover tooltips.
 - Aligned desktop sidebar library counts into the same compact label/value row pattern as AI usage.
 - Hide the New Reconstruction shortcut while the user is already on the New Reconstruction workspace.
+- Limit the mobile Media Library explorer to five visible file rows, with a sticky header and vertical scrolling for larger libraries.
 
 - Add direct browser-to-Supabase signed uploads if deployment body limits block large MP3 uploads.
 - Replace single-row Supabase JSON state with relational tables and conflict-aware sync if multi-user editing becomes important.
