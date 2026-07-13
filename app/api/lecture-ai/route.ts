@@ -177,13 +177,14 @@ function extractJson(text: string) {
   return JSON.parse(fenced ? fenced[1] : trimmed);
 }
 
-function fallbackArtifact(transcriptText: string, media: LectureMediaItem[]) {
+function fallbackArtifact(transcriptText: string, media: LectureMediaItem[], title: string) {
   const sourceLines = media.map(
     (item, index) =>
       `- Source ${index + 1}: ${cleanString(item.name) || "Unnamed media"} (${cleanString(item.kind) || "media"})`
   );
 
   return {
+    reconstructionTitle: title,
     summary: transcriptText.slice(0, 600) || "Lecture reconstruction source media saved.",
     transcriptText: [
       transcriptText || "No transcript text was returned.",
@@ -437,6 +438,7 @@ export async function POST(request: Request) {
     totalUsage = addUsage(totalUsage, usageFromOpenAI(response.usage));
 
     let artifact: {
+      reconstructionTitle?: string;
       summary?: string;
       transcriptText?: string;
       concepts?: Array<{ title?: string; detail?: string; sourceMediaId?: string }>;
@@ -445,12 +447,17 @@ export async function POST(request: Request) {
     try {
       artifact = extractJson(response.output_text);
     } catch {
-      artifact = fallbackArtifact(response.output_text || audioTranscripts.join("\n\n"), mediaItems);
+      artifact = fallbackArtifact(
+        response.output_text || audioTranscripts.join("\n\n"),
+        mediaItems,
+        cleanString(body.title)
+      );
     }
 
     return Response.json({
       concepts: Array.isArray(artifact.concepts) ? artifact.concepts : [],
       generatedBy: "openai",
+      reconstructionTitle: cleanString(artifact.reconstructionTitle).slice(0, 120),
       sourceMediaIds: mediaItems.map((item) => cleanString(item.id)).filter(Boolean),
       summary: cleanString(artifact.summary),
       transcribedMediaIds,

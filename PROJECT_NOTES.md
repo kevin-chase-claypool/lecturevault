@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - AI-Generated Reconstruction Titles
+
+- The reconstruction AI now returns a concise, searchable 3-10 word title as part of the same reconstruction request. It uses the provided audio, visual notes, source roles, and relevant textbook context without a second API call.
+- Newly reconstructed Vault items save this AI title automatically, replacing generic placeholders such as `Untitled reconstruction`. A user-entered working topic remains the fallback if an AI title cannot be produced.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Single Current Class Record
 
 - Replaced the visible multi-draft selector with one `Current class record`. It is the sole temporary cross-device bucket for the just-finished class meeting.

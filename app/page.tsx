@@ -2748,6 +2748,7 @@ export default function LectureVaultApp() {
     let transcribedMediaIds: string[] = [];
     let aiConcepts: ExtractedConcept[] | null = null;
     let aiSummary = "";
+    let aiReconstructionTitle = "";
 
     try {
         activatePipelineStep(
@@ -2801,6 +2802,7 @@ export default function LectureVaultApp() {
           }>;
           error?: string;
           generatedBy?: "openai";
+          reconstructionTitle?: string;
           sourceMediaIds?: string[];
           summary?: string;
           transcribedMediaIds?: string[];
@@ -2839,6 +2841,7 @@ export default function LectureVaultApp() {
           ? data.sourceMediaIds
           : sourceMediaIds;
         transcribedMediaIds = data.transcribedMediaIds || [];
+        aiReconstructionTitle = data.reconstructionTitle?.trim() || "";
         aiSummary = data.summary || "";
         aiConcepts =
           data.concepts?.map((concept, index) => ({
@@ -2887,7 +2890,7 @@ export default function LectureVaultApp() {
       id: lectureId,
       courseId: captureForm.courseId,
       folderId: assignedFolderId,
-      title,
+      title: aiReconstructionTitle || title,
       date: captureForm.date,
       summary:
         aiSummary ||
@@ -2927,7 +2930,7 @@ export default function LectureVaultApp() {
       emphasis: "",
       questions: ""
     }));
-    setStatus(`Built and saved ${title} as a lecture reconstruction.`);
+    setStatus(`Built and saved ${aiReconstructionTitle || title} as a lecture reconstruction.`);
     completePipeline("Lecture reconstruction saved to the vault.");
     setIsLectureGenerating(false);
     setScreen("lecture");

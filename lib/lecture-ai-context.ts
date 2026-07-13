@@ -11,9 +11,11 @@ export const LECTURE_AI_INSTRUCTIONS = [
 export const LECTURE_AI_OUTPUT_CONTRACT = [
   "Return strict JSON with this shape:",
   "{",
+  '  "reconstructionTitle": "concise, specific Vault title describing the primary lecture topic",',
   '  "summary": "exam-focused lecture reconstruction summary with important formulas in LaTeX",',
   '  "transcriptText": "cleaned lecture reconstruction/study notes in Markdown; include learning objectives, formulas with variable/unit definitions where available, a worked-problem section for source-supported examples (givens, method, steps, check), common mistakes or instructor warnings, Source Media Used, and Textbook Context Used; cite textbook pages when useful; refer to images as Fig. 1, Fig. 2 when useful; explicitly flag uncertainty instead of guessing and state when a source type was not provided",',
   '  "concepts": [{"title": "short concept title", "detail": "exam-useful explanation", "sourceMediaId": "optional media id"}]',
   "}",
+  "reconstructionTitle must be 3-10 words, searchable, and specific to the material actually covered. Prefer a method, concept, or worked-problem topic. Do not use generic titles such as 'Untitled reconstruction', 'Lecture notes', or 'Class meeting'.",
   "Do not invent facts not supported by the source media, transcript, notes, or textbook excerpts."
 ].join("\n");
