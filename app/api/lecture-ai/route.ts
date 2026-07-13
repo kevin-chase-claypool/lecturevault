@@ -17,6 +17,7 @@ const DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-transcribe";
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
 const MAX_IMAGE_INPUTS = 30;
 const MAX_AUDIO_INPUTS = 3;
+const MAX_DOCUMENT_INPUTS = 5;
 const MAX_TEXTBOOK_CONTEXT = 10;
 
 type LectureMediaItem = {
@@ -288,6 +289,18 @@ export async function POST(request: Request) {
           }))
       )
     ).filter(({ dataUrl }) => dataUrl.startsWith("data:image/"));
+    const documentInputs = (
+      await Promise.all(
+        mediaItems
+          .filter(
+            (item) =>
+              item.kind === "document" &&
+              (cleanString(item.mimeType).includes("pdf") || cleanString(item.name).toLowerCase().endsWith(".pdf"))
+          )
+          .slice(0, MAX_DOCUMENT_INPUTS)
+          .map(async (item) => ({ dataUrl: await mediaDataUrl(item), item }))
+      )
+    ).filter(({ dataUrl }) => dataUrl.startsWith("data:application/pdf"));
     const mediaManifest = mediaItems
       .map(
         (item, index) =>
@@ -396,6 +409,9 @@ export async function POST(request: Request) {
           audioTranscripts.length
             ? `Audio transcription text:\n${audioTranscripts.join("\n\n---\n\n")}`
             : "No audio transcription text was available. Use the notes and visible images.",
+          documentInputs.length
+            ? `${documentInputs.length} source PDF${documentInputs.length === 1 ? "" : "s"} is attached as visual study material. Inspect handwriting, formulas, diagrams, and page layout directly.`
+            : "No source PDF was attached.",
           LECTURE_AI_OUTPUT_CONTRACT
         ]
           .filter(Boolean)
@@ -405,6 +421,12 @@ export async function POST(request: Request) {
         type: "input_image" as const,
         image_url: dataUrl,
         detail: "auto" as const
+      })),
+      ...documentInputs.map(({ dataUrl, item }) => ({
+        type: "input_file" as const,
+        detail: "high" as const,
+        file_data: dataUrl,
+        filename: cleanString(item.name) || "onenote-page.pdf"
       }))
     ];
     const response = await client.responses.create({

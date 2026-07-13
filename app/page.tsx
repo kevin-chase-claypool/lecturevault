@@ -77,6 +77,25 @@ type CaptureSource = {
   caption: string;
 };
 
+type EmailIntakeAttachment = {
+  id: string;
+  mimeType: string;
+  name: string;
+  size: number;
+  storageBucket: string;
+  storagePath: string;
+};
+
+type EmailIntake = {
+  id: string;
+  course_id: string;
+  reconstruction_title: string;
+  class_date?: string | null;
+  status: "awaiting_email" | "ready" | "error";
+  attachments: EmailIntakeAttachment[];
+  emailAddress: string;
+};
+
 type OneNoteSource = {
   id: string;
   pageId: string;
@@ -1328,6 +1347,8 @@ export default function LectureVaultApp() {
     questions: ""
   });
   const [captureFiles, setCaptureFiles] = useState<CaptureSource[]>([]);
+  const [emailIntake, setEmailIntake] = useState<EmailIntake | null>(null);
+  const [isEmailIntakeLoading, setIsEmailIntakeLoading] = useState(false);
   const [oneNoteSources, setOneNoteSources] = useState<OneNoteSource[]>([]);
   const [oneNoteStatus, setOneNoteStatus] = useState<{
     configured?: boolean;
@@ -1438,6 +1459,30 @@ export default function LectureVaultApp() {
       active = false;
     };
   }, [authStatus]);
+
+  useEffect(() => {
+    if (!emailIntake || emailIntake.status !== "awaiting_email") return;
+
+    let active = true;
+    const refresh = async () => {
+      try {
+        const response = await fetch(`/api/email-intake?id=${encodeURIComponent(emailIntake.id)}`, {
+          credentials: "include"
+        });
+        const data = (await response.json()) as { intake?: EmailIntake };
+        if (active && response.ok && data.intake) setEmailIntake(data.intake);
+      } catch {
+        // Keep the intake visible; the next refresh can recover from a transient network error.
+      }
+    };
+
+    const interval = window.setInterval(() => void refresh(), 6000);
+    void refresh();
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [emailIntake?.id, emailIntake?.status]);
 
   useEffect(() => {
     if (authStatus !== "ready") {
@@ -2376,6 +2421,52 @@ export default function LectureVaultApp() {
     await persistCapture();
   }
 
+  async function prepareEmailIntake() {
+    setIsEmailIntakeLoading(true);
+    try {
+      const response = await fetch("/api/email-intake", {
+        body: JSON.stringify({
+          courseId: captureForm.courseId,
+          date: captureForm.date,
+          title: captureForm.title
+        }),
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        method: "POST"
+      });
+      const data = (await response.json()) as { error?: string; intake?: EmailIntake };
+      if (!response.ok || !data.intake) throw new Error(data.error || "Could not prepare OneNote email intake.");
+      setEmailIntake(data.intake);
+      setStatus("OneNote email intake is ready. Send the page export to the generated address.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not prepare OneNote email intake.");
+    } finally {
+      setIsEmailIntakeLoading(false);
+    }
+  }
+
+  async function copyEmailIntakeAddress() {
+    if (!emailIntake?.emailAddress) return;
+    try {
+      await navigator.clipboard.writeText(emailIntake.emailAddress);
+      setStatus("OneNote intake address copied.");
+    } catch {
+      setStatus("Copy failed. Select and copy the intake address manually.");
+    }
+  }
+
+  async function clearEmailIntake() {
+    if (!emailIntake) return;
+    try {
+      await fetch(`/api/email-intake?id=${encodeURIComponent(emailIntake.id)}`, {
+        credentials: "include",
+        method: "DELETE"
+      });
+    } finally {
+      setEmailIntake(null);
+    }
+  }
+
   async function persistCapture() {
     const title = captureForm.title.trim() || "Untitled reconstruction";
     const lectureId = uid("lecture");
@@ -2444,6 +2535,23 @@ export default function LectureVaultApp() {
           sourceRole: source.role.trim(),
           sourceCaption: source.caption.trim(),
           ...storage,
+          createdAt
+        });
+      }
+
+      for (const attachment of emailIntake?.attachments || []) {
+        const kind: MediaItem["kind"] = attachment.mimeType.startsWith("image/") ? "image" : "document";
+        mediaItems.push({
+          id: uid("media"),
+          lectureId,
+          kind,
+          name: attachment.name,
+          mimeType: attachment.mimeType,
+          size: attachment.size,
+          sourceRole: "OneNote page export",
+          sourceCaption: "Visual OneNote page received through the LectureVault intake address.",
+          storageBucket: attachment.storageBucket,
+          storagePath: attachment.storagePath,
           createdAt
         });
       }
@@ -2640,6 +2748,13 @@ export default function LectureVaultApp() {
     }));
     setSelectedLectureId(lectureId);
     setCaptureFiles([]);
+    if (emailIntake) {
+      void fetch(`/api/email-intake?id=${encodeURIComponent(emailIntake.id)}`, {
+        credentials: "include",
+        method: "DELETE"
+      });
+      setEmailIntake(null);
+    }
     setOneNoteSources([]);
     setCaptureForm((current) => ({
       ...current,
@@ -3668,15 +3783,14 @@ export default function LectureVaultApp() {
     }
   }
 
+  const emailIntakeAttachments = emailIntake?.status === "ready" ? emailIntake.attachments : [];
   const reconstructionAudioCount = captureFiles.filter(
     (source) => fileKind(source.file) === "audio" || fileKind(source.file) === "video"
   ).length;
-  const reconstructionImageCount = captureFiles.filter(
-    (source) => fileKind(source.file) === "image"
-  ).length;
-  const reconstructionDocumentCount = captureFiles.filter(
-    (source) => fileKind(source.file) === "document"
-  ).length;
+  const reconstructionImageCount = captureFiles.filter((source) => fileKind(source.file) === "image").length +
+    emailIntakeAttachments.filter((attachment) => attachment.mimeType.startsWith("image/")).length;
+  const reconstructionDocumentCount = captureFiles.filter((source) => fileKind(source.file) === "document").length +
+    emailIntakeAttachments.filter((attachment) => !attachment.mimeType.startsWith("image/")).length;
   const oneNoteContext = oneNoteSources
     .map((source, index) => [
       `OneNote page ${index + 1}: ${source.title}`,
@@ -3721,7 +3835,7 @@ export default function LectureVaultApp() {
     captureForm.transcript.trim() || oneNoteContext
       ? `Pasted notes / selected OneNote pages:\n${[captureForm.transcript.trim(), oneNoteContext].filter(Boolean).join("\n\n")}`
       : "Pasted notes / selected OneNote pages: none",
-    captureFiles.length
+    captureFiles.length || emailIntakeAttachments.length
       ? [
           "Source media manifest:",
           ...captureFiles.map((source, index) =>
@@ -3732,6 +3846,9 @@ export default function LectureVaultApp() {
             ]
               .filter(Boolean)
               .join(" | ")
+          ),
+          ...emailIntakeAttachments.map((attachment, index) =>
+            `${captureFiles.length + index + 1}. ${attachment.name} | role: OneNote page export | delivered through email intake`
           )
         ].join("\n")
       : "Source media manifest: none",
@@ -3740,7 +3857,7 @@ export default function LectureVaultApp() {
       : "Textbook context: no indexed course textbooks."
   ].join("\n\n");
   const reconstructionHasSource = Boolean(
-    captureFiles.length || reconstructionNotesReady || oneNoteSources.length
+    captureFiles.length || emailIntakeAttachments.length || reconstructionNotesReady || oneNoteSources.length
   );
 
   if (authStatus === "checking") {
@@ -4451,6 +4568,60 @@ export default function LectureVaultApp() {
                   for this class day; at least one meaningful source is needed.
                 </small>
               </label>
+
+              <section className="email-intake-panel" aria-label="OneNote email intake">
+                <div className="section-heading compact-heading">
+                  <div>
+                    <span className="pill">OneNote PDF / image</span>
+                    <h3>Send a visual page export</h3>
+                  </div>
+                  {!emailIntake ? (
+                    <button
+                      type="button"
+                      onClick={() => void prepareEmailIntake()}
+                      disabled={isEmailIntakeLoading || !captureForm.courseId}
+                    >
+                      {isEmailIntakeLoading ? "Preparing..." : "Create intake address"}
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => void clearEmailIntake()}>
+                      Cancel intake
+                    </button>
+                  )}
+                </div>
+                {!emailIntake ? (
+                  <p>
+                    Use OneNote&apos;s Send action to send a page PDF or image directly into this reconstruction. LectureVault archives the visual source when it arrives.
+                  </p>
+                ) : (
+                  <>
+                    <p>
+                      Send the OneNote page export to this address. The page is attached here automatically when delivery completes.
+                    </p>
+                    <div className="email-intake-address">
+                      <code>{emailIntake.emailAddress}</code>
+                      <button type="button" onClick={() => void copyEmailIntakeAddress()}>Copy address</button>
+                    </div>
+                    <p className={emailIntake.status === "error" ? "email-intake-status error" : "email-intake-status"} role="status">
+                      {emailIntake.status === "ready"
+                        ? `${emailIntake.attachments.length} visual OneNote source${emailIntake.attachments.length === 1 ? "" : "s"} attached.`
+                        : emailIntake.status === "error"
+                          ? "The email could not be processed. Send a PDF or image attachment to a new intake address."
+                          : "Waiting for OneNote email delivery..."}
+                    </p>
+                    {emailIntake.attachments.length ? (
+                      <div className="email-intake-files">
+                        {emailIntake.attachments.map((attachment) => (
+                          <span key={attachment.id}>
+                            <strong>{attachment.name}</strong>
+                            <small>{formatFileSize(attachment.size)} - {attachment.mimeType}</small>
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </section>
 
             {captureFiles.length ? (
               <div className="capture-media-panel">

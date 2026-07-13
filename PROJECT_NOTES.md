@@ -30,6 +30,15 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - OneNote Email Intake
+
+- Added a per-reconstruction OneNote email-intake address. A OneNote page sent as a PDF or image is received through a Resend webhook, archived directly to Supabase Storage, and attached to the active reconstruction as a permanent source.
+- Inbound PDFs are supplied to reconstruction AI as high-detail source files, preserving handwritten mathematics and page layout; inbound images remain visual image inputs.
+- Added `supabase/email_intake.sql`. Run it in the LectureVault Supabase SQL Editor before using email intake.
+- Required Vercel configuration: `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, and `RESEND_INBOUND_DOMAIN`. Configure Resend `email.received` to post to `/api/email-intake/resend`.
+- After a successful reconstruction, LectureVault deletes the temporary intake record while retaining the permanent Supabase media source for later reviews.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Reconstruction Workflow Sections
 
 - Organized New Reconstruction into explicit `1 Details`, `2 Sources`, `3 Context`, and `4 Build` sections that match the workflow navigator at the top of the page.
