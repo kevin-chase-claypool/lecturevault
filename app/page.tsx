@@ -3571,6 +3571,7 @@ export default function LectureVaultApp() {
             <p className="eyebrow">{selectedCourse?.term || "LectureVault Workspace"}</p>
             <h2>{screenTitle(screen)}</h2>
           </div>
+          {screen === "dashboard" ? <WorkflowDiagram /> : null}
           <div className="topbar-actions">
             <button
               className={basketCount ? "cart-button active" : "cart-button"}
@@ -4821,6 +4822,29 @@ function Dashboard({
         </section>
       </div>
     </section>
+  );
+}
+
+function WorkflowDiagram() {
+  const steps = [
+    ["1", "Capture", "Audio, notes, images"],
+    ["2", "Reconstruct", "AI builds the class record"],
+    ["3", "Archive", "Keep sources connected"],
+    ["4", "Review", "Prepare for the exam"]
+  ];
+
+  return (
+    <ol className="workflow-diagram" aria-label="LectureVault workflow">
+      {steps.map(([number, title, detail]) => (
+        <li key={number}>
+          <span className="workflow-diagram-number">{number}</span>
+          <span className="workflow-diagram-copy">
+            <strong>{title}</strong>
+            <small>{detail}</small>
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
 

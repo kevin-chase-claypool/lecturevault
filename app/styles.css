@@ -488,6 +488,76 @@ label {
   min-width: 0;
 }
 
+.workflow-diagram {
+  flex: 1 1 430px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  max-width: 470px;
+  min-width: 300px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workflow-diagram li {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.workflow-diagram li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 15px;
+  right: -2px;
+  width: 8px;
+  height: 1px;
+  background: #b4c5d1;
+}
+
+.workflow-diagram-number {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #a8cfd8;
+  border-radius: 50%;
+  background: #edf9f7;
+  color: var(--primary-dark);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.workflow-diagram-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.workflow-diagram strong,
+.workflow-diagram small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.workflow-diagram strong {
+  color: var(--text);
+  font-size: 0.76rem;
+  line-height: 1.1;
+}
+
+.workflow-diagram small {
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
 .topbar-actions .primary {
   box-shadow:
     0 9px 20px rgba(11, 102, 118, 0.18),
@@ -2591,6 +2661,11 @@ label {
     border-radius: var(--radius-lg);
   }
 
+  .workflow-diagram {
+    width: 100%;
+    max-width: none;
+  }
+
   .topbar-actions {
     grid-auto-flow: row;
     grid-template-columns: repeat(4, minmax(0, auto));
@@ -2838,6 +2913,41 @@ label {
 
   .topbar h2 {
     font-size: 1.55rem;
+  }
+
+  .workflow-diagram {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding: 8px 0;
+    border-top: 1px solid #dce6ee;
+    border-bottom: 1px solid #dce6ee;
+  }
+
+  .workflow-diagram li {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 4px;
+    padding: 0 3px;
+    text-align: center;
+  }
+
+  .workflow-diagram li:not(:last-child)::after {
+    top: 14px;
+    right: -3px;
+    width: 6px;
+  }
+
+  .workflow-diagram-copy {
+    justify-items: center;
+  }
+
+  .workflow-diagram small {
+    display: none;
+  }
+
+  .workflow-diagram strong {
+    font-size: 0.68rem;
   }
 
   .section-heading {
