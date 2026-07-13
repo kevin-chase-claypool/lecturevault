@@ -1484,6 +1484,16 @@ export default function LectureVaultApp() {
   const suppressDraftSaveRef = useRef(false);
 
   useEffect(() => {
+    if (!status) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setStatus((current) => (current === status ? "" : current));
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [status]);
+
+  useEffect(() => {
     const currentRecordId = state.reconstructionDrafts[0]?.id || "";
     if (activeDraftId !== currentRecordId) setActiveDraftId(currentRecordId);
   }, [activeDraftId, state.reconstructionDrafts]);
@@ -4348,7 +4358,7 @@ export default function LectureVaultApp() {
         </header>
 
         {status && !isPassiveCloudStatus ? (
-          <p className="status" role="status">
+          <p className="status status-toast" role="status">
             {status}
           </p>
         ) : null}

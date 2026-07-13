@@ -4507,3 +4507,41 @@ button.review-draft-button:disabled {
     gap: 0;
   }
 }
+
+.status.status-toast {
+  position: fixed;
+  z-index: 70;
+  bottom: 20px;
+  left: calc(50% + 134px);
+  width: min(680px, calc(100vw - 320px));
+  min-height: 0;
+  margin: 0;
+  border: 1px solid rgba(149, 192, 201, 0.92);
+  border-left: 3px solid var(--primary);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 30px rgba(15, 31, 45, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  color: #285260;
+  transform: translateX(-50%);
+  animation: status-toast-enter 160ms ease-out;
+}
+
+@keyframes status-toast-enter {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@media (max-width: 1120px) {
+  .status.status-toast {
+    bottom: 16px;
+    left: 50%;
+    width: min(680px, calc(100vw - 32px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status.status-toast {
+    animation: none;
+  }
+}

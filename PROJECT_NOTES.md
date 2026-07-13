@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Transient Status Toast
+
+- Replaced the workspace-level status strip with a fixed foreground toast at the bottom of the viewport, allowing page content to scroll behind it.
+- Status messages now dismiss automatically after three seconds; new messages restart the timer, and long-running progress remains represented by the pipeline surface.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Vault Metadata Tooltips
 
 - Added desktop hover and keyboard-focus tooltips to the selected reconstruction's media and concept bubbles.
