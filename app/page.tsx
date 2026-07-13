@@ -1456,6 +1456,7 @@ export default function LectureVaultApp() {
   const stateJsonRef = useRef(JSON.stringify(state));
   const skipNextCloudSaveRef = useRef(false);
   const draftUploadsRef = useRef(new Set<string>());
+  const loadedDraftVersionRef = useRef("");
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -1775,15 +1776,28 @@ export default function LectureVaultApp() {
   const activeDraft = state.reconstructionDrafts.find((draft) => draft.id === activeDraftId);
 
   useEffect(() => {
+    if (!activeDraft) return;
+    const version = `${activeDraft.id}:${activeDraft.updatedAt}`;
+    if (loadedDraftVersionRef.current === version) return;
+    loadedDraftVersionRef.current = version;
+    setCaptureForm({ courseId: activeDraft.courseId, title: activeDraft.title, date: activeDraft.date, transcript: activeDraft.transcript, objective: activeDraft.objective, emphasis: activeDraft.emphasis, questions: activeDraft.questions });
+    setCaptureFiles(activeDraft.sources.map((source) => ({ file: new File([], source.name, { type: source.mimeType }), role: source.role, caption: source.caption, size: source.size, storageBucket: source.storageBucket, storagePath: source.storagePath })));
+  }, [activeDraft]);
+
+  useEffect(() => {
     if (!activeDraftId) return;
     const sources = captureFiles.map((source) => ({
       id: fileKey(source.file), name: source.file.name, mimeType: source.file.type || "application/octet-stream",
       size: source.size ?? source.file.size, role: source.role, caption: source.caption,
       storageBucket: source.storageBucket, storagePath: source.storagePath
     }));
-    setState((current) => ({ ...current, reconstructionDrafts: current.reconstructionDrafts.map((draft) =>
-      draft.id === activeDraftId ? { ...draft, ...captureForm, sources, updatedAt: new Date().toISOString() } : draft
-    ) }));
+    setState((current) => {
+      const existing = current.reconstructionDrafts.find((draft) => draft.id === activeDraftId);
+      if (existing && JSON.stringify({ ...existing, updatedAt: "" }) === JSON.stringify({ ...existing, ...captureForm, sources, updatedAt: "" })) return current;
+      return { ...current, reconstructionDrafts: current.reconstructionDrafts.map((draft) =>
+        draft.id === activeDraftId ? { ...draft, ...captureForm, sources, updatedAt: new Date().toISOString() } : draft
+      ) };
+    });
   }, [activeDraftId, captureFiles, captureForm]);
 
   useEffect(() => {
