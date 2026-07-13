@@ -1459,6 +1459,15 @@ export default function LectureVaultApp() {
   const loadedDraftVersionRef = useRef("");
 
   useEffect(() => {
+    const savedDraftId = window.localStorage.getItem("lecturevault-active-draft");
+    if (savedDraftId) setActiveDraftId(savedDraftId);
+  }, []);
+
+  useEffect(() => {
+    if (activeDraftId) window.localStorage.setItem("lecturevault-active-draft", activeDraftId);
+  }, [activeDraftId]);
+
+  useEffect(() => {
     if ("serviceWorker" in navigator) {
       void navigator.serviceWorker.register("/sw.js").catch(() => {
         // The app remains usable in the browser when PWA registration is unavailable.
@@ -3580,14 +3589,18 @@ export default function LectureVaultApp() {
       emphasis: draft.emphasis,
       questions: draft.questions
     });
-    setCaptureFiles(draft.sources.map((source) => ({
+    const draftFiles = draft.sources.map((source) => ({
       file: new File([], source.name, { type: source.mimeType }),
       role: source.role,
       caption: source.caption,
       size: source.size,
       storageBucket: source.storageBucket,
       storagePath: source.storagePath
-    })));
+    }));
+    setCaptureFiles((current) => {
+      const existingPaths = new Set(draftFiles.map((source) => source.storagePath).filter(Boolean));
+      return [...draftFiles, ...current.filter((source) => !source.storagePath || !existingPaths.has(source.storagePath))];
+    });
     setScreen("capture");
   }
 
