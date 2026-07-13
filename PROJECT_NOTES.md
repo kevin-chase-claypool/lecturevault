@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Course-First Reconstruction Start
+
+- Reordered New Reconstruction so the user selects a course and starts its class record directly in Step 1 before sources, context, and build controls appear.
+- Locked the selected course after starting the record and show its name in a compact active-record status, preventing shared sources from being assigned to the wrong class.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Consolidated Archive Sync Status
 
 - Removed the passive `Archive synced from Supabase` workspace strip, avoiding a duplicate of the persistent connection information.

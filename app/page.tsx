@@ -3670,6 +3670,10 @@ export default function LectureVaultApp() {
       setScreen("courses");
       return;
     }
+    if (!captureForm.courseId) {
+      setStatus("Choose the course for this class record first.");
+      return;
+    }
     const currentRecord = state.reconstructionDrafts[0];
     if (currentRecord) {
       openClassDayDraft(currentRecord.id);
@@ -4741,49 +4745,51 @@ export default function LectureVaultApp() {
               One source is enough. Add audio when you have it, board images when
               they matter, and a shared OneNote PDF when handwriting or diagrams clarify what happened.
             </p>
-            <details className="capture-disclosure capture-draft-disclosure" open>
-              <summary>
-                <span><strong>Current class record</strong><small>{activeDraft ? `${courseLabel(activeDraft.courseId)} · ${activeDraft.date} · shared across devices` : "Start one temporary record for this class meeting."}</small></span>
-                <span className="disclosure-state">{activeDraft ? "Active" : "Start"}</span>
-              </summary>
-              <div className="capture-disclosure-body">
-                {activeDraft ? (
-                  <p>Audio, OneNote PDFs, images, and details sync here from either device. Building saves the reconstruction, then clears this temporary record for the next class.</p>
-                ) : (
-                  <>
-                    <p>Use one temporary record for the class that just ended. It is the shared bucket for audio, handwritten OneNote PDFs, images, and optional notes.</p>
-                    <button className="primary" type="button" onClick={startClassDayRecord}>Start class record</button>
-                  </>
-                )}
-              </div>
-            </details>
             <section className="capture-stage" aria-labelledby="reconstruction-details-heading">
               <div className="capture-stage-heading">
                 <span>1</span>
                 <div>
                   <h2 id="reconstruction-details-heading">Details</h2>
-                  <p>Set the class, date, and a useful topic name for this record.</p>
+                  <p>Choose the course first, then start its shared class record.</p>
                 </div>
               </div>
               <div className="form-grid">
-                <label>
-                  Course
-                  <select
-                    value={captureForm.courseId}
-                    onChange={(event) =>
-                      setCaptureForm((current) => ({
-                        ...current,
-                        courseId: event.target.value
-                      }))
-                    }
-                  >
-                    {state.courses.map((course) => (
-                      <option key={course.id} value={course.id}>
-                        {course.code} {course.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="capture-course-start">
+                  <label>
+                    Course
+                    <select
+                      value={captureForm.courseId}
+                      disabled={Boolean(activeDraft)}
+                      onChange={(event) =>
+                        setCaptureForm((current) => ({
+                          ...current,
+                          courseId: event.target.value
+                        }))
+                      }
+                    >
+                      {state.courses.map((course) => (
+                        <option key={course.id} value={course.id}>
+                          {course.code} {course.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {activeDraft ? (
+                    <div className="capture-record-status">
+                      <strong>Class record active</strong>
+                      <span>{courseLabel(activeDraft.courseId)} · shared across devices</span>
+                    </div>
+                  ) : (
+                    <button
+                      className="primary"
+                      type="button"
+                      onClick={startClassDayRecord}
+                      disabled={!captureForm.courseId}
+                    >
+                      Start class record
+                    </button>
+                  )}
+                </div>
                 <label>
                   Reconstruction topic
                   <input
@@ -4813,6 +4819,8 @@ export default function LectureVaultApp() {
               </div>
             </section>
 
+            {activeDraft ? (
+              <>
             <section className="capture-stage" aria-labelledby="reconstruction-sources-heading">
               <div className="capture-stage-heading">
                 <span>2</span>
@@ -5079,6 +5087,13 @@ export default function LectureVaultApp() {
                 </div>
               </div>
             </section>
+              </>
+            ) : (
+              <div className="capture-next-step" role="status">
+                <strong>Start the class record to add sources.</strong>
+                <span>Your audio, handwritten OneNote PDF, and images will then sync into this selected course from either device.</span>
+              </div>
+            )}
           </form>
         ) : null}
 

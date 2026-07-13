@@ -2018,6 +2018,41 @@ button.review-draft-button:disabled {
   padding-top: 18px;
 }
 
+.capture-course-start {
+  display: grid;
+  gap: 8px;
+}
+
+.capture-course-start > button {
+  width: 100%;
+}
+
+.capture-record-status,
+.capture-next-step {
+  display: grid;
+  gap: 3px;
+  border: 1px solid #b9ded9;
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #eef9f7;
+  color: #1b5960;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.capture-record-status strong,
+.capture-next-step strong {
+  color: #075b63;
+  font-weight: 850;
+}
+
+.capture-next-step {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  border-style: dashed;
+  background: #f8fcfc;
+}
+
 .capture-stage-heading {
   display: flex;
   align-items: center;
