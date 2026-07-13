@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Quiet Surface and Capacity UI Polish
+
+- Simplified the visual system with quieter page backgrounds, solid content surfaces, lighter card elevation, and slightly denser panel spacing so information reads before decoration.
+- Restyled the Media Library capacity meter as a distinct teal information panel with a higher-contrast capacity bar, separating storage health from folder-management controls without adding clutter.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Media Storage Capacity Meter
 
 - Added a compact Media Library meter showing the live size of files in LectureVault's Supabase media bucket, used percentage, and remaining included capacity against the current Pro plan's 100 GB file-storage allowance.

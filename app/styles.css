@@ -38,10 +38,7 @@ body {
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top left, rgba(11, 102, 118, 0.105), transparent 360px),
-    radial-gradient(circle at top right, rgba(162, 84, 23, 0.045), transparent 380px),
-    linear-gradient(90deg, rgba(12, 22, 33, 0.04), transparent 300px),
-    linear-gradient(180deg, #fbfdff 0, var(--bg) 320px),
+    linear-gradient(180deg, #f9fbfd 0, var(--bg) 300px),
     var(--bg);
   color: var(--text);
   font-family:
@@ -809,10 +806,9 @@ label {
 .lecture-card {
   border: 1px solid rgba(188, 201, 214, 0.95);
   border-radius: var(--radius-lg);
-  background:
-    linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  background: #ffffff;
   box-shadow:
-    var(--shadow-card),
+    0 8px 22px rgba(17, 24, 39, 0.055),
     inset 0 1px 0 rgba(255, 255, 255, 0.76);
   transition:
     border-color 140ms ease,
@@ -823,7 +819,7 @@ label {
 .lecture-card:hover {
   border-color: var(--border-strong);
   box-shadow:
-    0 16px 38px rgba(17, 24, 39, 0.095),
+    0 12px 28px rgba(17, 24, 39, 0.085),
     inset 0 1px 0 rgba(255, 255, 255, 0.78);
 }
 
@@ -968,7 +964,7 @@ label {
 
 .panel {
   min-width: 0;
-  padding: 18px;
+  padding: 16px;
 }
 
 .panel h3,
@@ -987,7 +983,7 @@ label {
   gap: 12px;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 13px;
+  margin-bottom: 12px;
 }
 
 .section-heading h3 {
@@ -1673,7 +1669,7 @@ button.review-draft-button:disabled {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 8px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7fbfd 100%);
+  background: #f6f9fb;
 }
 
 .storage-folder-branch,
@@ -1743,8 +1739,7 @@ button.review-draft-button:disabled {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px;
-  background:
-    linear-gradient(180deg, #ffffff 0%, var(--panel) 100%);
+  background: #ffffff;
   box-shadow:
     var(--shadow-hairline),
     0 8px 18px rgba(17, 24, 39, 0.04);
@@ -2517,10 +2512,12 @@ button.review-draft-button:disabled {
   display: grid;
   gap: 6px;
   margin: 12px 0 2px;
-  border: 1px solid #c6dce3;
+  border: 1px solid #87c5ba;
+  border-left: 4px solid #0b6676;
   border-radius: var(--radius-sm);
   padding: 9px 10px;
-  background: #f7fbfc;
+  background: #e8f6f3;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.58);
 }
 
 .media-storage-usage > div:first-child {
@@ -2532,7 +2529,7 @@ button.review-draft-button:disabled {
 
 .media-storage-usage span,
 .media-storage-usage small {
-  color: var(--muted);
+  color: #315c62;
   font-size: 0.73rem;
   font-weight: 750;
 }
@@ -2546,14 +2543,14 @@ button.review-draft-button:disabled {
   height: 6px;
   overflow: hidden;
   border-radius: 999px;
-  background: #dce9ee;
+  background: #c7e1dc;
 }
 
 .media-storage-meter > span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--primary);
+  background: #087264;
 }
 
 .capture-media-item {
