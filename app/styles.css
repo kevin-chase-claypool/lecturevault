@@ -1084,7 +1084,7 @@ label {
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 10px;
   align-items: end;
 }
