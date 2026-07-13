@@ -47,6 +47,9 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Made the Vault list stack cleanly on phone widths while removing its desktop max-height restriction on small screens.
 - Added clear `In Review Draft` states to Vault list rows and the details pane so sources already selected for the active review cannot be added twice.
 - Renamed Vault pane headings to `Reconstructions` and `Details` and added an accessible label to the selected-course control.
+- Removed the dead non-AI reconstruction branch, unreachable standalone study-guide screen, unused guide-selection state, unused helper, and unused shadow token.
+- Refined Vault action hierarchy: list rows now keep only `Open` and `Add to Review`, deletion stays in Details, and the current review-draft status is visible at list and item level.
+- Added keyboard selection support for Vault rows and clearer review-draft wording in the topbar.
 - Verified with `npm run typecheck` and `npm run build`.
 - Disabled `Build Reconstruction` and `Save Source Bundle` until at least one source exists, matching the source-bundle workflow.
 - Added concise helper text explaining that one source is enough and clarifying what token-spending actions do.

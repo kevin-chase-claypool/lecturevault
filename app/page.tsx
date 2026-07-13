@@ -23,8 +23,7 @@ type Screen =
   | "storage"
   | "builder"
   | "exams"
-  | "exam"
-  | "guide";
+  | "exam";
 
 type Course = {
   id: string;
@@ -702,17 +701,6 @@ function mediaFolderDescendantIds(folders: MediaLibraryFolder[], folderId: strin
   return ids;
 }
 
-function examItemExists(
-  examItems: ExamWorkspaceItem[],
-  examWorkspaceId: string,
-  lectureId: string
-) {
-  return examItems.some(
-    (item) =>
-      item.examWorkspaceId === examWorkspaceId && item.lectureId === lectureId
-  );
-}
-
 function defaultLectureFolderId(folders: ArchiveFolder[], courseId: string) {
   return folders.find(
     (folder) =>
@@ -1268,7 +1256,6 @@ export default function LectureVaultApp() {
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedLectureId, setSelectedLectureId] = useState("");
   const [selectedExamId, setSelectedExamId] = useState("");
-  const [selectedGuideId, setSelectedGuideId] = useState("");
   const [selectedArchiveFolderId, setSelectedArchiveFolderId] = useState("all");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("Local archive ready.");
@@ -1537,9 +1524,6 @@ export default function LectureVaultApp() {
     (lecture) => lecture.id === selectedLectureId
   );
   const selectedExam = state.exams.find((exam) => exam.id === selectedExamId);
-  const selectedGuide = state.studyGuides.find(
-    (guide) => guide.id === selectedGuideId
-  );
   const archiveLectures = useMemo(() => {
     const term = query.trim().toLowerCase();
 
@@ -2086,7 +2070,6 @@ export default function LectureVaultApp() {
     setSelectedArchiveFolderId("all");
     setSelectedLectureId(nextLecture?.id || "");
     setSelectedExamId(nextExam?.id || "");
-    setSelectedGuideId("");
     setBuilderCourseId(nextCourseId);
     setBuilderFolderId("all");
     setBuilderSelectedLectureIds((current) =>
@@ -2266,11 +2249,11 @@ export default function LectureVaultApp() {
     setStatus(folderId ? "Moved lecture into archive folder." : "Moved lecture.");
   }
 
-  async function saveCaptureWithAi() {
-    await persistCapture(true);
+  async function buildReconstruction() {
+    await persistCapture();
   }
 
-  async function persistCapture(useAi: boolean) {
+  async function persistCapture() {
     const title = captureForm.title.trim() || "Untitled reconstruction";
     const lectureId = uid("lecture");
     const createdAt = new Date().toISOString();
@@ -2278,9 +2261,8 @@ export default function LectureVaultApp() {
     const mediaItems: MediaItem[] = [];
 
     try {
-      if (useAi) {
-        setIsLectureGenerating(true);
-        startPipeline("Lecture Reconstruction build", [
+      setIsLectureGenerating(true);
+      startPipeline("Lecture Reconstruction build", [
           {
             id: "upload",
             label: "Uploading media",
@@ -2306,9 +2288,8 @@ export default function LectureVaultApp() {
             label: "Saving to vault",
             detail: "Archiving reconstruction, concepts, source references, and usage"
           }
-        ]);
-        setStatus("Building lecture reconstruction from available source material...");
-      }
+      ]);
+      setStatus("Building lecture reconstruction from available source material...");
 
       for (const file of captureFiles) {
         const mediaId = uid("media");
@@ -2316,9 +2297,7 @@ export default function LectureVaultApp() {
         let dataUrl: string | undefined;
 
         try {
-          if (useAi) {
-            activatePipelineStep("upload", `Uploading ${file.name}`);
-          }
+          activatePipelineStep("upload", `Uploading ${file.name}`);
           storage = await uploadMediaFile({ file, lectureId, mediaId });
         } catch (error) {
           dataUrl = await fileToMediaDataUrl(file);
@@ -2343,20 +2322,16 @@ export default function LectureVaultApp() {
         });
       }
 
-      if (useAi) {
-        updatePipelineStep(
-          "upload",
-          "done",
-          `${mediaItems.length} source file${mediaItems.length === 1 ? "" : "s"} ready`
-        );
-      }
+      updatePipelineStep(
+        "upload",
+        "done",
+        `${mediaItems.length} source file${mediaItems.length === 1 ? "" : "s"} ready`
+      );
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Could not read reconstruction source files.";
       setStatus(message);
-      if (useAi) {
-        failPipeline("upload", message);
-      }
+      failPipeline("upload", message);
       setIsLectureGenerating(false);
       return;
     }
@@ -2373,8 +2348,7 @@ export default function LectureVaultApp() {
     let aiConcepts: ExtractedConcept[] | null = null;
     let aiSummary = "";
 
-    if (useAi) {
-      try {
+    try {
         activatePipelineStep(
           "transcribe",
           mediaItems.some((item) => item.kind === "audio")
@@ -2470,7 +2444,7 @@ export default function LectureVaultApp() {
             sourceSegmentId: `ai-concept-${index + 1}`,
             title: concept.title || `Concept ${index + 1}`
           })) || [];
-      } catch (error) {
+    } catch (error) {
         const message =
           error instanceof Error
             ? error.message
@@ -2479,7 +2453,6 @@ export default function LectureVaultApp() {
         failPipeline("generate", message);
         setIsLectureGenerating(false);
         return;
-      }
     }
 
     const transcript: Transcript = {
@@ -2541,14 +2514,8 @@ export default function LectureVaultApp() {
       transcript: "",
       summary: ""
     }));
-    setStatus(
-      useAi
-        ? `Built and saved ${title} as a lecture reconstruction.`
-        : `Saved ${title} to the permanent archive.`
-    );
-    if (useAi) {
-      completePipeline("Lecture reconstruction saved to the vault.");
-    }
+    setStatus(`Built and saved ${title} as a lecture reconstruction.`);
+    completePipeline("Lecture reconstruction saved to the vault.");
     setIsLectureGenerating(false);
     setScreen("lecture");
   }
@@ -2894,7 +2861,6 @@ export default function LectureVaultApp() {
           )
         ]
       }));
-      setSelectedGuideId(guide.id);
       setStatus(
         data.generatedBy === "local-fallback"
           ? "Review generated locally because OPENAI_API_KEY is not configured."
@@ -3546,7 +3512,7 @@ export default function LectureVaultApp() {
                   key={id}
                   className={
                     id === "builder" &&
-                    ["builder", "exams", "exam", "guide"].includes(screen)
+                    ["builder", "exams", "exam"].includes(screen)
                       ? "active"
                       : screen === id
                         ? "active"
@@ -3597,7 +3563,7 @@ export default function LectureVaultApp() {
               onClick={() => setScreen("builder")}
               aria-label={`Review set draft with ${basketCount} selected source${basketCount === 1 ? "" : "s"}`}
             >
-              <span className="cart-icon" aria-hidden="true">Review</span>
+              <span className="cart-icon" aria-hidden="true">Review Draft</span>
               <strong>{basketCount}</strong>
             </button>
             <button className="primary" type="button" onClick={() => setScreen("capture")}>
@@ -3768,7 +3734,7 @@ export default function LectureVaultApp() {
 
         {screen === "archive" ? (
           <section className="archive-layout">
-            <div className="toolbar">
+            <div className="toolbar archive-toolbar">
               <label>
                 Search lecture/media archive
                 <input
@@ -3857,6 +3823,11 @@ export default function LectureVaultApp() {
                     </span>
                     <h3>Reconstructions</h3>
                   </div>
+                  <span className={basketCount ? "draft-status active" : "draft-status"}>
+                    {basketCount
+                      ? `${basketCount} in review draft`
+                      : "No review sources selected"}
+                  </span>
                 </div>
                 <div className="lecture-list" aria-label="Lectures in this folder">
                   {archiveLectures.map((lecture) => (
@@ -3882,7 +3853,6 @@ export default function LectureVaultApp() {
                         setScreen("lecture");
                       }}
                       onAdd={() => addLectureToBasket(lecture.id)}
-                      onDelete={() => deleteLectureFromArchive(lecture.id)}
                     />
                   ))}
                   {!archiveLectures.length ? (
@@ -3922,7 +3892,7 @@ export default function LectureVaultApp() {
                         className={
                           builderSelectedLectureIds.includes(selectedArchiveLecture.id)
                             ? "review-draft-button"
-                            : ""
+                            : "primary"
                         }
                         type="button"
                         onClick={() => addLectureToBasket(selectedArchiveLecture.id)}
@@ -4213,7 +4183,7 @@ export default function LectureVaultApp() {
                 <button
                   className="primary"
                   type="button"
-                  onClick={() => void saveCaptureWithAi()}
+                  onClick={() => void buildReconstruction()}
                   disabled={isLectureGenerating || !reconstructionHasSource}
                 >
                   {isLectureGenerating ? "Working..." : "Build Reconstruction"}
@@ -4243,7 +4213,7 @@ export default function LectureVaultApp() {
               <div className="section-heading">
                 <div>
                   <span className="pill">Archive</span>
-                  <h3>Shop by Course</h3>
+                  <h3>Browse Archive</h3>
                 </div>
               </div>
               <label>
@@ -4568,18 +4538,6 @@ export default function LectureVaultApp() {
           />
         ) : null}
 
-        {screen === "guide" && selectedGuide ? (
-          <StudyGuidePreview
-            guide={selectedGuide}
-            lectures={state.lectures.filter((lecture) =>
-              selectedGuide.sourceLectureIds.includes(lecture.id)
-            )}
-            onOpenLecture={(lectureId) => {
-              setSelectedLectureId(lectureId);
-              setScreen("lecture");
-            }}
-          />
-        ) : null}
       </section>
     </main>
   );
@@ -4595,8 +4553,7 @@ function screenTitle(screen: Screen) {
     storage: "Media Library",
     builder: "Reviews",
     exams: "Review sets",
-    exam: "Review set",
-    guide: "Study guide preview"
+    exam: "Review set"
   };
   return titles[screen];
 }
@@ -5477,8 +5434,7 @@ function LectureListRow({
   selected = false,
   onSelect,
   onOpen,
-  onAdd,
-  onDelete
+  onAdd
 }: {
   lecture: Lecture;
   courseLabel: (id: string) => string;
@@ -5489,13 +5445,20 @@ function LectureListRow({
   onSelect?: () => void;
   onOpen: () => void;
   onAdd: () => void;
-  onDelete: () => void;
 }) {
   return (
     <article
       className={selected ? "lecture-list-row selected" : "lecture-list-row"}
       draggable
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect?.();
+        }
+      }}
       onDragStart={(event) =>
         event.dataTransfer.setData("text/lecture-id", lecture.id)
       }
@@ -5525,9 +5488,6 @@ function LectureListRow({
           disabled={inReviewDraft}
         >
           {inReviewDraft ? "In Review Draft" : "Add to Review"}
-        </button>
-        <button className="danger" type="button" onClick={onDelete}>
-          Delete
         </button>
       </div>
     </article>
@@ -6145,57 +6105,6 @@ function ExamDetail({
             Sources added to the review set will appear here.
           </p>
         ) : null}
-      </aside>
-    </section>
-  );
-}
-
-function StudyGuidePreview({
-  guide,
-  lectures,
-  onOpenLecture
-}: {
-  guide: StudyGuide;
-  lectures: Lecture[];
-  onOpenLecture: (lectureId: string) => void;
-}) {
-  return (
-    <section className="detail-grid">
-      <article className="panel detail-main">
-        <div className="section-heading">
-          <div>
-            <span className="pill">Generated {new Date(guide.createdAt).toLocaleString()}</span>
-            <h3>{guide.title}</h3>
-          </div>
-        </div>
-        {guide.usage ? (
-          <div className="token-usage">
-            AI token usage: {formatTokenUsage(guide.usage)}
-          </div>
-        ) : null}
-        {guide.instructions ? (
-          <section className="usage-panel" aria-label="Submitted AI context">
-            <div>
-              <h4>Submitted AI Context</h4>
-              <p>{guide.instructions}</p>
-            </div>
-          </section>
-        ) : null}
-        <ReviewMarkdownPreview text={guide.content} />
-      </article>
-      <aside className="panel side-panel">
-        <h3>Source Links</h3>
-        {lectures.map((lecture) => (
-          <button
-            className="row-button"
-            key={lecture.id}
-            type="button"
-            onClick={() => onOpenLecture(lecture.id)}
-          >
-            <strong>{lecture.title}</strong>
-            <span>Open transcript and media</span>
-          </button>
-        ))}
       </aside>
     </section>
   );
