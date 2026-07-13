@@ -30,6 +30,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Media Library Explorer
+
+- Reworked Media Library into the same folder tree, compact explorer list, and selected-file details model used by Vault.
+- Added filename/type search plus Name, Date, and Size sort headers with ascending/descending toggles; filenames can be found by typing their first letter or any matching text.
+- Retained multi-select checkboxes, drag-to-folder organization, delete-selected behavior, storage usage, original file paths, and Open/Download actions in the selected-file pane.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Transient Status Toast
 
 - Replaced the workspace-level status strip with a fixed foreground toast at the bottom of the viewport, allowing page content to scroll behind it.

@@ -73,6 +73,7 @@ type MediaItem = {
 
 type ArchiveSortKey = "name" | "date" | "size";
 type SortDirection = "asc" | "desc";
+type MediaSortKey = "name" | "date" | "size";
 
 type CaptureSource = {
   file: File;
@@ -6060,6 +6061,10 @@ function StorageManager({
   onSetNewFolderName: (value: string) => void;
   onToggle: (path: string) => void;
 }) {
+  const [fileQuery, setFileQuery] = useState("");
+  const [sortKey, setSortKey] = useState<MediaSortKey>("date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [activeFilePath, setActiveFilePath] = useState("");
   const totalBytes = files.reduce((sum, file) => sum + (file.size || 0), 0);
   const storageUsagePercent = Math.min(100, (totalBytes / PRO_MEDIA_STORAGE_QUOTA_BYTES) * 100);
   const storageRemainingBytes = Math.max(0, PRO_MEDIA_STORAGE_QUOTA_BYTES - totalBytes);
@@ -6087,7 +6092,21 @@ function StorageManager({
 
     return placement ? selectedFolderIds.has(placement) : false;
   });
-  const visibleBytes = visibleFiles.reduce((sum, file) => sum + (file.size || 0), 0);
+  const listedFiles = visibleFiles
+    .filter((file) => {
+      const term = fileQuery.trim().toLowerCase();
+      return !term || `${file.name} ${file.mimeType || ""}`.toLowerCase().includes(term);
+    })
+    .sort((first, second) => {
+      const comparison =
+        sortKey === "size"
+          ? (first.size || 0) - (second.size || 0)
+          : sortKey === "date"
+            ? (first.updatedAt || first.createdAt || "").localeCompare(second.updatedAt || second.createdAt || "")
+            : first.name.localeCompare(second.name, undefined, { sensitivity: "base" });
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  const visibleBytes = listedFiles.reduce((sum, file) => sum + (file.size || 0), 0);
   const selectedFolder =
     selectedFolderId === "all"
       ? "All files"
@@ -6097,6 +6116,17 @@ function StorageManager({
   const selectedFolderCanEdit =
     selectedFolderId !== "all" && selectedFolderId !== "unfiled";
   const lectureById = new Map(lectures.map((lecture) => [lecture.id, lecture]));
+  const activeFile = listedFiles.find((file) => file.path === activeFilePath) || listedFiles[0];
+
+  function changeSort(key: MediaSortKey) {
+    if (sortKey === key) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortKey(key);
+    setSortDirection(key === "name" ? "asc" : "desc");
+  }
 
   function pathsFromDrop(event: DragEvent<HTMLElement>) {
     const raw = event.dataTransfer.getData("application/json");
@@ -6179,6 +6209,17 @@ function StorageManager({
   const rootFolders = folders
     .filter((folder) => !folder.parentId)
     .sort((a, b) => a.name.localeCompare(b.name));
+  const activeFileUsageItems = activeFile
+    ? mediaItems.filter((item) => item.storagePath === activeFile.path)
+    : [];
+  const activeFileUsageNames = Array.from(
+    new Set(
+      activeFileUsageItems
+        .map((item) => lectureById.get(item.lectureId)?.title)
+        .filter((title): title is string => Boolean(title))
+    )
+  );
+  const activeFileUrl = activeFile ? storageObjectUrl(activeFile.path, bucket) : "";
 
   return (
     <section className="storage-layout">
@@ -6276,11 +6317,11 @@ function StorageManager({
         </div>
       </aside>
 
-      <article className="panel detail-main">
+      <article className="panel detail-main storage-explorer-panel">
         <div className="section-heading">
           <div>
             <span className="pill">
-              {visibleFiles.length} file{visibleFiles.length === 1 ? "" : "s"}
+              {listedFiles.length} file{listedFiles.length === 1 ? "" : "s"}
             </span>
             <h3>{selectedFolder}</h3>
           </div>
@@ -6288,12 +6329,15 @@ function StorageManager({
             {formatFileSize(visibleBytes)} visible / {formatFileSize(totalBytes)} stored
           </span>
         </div>
-        <p>
-          Drag files into folders to keep the media library readable. This only
-          changes LectureVault organization metadata; it does not change the
-          Supabase object path used by saved lectures and generated reviews.
-        </p>
-        <div className="button-row">
+        <div className="storage-explorer-toolbar">
+          <label>
+            Search files
+            <input
+              value={fileQuery}
+              onChange={(event) => setFileQuery(event.target.value)}
+              placeholder="Name, first letter, or file type..."
+            />
+          </label>
           <button type="button" onClick={onRefresh} disabled={isLoading}>
             {isLoading ? "Refreshing..." : "Refresh"}
           </button>
@@ -6307,68 +6351,93 @@ function StorageManager({
           </button>
         </div>
 
-        <div className="storage-list">
-          {visibleFiles.map((file) => {
-            const selected = selectedPaths.includes(file.path);
-            const url = storageObjectUrl(file.path, bucket);
-            const usageItems = mediaItems.filter(
-              (item) => item.storagePath === file.path
-            );
-            const usageLectureNames = Array.from(
-              new Set(
-                usageItems
-                  .map((item) => lectureById.get(item.lectureId)?.title)
-                  .filter((title): title is string => Boolean(title))
-              )
-            );
-            const usageLabel = usageLectureNames.length
-              ? `Used by: ${usageLectureNames.join(", ")}`
-              : usageItems.length
-                ? `Used by ${usageItems.length} lecture item${usageItems.length === 1 ? "" : "s"}`
-                : "No lecture reference";
+        <div className="storage-list storage-explorer-list" aria-label="Files in selected media folder">
+          <div className="storage-explorer-header">
+            {([
+              ["name", "Name"],
+              ["date", "Date"],
+              ["size", "Size"]
+            ] as Array<[MediaSortKey, string]>).map(([key, label]) => {
+              const isActive = sortKey === key;
+              const direction = sortDirection === "asc" ? "ascending" : "descending";
+              return (
+                <button
+                  key={key}
+                  className={isActive ? "sort-header active" : "sort-header"}
+                  type="button"
+                  aria-label={`Sort by ${label}${isActive ? `, currently ${direction}` : ""}`}
+                  onClick={() => changeSort(key)}
+                >
+                  {label}
+                  <span aria-hidden="true">{isActive ? (sortDirection === "asc" ? "Asc" : "Desc") : "Sort"}</span>
+                </button>
+              );
+            })}
+          </div>
+          {listedFiles.map((file) => {
+            const active = activeFile?.path === file.path;
 
             return (
               <div
-                className={selected ? "storage-row selected" : "storage-row"}
+                className={active ? "storage-row explorer-row selected" : "storage-row explorer-row"}
                 draggable
                 key={file.path}
+                onClick={() => setActiveFilePath(file.path)}
                 onDragStart={(event) => dragFiles(event, file.path)}
               >
                 <label className="storage-check">
                   <input
                     type="checkbox"
-                    checked={selected}
+                    checked={selectedPaths.includes(file.path)}
                     onChange={() => onToggle(file.path)}
                   />
-                  <span>{file.name}</span>
+                  <span title={file.name}>{file.name}</span>
                 </label>
-                <div className="storage-meta">
-                  <span>{file.mimeType || "unknown type"}</span>
-                  <span>{typeof file.size === "number" ? formatFileSize(file.size) : "unknown size"}</span>
-                  <span>{file.updatedAt ? new Date(file.updatedAt).toLocaleString() : "No date"}</span>
-                  <span>{usageLabel}</span>
-                </div>
-                <div className="button-row storage-actions">
-                  <a href={url} target="_blank" rel="noreferrer">
-                    Open
-                  </a>
-                  <a href={url} download={file.name}>
-                    Download
-                  </a>
-                </div>
-                <small>{file.path}</small>
+                <time dateTime={file.updatedAt || file.createdAt}>{file.updatedAt || file.createdAt ? new Date(file.updatedAt || file.createdAt || "").toLocaleDateString() : "No date"}</time>
+                <span>{typeof file.size === "number" ? formatFileSize(file.size) : "Unknown"}</span>
               </div>
             );
           })}
-          {!visibleFiles.length ? (
-            <p className="empty panel">
+          {!listedFiles.length ? (
+            <p className="empty storage-explorer-empty">
               {isLoading
                 ? "Loading Supabase media files..."
-                : "No files in this folder yet. Drag files here or upload lecture media."}
+                : fileQuery.trim()
+                  ? "No files match this search."
+                  : "No files in this folder yet. Drag files here or upload lecture media."}
             </p>
           ) : null}
         </div>
       </article>
+
+      <aside className="panel side-panel storage-file-details">
+        <h3>Details</h3>
+        {activeFile ? (
+          <>
+            <span className="selected-lecture-kicker">Selected file</span>
+            <strong className="selected-lecture-title" title={activeFile.name}>{activeFile.name}</strong>
+            <span>{activeFile.mimeType || "Unknown file type"}</span>
+            <small>{activeFile.updatedAt || activeFile.createdAt ? new Date(activeFile.updatedAt || activeFile.createdAt || "").toLocaleString() : "No date available"}</small>
+            <div className="selected-lecture-meta">
+              <span>{typeof activeFile.size === "number" ? formatFileSize(activeFile.size) : "Unknown size"}</span>
+              <span>{activeFileUsageNames.length ? `Used by ${activeFileUsageNames.length} reconstruction${activeFileUsageNames.length === 1 ? "" : "s"}` : "No reconstruction reference"}</span>
+            </div>
+            {activeFileUsageNames.length ? (
+              <div className="storage-reference-list">
+                <strong>Referenced by</strong>
+                {activeFileUsageNames.map((name) => <span key={name}>{name}</span>)}
+              </div>
+            ) : null}
+            <small className="storage-object-path">{activeFile.path}</small>
+            <div className="button-row stacked">
+              <a className="button-like" href={activeFileUrl} target="_blank" rel="noreferrer">Open file</a>
+              <a className="button-like" href={activeFileUrl} download={activeFile.name}>Download</a>
+            </div>
+          </>
+        ) : (
+          <p className="empty">Select a media file to inspect it.</p>
+        )}
+      </aside>
     </section>
   );
 }
