@@ -4365,9 +4365,13 @@ export default function LectureVaultApp() {
           <CompactUsageSummary state={state} className="mobile-usage-summary" />
         </nav>
         <div className="sidebar-note">
-          <strong>{state.lectures.length}</strong> archived items
-          <span>{state.exams.length} review sets</span>
-          <span>{cloudSyncLabel}</span>
+          <div className="sidebar-library-summary">
+            <span>Archived items</span>
+            <strong>{state.lectures.length}</strong>
+            <span>Review sets</span>
+            <strong>{state.exams.length}</strong>
+          </div>
+          <span className="sidebar-sync-status">{cloudSyncLabel}</span>
           <CompactUsageSummary state={state} className="sidebar-usage-summary" />
         </div>
       </aside>

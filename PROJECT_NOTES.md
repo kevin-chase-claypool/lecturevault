@@ -973,6 +973,7 @@ For archive organization changes, manually verify:
 - Added explicit Review Draft progression guidance so disabled creation and generation actions explain the next required step.
 - Moved global token-usage totals and reconstruction/textbook/review breakdowns from the dashboard into the desktop sidebar and mobile navigation drawer.
 - Reduced sidebar and mobile usage labels to total-token counts, with full input/output breakdowns retained in native hover tooltips.
+- Aligned desktop sidebar library counts into the same compact label/value row pattern as AI usage.
 
 - Add direct browser-to-Supabase signed uploads if deployment body limits block large MP3 uploads.
 - Replace single-row Supabase JSON state with relational tables and conflict-aware sync if multi-user editing becomes important.

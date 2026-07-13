@@ -502,6 +502,31 @@ label {
   line-height: 1;
 }
 
+.sidebar-library-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px 10px;
+  align-items: center;
+}
+
+.sidebar-library-summary span {
+  color: #dce5ec;
+  font-size: 0.77rem;
+  font-weight: 750;
+}
+
+.sidebar-library-summary strong {
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.sidebar-sync-status {
+  color: #aebfcb;
+  font-size: 0.7rem;
+  line-height: 1.25;
+}
+
 .sidebar-usage-summary,
 .mobile-usage-summary {
   display: grid;
