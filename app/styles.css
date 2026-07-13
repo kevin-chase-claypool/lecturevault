@@ -801,7 +801,7 @@ label {
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
 .metric,
@@ -833,28 +833,20 @@ label {
 }
 
 .metric::after {
-  content: "";
-  position: absolute;
-  right: -18px;
-  bottom: -26px;
-  width: 86px;
-  height: 86px;
-  border: 1px solid rgba(11, 102, 118, 0.12);
-  border-radius: 50%;
-  box-shadow: 0 0 0 12px rgba(11, 102, 118, 0.035);
-  pointer-events: none;
+  display: none;
 }
 
 .metric {
-  display: grid;
-  gap: 5px;
-  min-height: 92px;
-  padding: 17px 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 58px;
+  padding: 10px 13px;
 }
 
 .metric strong {
   color: var(--primary-dark);
-  font-size: 2.08rem;
+  font-size: 1.55rem;
   line-height: 1;
 }
 
@@ -869,27 +861,28 @@ label {
 }
 
 .metric span {
-  font-size: 0.86rem;
+  font-size: 0.8rem;
   font-weight: 760;
 }
 
 .usage-dashboard {
   display: grid;
-  gap: 12px;
+  gap: 9px;
+  padding: 13px;
 }
 
 .usage-dashboard-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .usage-summary-card {
   display: grid;
-  gap: 6px;
+  gap: 3px;
   border: 1px solid #c8dbe2;
   border-radius: var(--radius);
-  padding: 13px;
+  padding: 9px 10px;
   background:
     linear-gradient(180deg, #ffffff 0%, #f6fbfc 100%);
   box-shadow: var(--shadow-hairline);
@@ -897,13 +890,13 @@ label {
 
 .usage-summary-card strong {
   color: var(--primary-dark);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   overflow-wrap: anywhere;
 }
 
 .usage-summary-card span {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 800;
   line-height: 1.35;
 }
@@ -917,7 +910,7 @@ label {
 }
 
 .action-panel {
-  min-height: 176px;
+  min-height: 136px;
   align-content: space-between;
   overflow: hidden;
   position: relative;
@@ -956,7 +949,7 @@ label {
 .action-panel p {
   max-width: 58ch;
   color: var(--muted);
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .capture-action {
@@ -3751,5 +3744,53 @@ button.review-draft-button:disabled {
 
   .capture-source-caption {
     grid-column: 2 / -1;
+  }
+}
+
+/* Dashboard figures are reference data, not feature panels. Keep them dense at every compact width. */
+@media (max-width: 1120px) {
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric {
+    min-height: 58px;
+    padding: 10px 13px;
+  }
+
+  .metric strong {
+    font-size: 1.55rem;
+  }
+
+  .usage-dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .metric {
+    min-height: 52px;
+    padding: 9px 10px;
+  }
+
+  .metric strong {
+    font-size: 1.35rem;
+  }
+
+  .metric span {
+    font-size: 0.74rem;
+  }
+
+  .usage-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .action-panel {
+    min-height: 0;
   }
 }
