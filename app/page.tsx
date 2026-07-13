@@ -1816,6 +1816,14 @@ export default function LectureVaultApp() {
   );
   const selectedExam = state.exams.find((exam) => exam.id === selectedExamId);
   const activeDraft = state.reconstructionDrafts.find((draft) => draft.id === activeDraftId);
+  const cloudSyncLabel = cloudSyncEnabled
+    ? cloudUpdatedAt
+      ? `Supabase synced ${new Date(cloudUpdatedAt).toLocaleTimeString()}`
+      : "Supabase sync ready"
+    : cloudStateLoaded
+      ? "Browser-only storage"
+      : "Checking sync";
+  const isPassiveCloudStatus = status === "Archive synced from Supabase.";
 
   useEffect(() => {
     if (!activeDraft) return;
@@ -4215,19 +4223,15 @@ export default function LectureVaultApp() {
               ))}
             </div>
           ))}
+          <div className="mobile-sync-status" aria-live="polite">
+            <span>Archive storage</span>
+            <strong>{cloudSyncLabel}</strong>
+          </div>
         </nav>
         <div className="sidebar-note">
           <strong>{state.lectures.length}</strong> archived items
           <span>{state.exams.length} review sets</span>
-          <span>
-            {cloudSyncEnabled
-              ? cloudUpdatedAt
-                ? `Supabase synced ${new Date(cloudUpdatedAt).toLocaleTimeString()}`
-                : "Supabase sync ready"
-              : cloudStateLoaded
-                ? "Browser-only storage"
-                : "Checking sync"}
-          </span>
+          <span>{cloudSyncLabel}</span>
         </div>
       </aside>
 
@@ -4262,9 +4266,11 @@ export default function LectureVaultApp() {
           </div>
         </header>
 
-        <p className="status" role="status">
-          {status}
-        </p>
+        {status && !isPassiveCloudStatus ? (
+          <p className="status" role="status">
+            {status}
+          </p>
+        ) : null}
         <PipelineStatus title={pipelineTitle} steps={pipelineSteps} />
 
         {screen === "dashboard" ? (

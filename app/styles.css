@@ -395,6 +395,31 @@ label {
   text-transform: uppercase;
 }
 
+.mobile-sync-status {
+  display: none;
+  gap: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  padding: 9px 11px;
+  background: rgba(255, 255, 255, 0.055);
+  color: #b8c8d6;
+  font-size: 0.73rem;
+  line-height: 1.2;
+}
+
+.mobile-sync-status span {
+  color: #8295a7;
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mobile-sync-status strong {
+  color: #edf7f6;
+  font-size: 0.76rem;
+}
+
 .nav button {
   position: relative;
   display: flex;
@@ -3415,6 +3440,11 @@ button.review-draft-button:disabled {
     padding: 10px 0 0;
   }
 
+  .mobile-sync-status {
+    display: grid;
+    grid-column: 1 / -1;
+  }
+
   .sidebar-note {
     display: none;
   }
@@ -3533,6 +3563,11 @@ button.review-draft-button:disabled {
 @media (max-width: 760px) {
   .topbar-actions .install-button {
     display: inline-flex;
+  }
+
+  .mobile-sync-status {
+    display: grid;
+    grid-column: 1 / -1;
   }
 
   body {

@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Consolidated Archive Sync Status
+
+- Removed the passive `Archive synced from Supabase` workspace strip, avoiding a duplicate of the persistent connection information.
+- Added the archive-storage connection state to the dark expandable navigation menu on tablet and phone; the desktop sidebar continues to show the same state.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Desktop Top Bar Cleanup
 
 - Removed the PWA `Install app` action from the desktop top bar, where the Windows workspace does not need it.
