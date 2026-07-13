@@ -3660,29 +3660,24 @@ export default function LectureVaultApp() {
 
             <section className="panel list-panel">
               <h3>Course List</h3>
-              {state.courses.map((course) => (
-                <div
-                  className="row-card"
-                  key={course.id}
-                >
+              {state.courses.map((course) => {
+                const reconstructionCount = state.lectures.filter(
+                  (lecture) => lecture.courseId === course.id
+                ).length;
+                const textbookCount = state.textbooks.filter(
+                  (textbook) => textbook.courseId === course.id
+                ).length;
+
+                return (
+                <div className="row-card" key={course.id}>
                   <div>
                     <strong>{course.code}</strong>
                     <span>{course.name}</span>
-                    <small>
-                      {course.term} -{" "}
-                      {
-                        state.lectures.filter(
-                          (lecture) => lecture.courseId === course.id
-                        ).length
-                      }{" "}
-                      items -{" "}
-                      {
-                        state.textbooks.filter(
-                          (textbook) => textbook.courseId === course.id
-                        ).length
-                      }{" "}
-                      textbooks
-                    </small>
+                    <small>{course.term}</small>
+                    <div className="course-stats" aria-label={`${course.code} totals`}>
+                      <span>{reconstructionCount} reconstructions</span>
+                      <span>{textbookCount} textbooks</span>
+                    </div>
                   </div>
                   <div className="button-row">
                     <label className="button-like course-textbook-upload">
@@ -3720,7 +3715,7 @@ export default function LectureVaultApp() {
                       Delete course
                     </button>
                   </div>
-                  {state.textbooks.some((textbook) => textbook.courseId === course.id) ? (
+                  {textbookCount ? (
                     <div className="course-textbook-list">
                       {state.textbooks
                         .filter((textbook) => textbook.courseId === course.id)
@@ -3748,7 +3743,8 @@ export default function LectureVaultApp() {
                     </div>
                   ) : null}
                 </div>
-              ))}
+                );
+              })}
               {!state.courses.length ? (
                 <p className="empty">No courses yet. Add a course to start archiving lectures.</p>
               ) : null}

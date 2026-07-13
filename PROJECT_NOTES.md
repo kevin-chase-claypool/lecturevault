@@ -36,6 +36,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Grouped reconstruction completion controls into a dedicated action area with clear guidance for building now versus saving the source bundle for later.
 - Strengthened the shared shell hierarchy with a primary `New Reconstruction` action, quieter logout treatment, more generous desktop spacing, and clearer navigation rhythm.
 - Added subtle metric-card depth and tightened capture-media panel shadows without changing workflow behavior.
+- Made each course summary show explicit reconstruction and textbook totals as compact status chips.
 - Verified with `npm run typecheck` and `npm run build`.
 - Disabled `Build Reconstruction` and `Save Source Bundle` until at least one source exists, matching the source-bundle workflow.
 - Added concise helper text explaining that one source is enough and clarifying what token-spending actions do.
