@@ -1473,12 +1473,13 @@ export default function LectureVaultApp() {
   const suppressDraftSaveRef = useRef(false);
 
   useEffect(() => {
-    const savedDraftId = window.localStorage.getItem("lecturevault-active-draft");
-    if (savedDraftId) setActiveDraftId(savedDraftId);
-  }, []);
+    const currentRecordId = state.reconstructionDrafts[0]?.id || "";
+    if (activeDraftId !== currentRecordId) setActiveDraftId(currentRecordId);
+  }, [activeDraftId, state.reconstructionDrafts]);
 
   useEffect(() => {
     if (activeDraftId) window.localStorage.setItem("lecturevault-active-draft", activeDraftId);
+    else window.localStorage.removeItem("lecturevault-active-draft");
   }, [activeDraftId]);
 
   useEffect(() => {
@@ -1810,9 +1811,23 @@ export default function LectureVaultApp() {
     if (loadedDraftVersionRef.current === version) return;
     loadedDraftVersionRef.current = version;
     // Hydrating a draft from cloud state must never immediately save an empty local source list back over it.
-    suppressDraftSaveRef.current = true;
+    const draftFiles = activeDraft.sources.map((source) => ({
+      file: new File([], source.name, { type: source.mimeType }),
+      role: source.role,
+      caption: source.caption,
+      size: source.size,
+      storageBucket: source.storageBucket,
+      storagePath: source.storagePath
+    }));
+    const hasPendingSource = captureFiles.some(
+      (source) => source.storagePath && !activeDraft.sources.some((saved) => saved.storagePath === source.storagePath)
+    );
+    suppressDraftSaveRef.current = !hasPendingSource;
     setCaptureForm({ courseId: activeDraft.courseId, title: activeDraft.title, date: activeDraft.date, transcript: activeDraft.transcript, objective: activeDraft.objective, emphasis: activeDraft.emphasis, questions: activeDraft.questions });
-    setCaptureFiles(activeDraft.sources.map((source) => ({ file: new File([], source.name, { type: source.mimeType }), role: source.role, caption: source.caption, size: source.size, storageBucket: source.storageBucket, storagePath: source.storagePath })));
+    setCaptureFiles((current) => {
+      const existingPaths = new Set(draftFiles.map((source) => source.storagePath).filter(Boolean));
+      return [...draftFiles, ...current.filter((source) => !source.storagePath || !existingPaths.has(source.storagePath))];
+    });
   }, [activeDraft]);
 
   useEffect(() => {
@@ -2896,8 +2911,11 @@ export default function LectureVaultApp() {
       concepts: [
         ...(aiConcepts || extractConcepts(lectureId, transcript)),
         ...current.concepts
-      ]
+      ],
+      reconstructionDrafts: []
     }));
+    setActiveDraftId("");
+    loadedDraftVersionRef.current = "";
     setSelectedLectureId(lectureId);
     setCaptureFiles([]);
     setOneNoteSources([]);
@@ -3595,7 +3613,13 @@ export default function LectureVaultApp() {
     );
   }
 
-  function createClassDayDraft() {
+  function startClassDayRecord() {
+    const currentRecord = state.reconstructionDrafts[0];
+    if (currentRecord) {
+      openClassDayDraft(currentRecord.id);
+      setStatus("Current class record is already open. Add sources from either device, then build it.");
+      return;
+    }
     const now = new Date().toISOString();
     const draft: ClassDayDraft = {
       id: uid("draft"),
@@ -3610,10 +3634,10 @@ export default function LectureVaultApp() {
       createdAt: now,
       updatedAt: now
     };
-    setState((current) => ({ ...current, reconstructionDrafts: [draft, ...current.reconstructionDrafts] }));
+    setState((current) => ({ ...current, reconstructionDrafts: [draft] }));
     setActiveDraftId(draft.id);
     setCaptureFiles([]);
-    setStatus("Shared class-day draft created. Add audio on your phone or OneNote pages on your tablet.");
+    setStatus("Current class record started. Add audio on your phone and OneNote PDFs on your tablet.");
   }
 
   function openClassDayDraft(id: string) {
@@ -4653,20 +4677,18 @@ export default function LectureVaultApp() {
             </p>
             <details className="capture-disclosure capture-draft-disclosure" open>
               <summary>
-                <span><strong>Class-day workspace</strong><small>{activeDraft ? `${courseLabel(activeDraft.courseId)} · ${activeDraft.date} · shared across devices` : "Create or open a workspace before adding sources on multiple devices."}</small></span>
-                <span className="disclosure-state">{activeDraft ? "Active" : "Choose"}</span>
+                <span><strong>Current class record</strong><small>{activeDraft ? `${courseLabel(activeDraft.courseId)} · ${activeDraft.date} · shared across devices` : "Start one temporary record for this class meeting."}</small></span>
+                <span className="disclosure-state">{activeDraft ? "Active" : "Start"}</span>
               </summary>
               <div className="capture-disclosure-body">
-                <div className="capture-disclosure-actions">
-                  <select value={activeDraftId} onChange={(event) => openClassDayDraft(event.target.value)}>
-                    <option value="">Choose a shared draft</option>
-                    {state.reconstructionDrafts.map((draft) => (
-                      <option key={draft.id} value={draft.id}>{courseLabel(draft.courseId)} - {draft.date} - {draft.title || "Untitled"}</option>
-                    ))}
-                  </select>
-                  <button type="button" onClick={createClassDayDraft}>New workspace</button>
-                </div>
-                <p>{activeDraft ? "Sources and details sync through Supabase. Add from either device, then build when ready." : "A workspace keeps this class day together across your phone and tablet."}</p>
+                {activeDraft ? (
+                  <p>Audio, OneNote PDFs, images, and details sync here from either device. Building saves the reconstruction, then clears this temporary record for the next class.</p>
+                ) : (
+                  <>
+                    <p>Use one temporary record for the class that just ended. It is the shared bucket for audio, handwritten OneNote PDFs, images, and optional notes.</p>
+                    <button className="primary" type="button" onClick={startClassDayRecord}>Start class record</button>
+                  </>
+                )}
               </div>
             </details>
             <section className="capture-stage" aria-labelledby="reconstruction-details-heading">

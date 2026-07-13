@@ -30,6 +30,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Single Current Class Record
+
+- Replaced the visible multi-draft selector with one `Current class record`. It is the sole temporary cross-device bucket for the just-finished class meeting.
+- Starting a record creates the shared container; the tablet and phone add their OneNote PDF, images, and lecture audio to it. A successful reconstruction saves the permanent archive artifact and clears the temporary record for the next class.
+- Draft hydration now also preserves a direct-share source that arrives before the cloud record finishes loading, so a newly shared PDF/MP3 is not displaced by the initial state refresh.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Direct Android Audio Sharing
 
 - Extended the installed Android share target to accept audio files as well as OneNote PDFs and images. An MP3 shared from a recorder is uploaded directly to Supabase and attached to the active class-day workspace with the `Lecture audio` role.
