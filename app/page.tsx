@@ -5398,6 +5398,7 @@ export default function LectureVaultApp() {
                 <label>
                   Review set name
                   <input
+                    aria-describedby="review-draft-next-step"
                     value={examForm.name}
                     onChange={(event) =>
                       setExamForm((current) => ({
@@ -5440,6 +5441,13 @@ export default function LectureVaultApp() {
                     </p>
                   ) : null}
                 </div>
+                <p className="review-draft-next-step" id="review-draft-next-step">
+                  {!builderSelectedLectures.length
+                    ? "Select one or more reconstructions to begin."
+                    : !examForm.name.trim()
+                      ? "Name this review set to continue."
+                      : "Create the review set to unlock AI generation and PDF export."}
+                </p>
                 <div className="button-row stacked">
                   <button
                     className="primary"

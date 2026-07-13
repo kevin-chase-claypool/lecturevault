@@ -3686,6 +3686,18 @@ button.review-draft-button:disabled {
   padding-top: 12px;
 }
 
+.review-draft-next-step {
+  margin: 0;
+  border-left: 3px solid #8dbab4;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 8px 10px;
+  background: #f4faf9;
+  color: #285c64;
+  font-size: 0.78rem;
+  font-weight: 760;
+  line-height: 1.35;
+}
+
 .review-action-preview h3 {
   margin: 0;
   font-size: 0.95rem;
