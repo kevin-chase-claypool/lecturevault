@@ -877,6 +877,19 @@ label {
   line-height: 1.15;
 }
 
+.section-note {
+  max-width: 58ch;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 720;
+  line-height: 1.35;
+}
+
+.compact-heading {
+  margin-bottom: 9px;
+}
+
 .form-panel,
 .list-panel,
 .side-panel,
@@ -1662,6 +1675,7 @@ label {
 }
 
 .capture-steps {
+  margin-top: 10px;
   display: grid;
   grid-template-columns: repeat(4, minmax(72px, 1fr));
   gap: 6px;
@@ -1679,6 +1693,38 @@ label {
   font-size: 0.76rem;
   font-weight: 900;
   white-space: nowrap;
+}
+
+.readiness-badge {
+  min-height: 30px;
+  display: inline-grid;
+  place-items: center;
+  justify-self: end;
+  border: 1px solid #d8c5ad;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #fff8f1;
+  color: #8a4b16;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.readiness-badge.ready {
+  border-color: var(--success-border);
+  background: var(--success-bg);
+  color: #07564e;
+}
+
+.workflow-helper {
+  border: 1px solid rgba(181, 222, 216, 0.92);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f5fcfa 100%);
+  color: #184f58;
+  font-size: 0.9rem;
+  font-weight: 760;
+  line-height: 1.4;
 }
 
 .capture-media-panel {
@@ -2693,6 +2739,14 @@ label {
     font-size: 1.55rem;
   }
 
+  .section-heading {
+    flex-direction: column;
+  }
+
+  .section-note {
+    font-size: 0.8rem;
+  }
+
   .eyebrow {
     font-size: 0.68rem;
   }
@@ -2899,6 +2953,15 @@ label {
 
   .capture-steps span {
     white-space: normal;
+  }
+
+  .readiness-badge {
+    justify-self: start;
+    margin-top: 8px;
+  }
+
+  .workflow-helper {
+    font-size: 0.84rem;
   }
 
   .review-action-card span {

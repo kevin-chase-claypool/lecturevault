@@ -3478,6 +3478,9 @@ export default function LectureVaultApp() {
   const reconstructionTextbookCount = state.textbooks.filter(
     (textbook) => textbook.courseId === captureForm.courseId
   ).length;
+  const reconstructionHasSource = Boolean(
+    captureFiles.length || reconstructionNotesReady
+  );
 
   if (authStatus === "checking") {
     return <AuthShell title="Checking access..." />;
@@ -3977,13 +3980,22 @@ export default function LectureVaultApp() {
                   notes.
                 </p>
               </div>
-              <div className="capture-steps" aria-label="Capture workflow">
-                <span>1 Details</span>
-                <span>2 Sources</span>
-                <span>3 Context</span>
-                <span>4 Build</span>
+              <div>
+                <span className={reconstructionHasSource ? "readiness-badge ready" : "readiness-badge"}>
+                  {reconstructionHasSource ? "Ready to build" : "Add a source"}
+                </span>
+                <div className="capture-steps" aria-label="Capture workflow">
+                  <span>1 Details</span>
+                  <span>2 Sources</span>
+                  <span>3 Context</span>
+                  <span>4 Build</span>
+                </div>
               </div>
             </div>
+            <p className="workflow-helper">
+              One source is enough. Add audio when you have it, board images when
+              they matter, and notes or OneNote text when they clarify what happened.
+            </p>
             <div className="source-readiness reconstruction-readiness" aria-label="Reconstruction source readiness">
               <div>
                 <strong>{reconstructionAudioCount}</strong>
@@ -4159,16 +4171,14 @@ export default function LectureVaultApp() {
                 className="primary"
                 type="button"
                 onClick={() => void saveCaptureWithAi()}
-                disabled={
-                  isLectureGenerating ||
-                  (!captureFiles.length &&
-                    !captureForm.transcript.trim() &&
-                    !captureForm.summary.trim())
-                }
+                disabled={isLectureGenerating || !reconstructionHasSource}
               >
                 {isLectureGenerating ? "Working..." : "Build Reconstruction"}
               </button>
-              <button type="submit" disabled={isLectureGenerating}>
+              <button
+                type="submit"
+                disabled={isLectureGenerating || !reconstructionHasSource}
+              >
                 Save Source Bundle
               </button>
               <button
@@ -4704,6 +4714,10 @@ function Dashboard({
           <div>
             <span className="pill">AI Usage</span>
             <h3>Token Usage Summary</h3>
+            <p className="section-note">
+              Usage is recorded when AI builds reconstructions, indexes textbooks,
+              or generates reviews.
+            </p>
           </div>
           <span>
             {usageHasTokens(totalUsage)
@@ -4763,7 +4777,12 @@ function Dashboard({
 
       <div className="content-grid">
         <section className="panel list-panel">
-          <h3>Recent Archive Items</h3>
+          <div className="section-heading compact-heading">
+            <div>
+              <h3>Recent Reconstructions</h3>
+              <p className="section-note">Open a daily class record or source bundle.</p>
+            </div>
+          </div>
           {recentLectures.map((lecture) => (
             <button
               key={lecture.id}
@@ -4781,7 +4800,12 @@ function Dashboard({
           ))}
         </section>
         <section className="panel list-panel">
-          <h3>Review Sets</h3>
+          <div className="section-heading compact-heading">
+            <div>
+              <h3>Review Sets</h3>
+              <p className="section-note">Build exam prep from saved reconstructions.</p>
+            </div>
+          </div>
           {activeExams.map((exam) => (
             <button
               key={exam.id}
@@ -5862,6 +5886,9 @@ function ExamDetail({
             <div>
               <span className="pill">Actions</span>
               <h3>Review Actions</h3>
+              <p className="section-note">
+                Generate spends AI tokens. PDF and GPT package exports reuse saved content.
+              </p>
             </div>
           </div>
           <div className="review-action-grid">

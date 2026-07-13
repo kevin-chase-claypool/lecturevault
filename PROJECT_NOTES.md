@@ -30,6 +30,14 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-12 - Intuitive workflow polish
+
+- Added a visible `Ready to build` / `Add a source` state to the New Reconstruction screen.
+- Disabled `Build Reconstruction` and `Save Source Bundle` until at least one source exists, matching the source-bundle workflow.
+- Added concise helper text explaining that one source is enough and clarifying what token-spending actions do.
+- Renamed dashboard archive heading to `Recent Reconstructions` and added lightweight section notes for dashboard usage and review sets.
+- Verification: run `npm run build`, then run `npm run typecheck` as a standalone command.
+
 ### 2026-07-12 - Shift intake workflow to Lecture Reconstruction
 
 - Reframed the capture workflow from `New Lecture` / transcription into `New Reconstruction` / daily class-meeting reconstruction.
