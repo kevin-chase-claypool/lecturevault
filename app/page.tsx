@@ -446,6 +446,18 @@ function formatTokenUsage(usage?: TokenUsage | null) {
     .join(" / ");
 }
 
+function formatCompactTokenUsage(usage?: TokenUsage | null) {
+  if (!usageHasTokens(usage)) {
+    return "None";
+  }
+
+  const total =
+    usage?.total_tokens ||
+    (usage?.input_tokens || 0) + (usage?.output_tokens || 0);
+
+  return `${total.toLocaleString()} tokens`;
+}
+
 function addTokenUsage(first?: TokenUsage | null, second?: TokenUsage | null): TokenUsage {
   return {
     input_tokens:
@@ -5953,12 +5965,12 @@ function CompactUsageSummary({
     <div className={className} aria-label="AI token usage summary">
       <span className="compact-usage-label">AI usage</span>
       <strong title={usageHasTokens(totalUsage) ? formatTokenUsage(totalUsage) : undefined}>
-        {usageHasTokens(totalUsage) ? formatTokenUsage(totalUsage) : "No usage yet"}
+        {usageHasTokens(totalUsage) ? formatCompactTokenUsage(totalUsage) : "No usage yet"}
       </strong>
       <div className="compact-usage-breakdown">
-        <span>Rebuild <b>{usageHasTokens(reconstructionUsage) ? formatTokenUsage(reconstructionUsage) : "None"}</b></span>
-        <span>Textbooks <b>{usageHasTokens(textbookUsage) ? formatTokenUsage(textbookUsage) : "None"}</b></span>
-        <span>Reviews <b>{usageHasTokens(reviewUsage) ? formatTokenUsage(reviewUsage) : "None"}</b></span>
+        <span title={usageHasTokens(reconstructionUsage) ? formatTokenUsage(reconstructionUsage) : undefined}>Rebuild <b>{formatCompactTokenUsage(reconstructionUsage)}</b></span>
+        <span title={usageHasTokens(textbookUsage) ? formatTokenUsage(textbookUsage) : undefined}>Textbooks <b>{formatCompactTokenUsage(textbookUsage)}</b></span>
+        <span title={usageHasTokens(reviewUsage) ? formatTokenUsage(reviewUsage) : undefined}>Reviews <b>{formatCompactTokenUsage(reviewUsage)}</b></span>
       </div>
     </div>
   );
