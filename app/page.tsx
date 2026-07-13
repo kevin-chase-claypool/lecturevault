@@ -75,9 +75,12 @@ type CaptureSource = {
   file: File;
   role: string;
   caption: string;
+  size?: number;
+  storageBucket?: string;
+  storagePath?: string;
 };
 
-type EmailIntakeAttachment = {
+type SharedPwaSource = {
   id: string;
   mimeType: string;
   name: string;
@@ -86,14 +89,9 @@ type EmailIntakeAttachment = {
   storagePath: string;
 };
 
-type EmailIntake = {
-  id: string;
-  course_id: string;
-  reconstruction_title: string;
-  class_date?: string | null;
-  status: "awaiting_email" | "ready" | "error";
-  attachments: EmailIntakeAttachment[];
-  emailAddress: string;
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
 type OneNoteSource = {
@@ -330,6 +328,45 @@ function defaultSourceRole(file: File) {
 
 function fileKey(file: File) {
   return [file.name, file.size, file.lastModified].join("-");
+}
+
+const PWA_SHARE_DATABASE = "lecturevault-pwa-share";
+const PWA_SHARE_STORE = "pending-sources";
+
+async function takeSharedPwaSources(): Promise<SharedPwaSource[]> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(PWA_SHARE_DATABASE, 1);
+
+    request.onerror = () => reject(request.error || new Error("Could not open shared sources."));
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(PWA_SHARE_STORE)) {
+        request.result.createObjectStore(PWA_SHARE_STORE, { keyPath: "id" });
+      }
+    };
+    request.onsuccess = () => {
+      const database = request.result;
+      const transaction = database.transaction(PWA_SHARE_STORE, "readwrite");
+      const store = transaction.objectStore(PWA_SHARE_STORE);
+      const getAll = store.getAll();
+
+      getAll.onerror = () => {
+        database.close();
+        reject(getAll.error || new Error("Could not read shared sources."));
+      };
+      getAll.onsuccess = () => {
+        const sources = (getAll.result || []) as SharedPwaSource[];
+        store.clear();
+        transaction.oncomplete = () => {
+          database.close();
+          resolve(sources);
+        };
+        transaction.onerror = () => {
+          database.close();
+          reject(transaction.error || new Error("Could not clear imported shared sources."));
+        };
+      };
+    };
+  });
 }
 
 function formatFileSize(bytes: number) {
@@ -1347,8 +1384,7 @@ export default function LectureVaultApp() {
     questions: ""
   });
   const [captureFiles, setCaptureFiles] = useState<CaptureSource[]>([]);
-  const [emailIntake, setEmailIntake] = useState<EmailIntake | null>(null);
-  const [isEmailIntakeLoading, setIsEmailIntakeLoading] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [oneNoteSources, setOneNoteSources] = useState<OneNoteSource[]>([]);
   const [oneNoteStatus, setOneNoteStatus] = useState<{
     configured?: boolean;
@@ -1387,6 +1423,60 @@ export default function LectureVaultApp() {
   const [isStorageLoading, setIsStorageLoading] = useState(false);
   const stateJsonRef = useRef(JSON.stringify(state));
   const skipNextCloudSaveRef = useRef(false);
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      void navigator.serviceWorker.register("/sw.js").catch(() => {
+        // The app remains usable in the browser when PWA registration is unavailable.
+      });
+    }
+
+    const handleInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", handleInstallPrompt);
+
+    const params = new URLSearchParams(window.location.search);
+    const shareError = params.get("share-error");
+    if (shareError) {
+      setScreen("capture");
+      setStatus(`OneNote share failed: ${shareError}`);
+    }
+
+    if (params.get("shared") === "1") {
+      void takeSharedPwaSources()
+        .then((sources) => {
+          if (!sources.length) {
+            setScreen("capture");
+            setStatus("No shared PDF or image was received. Share the OneNote export again.");
+            return;
+          }
+
+          setCaptureFiles((current) => [
+            ...current,
+            ...sources.map((source) => ({
+              file: new File([], source.name, { type: source.mimeType }),
+              role: "OneNote export",
+              caption: "Shared directly from OneNote. Preserve handwriting, formulas, diagrams, and page layout.",
+              size: source.size,
+              storageBucket: source.storageBucket,
+              storagePath: source.storagePath
+            }))
+          ]);
+          setScreen("capture");
+          setStatus(
+            `${sources.length} OneNote PDF/image source${sources.length === 1 ? "" : "s"} added to this reconstruction.`
+          );
+        })
+        .catch((error) => {
+          setScreen("capture");
+          setStatus(error instanceof Error ? error.message : "Could not import the shared OneNote source.");
+        });
+    }
+
+    return () => window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -1459,30 +1549,6 @@ export default function LectureVaultApp() {
       active = false;
     };
   }, [authStatus]);
-
-  useEffect(() => {
-    if (!emailIntake || emailIntake.status !== "awaiting_email") return;
-
-    let active = true;
-    const refresh = async () => {
-      try {
-        const response = await fetch(`/api/email-intake?id=${encodeURIComponent(emailIntake.id)}`, {
-          credentials: "include"
-        });
-        const data = (await response.json()) as { intake?: EmailIntake };
-        if (active && response.ok && data.intake) setEmailIntake(data.intake);
-      } catch {
-        // Keep the intake visible; the next refresh can recover from a transient network error.
-      }
-    };
-
-    const interval = window.setInterval(() => void refresh(), 6000);
-    void refresh();
-    return () => {
-      active = false;
-      window.clearInterval(interval);
-    };
-  }, [emailIntake?.id, emailIntake?.status]);
 
   useEffect(() => {
     if (authStatus !== "ready") {
@@ -2421,50 +2487,20 @@ export default function LectureVaultApp() {
     await persistCapture();
   }
 
-  async function prepareEmailIntake() {
-    setIsEmailIntakeLoading(true);
-    try {
-      const response = await fetch("/api/email-intake", {
-        body: JSON.stringify({
-          courseId: captureForm.courseId,
-          date: captureForm.date,
-          title: captureForm.title
-        }),
-        credentials: "include",
-        headers: { "content-type": "application/json" },
-        method: "POST"
-      });
-      const data = (await response.json()) as { error?: string; intake?: EmailIntake };
-      if (!response.ok || !data.intake) throw new Error(data.error || "Could not prepare OneNote email intake.");
-      setEmailIntake(data.intake);
-      setStatus("OneNote email intake is ready. Send the page export to the generated address.");
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Could not prepare OneNote email intake.");
-    } finally {
-      setIsEmailIntakeLoading(false);
+  async function installLectureVault() {
+    if (!installPrompt) {
+      setStatus("Install LectureVault from Chrome's menu, then sign in once before sharing OneNote PDFs or images.");
+      return;
     }
-  }
 
-  async function copyEmailIntakeAddress() {
-    if (!emailIntake?.emailAddress) return;
-    try {
-      await navigator.clipboard.writeText(emailIntake.emailAddress);
-      setStatus("OneNote intake address copied.");
-    } catch {
-      setStatus("Copy failed. Select and copy the intake address manually.");
-    }
-  }
-
-  async function clearEmailIntake() {
-    if (!emailIntake) return;
-    try {
-      await fetch(`/api/email-intake?id=${encodeURIComponent(emailIntake.id)}`, {
-        credentials: "include",
-        method: "DELETE"
-      });
-    } finally {
-      setEmailIntake(null);
-    }
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    setInstallPrompt(null);
+    setStatus(
+      choice.outcome === "accepted"
+        ? "LectureVault installed. Open it once and sign in before sharing OneNote pages."
+        : "LectureVault installation was dismissed. You can install it later from Chrome's menu."
+    );
   }
 
   async function persistCapture() {
@@ -2511,16 +2547,24 @@ export default function LectureVaultApp() {
         let storage: Pick<MediaItem, "storageBucket" | "storagePath"> = {};
         let dataUrl: string | undefined;
 
-        try {
-          activatePipelineStep("upload", `Uploading ${file.name}`);
-          storage = await uploadMediaFile({ file, lectureId, mediaId });
-        } catch (error) {
-          dataUrl = await fileToMediaDataUrl(file);
+        if (source.storageBucket && source.storagePath) {
+          storage = {
+            storageBucket: source.storageBucket,
+            storagePath: source.storagePath
+          };
+          activatePipelineStep("upload", `Using shared Supabase source ${file.name}`);
+        } else {
+          try {
+            activatePipelineStep("upload", `Uploading ${file.name}`);
+            storage = await uploadMediaFile({ file, lectureId, mediaId });
+          } catch (error) {
+            dataUrl = await fileToMediaDataUrl(file);
 
-          if (!dataUrl) {
-            throw error instanceof Error
-              ? error
-              : new Error(`Could not upload ${file.name}.`);
+            if (!dataUrl) {
+              throw error instanceof Error
+                ? error
+                : new Error(`Could not upload ${file.name}.`);
+            }
           }
         }
 
@@ -2530,28 +2574,11 @@ export default function LectureVaultApp() {
           kind: fileKind(file),
           name: file.name,
           mimeType: file.type || "application/octet-stream",
-          size: file.size,
+          size: source.size ?? file.size,
           dataUrl,
           sourceRole: source.role.trim(),
           sourceCaption: source.caption.trim(),
           ...storage,
-          createdAt
-        });
-      }
-
-      for (const attachment of emailIntake?.attachments || []) {
-        const kind: MediaItem["kind"] = attachment.mimeType.startsWith("image/") ? "image" : "document";
-        mediaItems.push({
-          id: uid("media"),
-          lectureId,
-          kind,
-          name: attachment.name,
-          mimeType: attachment.mimeType,
-          size: attachment.size,
-          sourceRole: "OneNote page export",
-          sourceCaption: "Visual OneNote page received through the LectureVault intake address.",
-          storageBucket: attachment.storageBucket,
-          storagePath: attachment.storagePath,
           createdAt
         });
       }
@@ -2748,13 +2775,6 @@ export default function LectureVaultApp() {
     }));
     setSelectedLectureId(lectureId);
     setCaptureFiles([]);
-    if (emailIntake) {
-      void fetch(`/api/email-intake?id=${encodeURIComponent(emailIntake.id)}`, {
-        credentials: "include",
-        method: "DELETE"
-      });
-      setEmailIntake(null);
-    }
     setOneNoteSources([]);
     setCaptureForm((current) => ({
       ...current,
@@ -3783,14 +3803,11 @@ export default function LectureVaultApp() {
     }
   }
 
-  const emailIntakeAttachments = emailIntake?.status === "ready" ? emailIntake.attachments : [];
   const reconstructionAudioCount = captureFiles.filter(
     (source) => fileKind(source.file) === "audio" || fileKind(source.file) === "video"
   ).length;
-  const reconstructionImageCount = captureFiles.filter((source) => fileKind(source.file) === "image").length +
-    emailIntakeAttachments.filter((attachment) => attachment.mimeType.startsWith("image/")).length;
-  const reconstructionDocumentCount = captureFiles.filter((source) => fileKind(source.file) === "document").length +
-    emailIntakeAttachments.filter((attachment) => !attachment.mimeType.startsWith("image/")).length;
+  const reconstructionImageCount = captureFiles.filter((source) => fileKind(source.file) === "image").length;
+  const reconstructionDocumentCount = captureFiles.filter((source) => fileKind(source.file) === "document").length;
   const oneNoteContext = oneNoteSources
     .map((source, index) => [
       `OneNote page ${index + 1}: ${source.title}`,
@@ -3835,7 +3852,7 @@ export default function LectureVaultApp() {
     captureForm.transcript.trim() || oneNoteContext
       ? `Pasted notes / selected OneNote pages:\n${[captureForm.transcript.trim(), oneNoteContext].filter(Boolean).join("\n\n")}`
       : "Pasted notes / selected OneNote pages: none",
-    captureFiles.length || emailIntakeAttachments.length
+    captureFiles.length
       ? [
           "Source media manifest:",
           ...captureFiles.map((source, index) =>
@@ -3846,9 +3863,6 @@ export default function LectureVaultApp() {
             ]
               .filter(Boolean)
               .join(" | ")
-          ),
-          ...emailIntakeAttachments.map((attachment, index) =>
-            `${captureFiles.length + index + 1}. ${attachment.name} | role: OneNote page export | delivered through email intake`
           )
         ].join("\n")
       : "Source media manifest: none",
@@ -3857,7 +3871,7 @@ export default function LectureVaultApp() {
       : "Textbook context: no indexed course textbooks."
   ].join("\n\n");
   const reconstructionHasSource = Boolean(
-    captureFiles.length || emailIntakeAttachments.length || reconstructionNotesReady || oneNoteSources.length
+    captureFiles.length || reconstructionNotesReady || oneNoteSources.length
   );
 
   if (authStatus === "checking") {
@@ -3986,6 +4000,11 @@ export default function LectureVaultApp() {
             <button className="primary" type="button" onClick={() => setScreen("capture")}>
               New Reconstruction
             </button>
+            {installPrompt ? (
+              <button className="quiet-button install-button" type="button" onClick={() => void installLectureVault()}>
+                Install app
+              </button>
+            ) : null}
             <button className="quiet-button" type="button" onClick={() => void logout()}>
               Log out
             </button>
@@ -4569,58 +4588,21 @@ export default function LectureVaultApp() {
                 </small>
               </label>
 
-              <section className="email-intake-panel" aria-label="OneNote email intake">
+              <section className="pwa-share-panel" aria-label="OneNote direct share">
                 <div className="section-heading compact-heading">
                   <div>
-                    <span className="pill">OneNote PDF / image</span>
-                    <h3>Send a visual page export</h3>
+                    <span className="pill">Android OneNote</span>
+                    <h3>Share visual pages directly</h3>
                   </div>
-                  {!emailIntake ? (
-                    <button
-                      type="button"
-                      onClick={() => void prepareEmailIntake()}
-                      disabled={isEmailIntakeLoading || !captureForm.courseId}
-                    >
-                      {isEmailIntakeLoading ? "Preparing..." : "Create intake address"}
+                  {installPrompt ? (
+                    <button type="button" onClick={() => void installLectureVault()}>
+                      Install app
                     </button>
-                  ) : (
-                    <button type="button" onClick={() => void clearEmailIntake()}>
-                      Cancel intake
-                    </button>
-                  )}
+                  ) : null}
                 </div>
-                {!emailIntake ? (
-                  <p>
-                    Use OneNote&apos;s Send action to send a page PDF or image directly into this reconstruction. LectureVault archives the visual source when it arrives.
-                  </p>
-                ) : (
-                  <>
-                    <p>
-                      Send the OneNote page export to this address. The page is attached here automatically when delivery completes.
-                    </p>
-                    <div className="email-intake-address">
-                      <code>{emailIntake.emailAddress}</code>
-                      <button type="button" onClick={() => void copyEmailIntakeAddress()}>Copy address</button>
-                    </div>
-                    <p className={emailIntake.status === "error" ? "email-intake-status error" : "email-intake-status"} role="status">
-                      {emailIntake.status === "ready"
-                        ? `${emailIntake.attachments.length} visual OneNote source${emailIntake.attachments.length === 1 ? "" : "s"} attached.`
-                        : emailIntake.status === "error"
-                          ? "The email could not be processed. Send a PDF or image attachment to a new intake address."
-                          : "Waiting for OneNote email delivery..."}
-                    </p>
-                    {emailIntake.attachments.length ? (
-                      <div className="email-intake-files">
-                        {emailIntake.attachments.map((attachment) => (
-                          <span key={attachment.id}>
-                            <strong>{attachment.name}</strong>
-                            <small>{formatFileSize(attachment.size)} - {attachment.mimeType}</small>
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </>
-                )}
+                <p>
+                  Install LectureVault once, sign in, then use OneNote&apos;s Share action and choose LectureVault. PDFs and images upload directly to Supabase and open here as attached sources.
+                </p>
               </section>
 
             {captureFiles.length ? (
@@ -4649,8 +4631,9 @@ export default function LectureVaultApp() {
                         <div>
                           <strong>{file.name}</strong>
                           <small>
-                            {formatFileSize(file.size)} -{" "}
+                            {formatFileSize(source.size ?? file.size)} -{" "}
                             {file.type || "unknown type"}
+                            {source.storagePath ? " - stored in Supabase" : ""}
                           </small>
                         </div>
                         <label className="capture-source-role">
