@@ -30,6 +30,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Reconstruction Flow Refinement
+
+- Removed the fade treatment from the compact vertical guidance ticker while keeping its restrained source-to-reconstruction motion.
+- Clarified reconstruction readiness and active workflow steps, and added the date and attached-source count to the compact active-record status.
+- Removed unused New Reconstruction disclosure/helper styles after the course-first collapsed flow replaced those surfaces.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Compact Reconstruction Guidance and Record Discard
 
 - Replaced the large static New Reconstruction guidance copy with a compact vertically scrolling source-to-reconstruction ticker that fades at its entry and exit.

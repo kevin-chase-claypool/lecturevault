@@ -4163,6 +4163,12 @@ export default function LectureVaultApp() {
     captureFiles.length || reconstructionNotesReady || oneNoteSources.length
   );
   const reconstructionReadyToBuild = Boolean(captureForm.courseId && reconstructionHasSource);
+  const reconstructionReadinessLabel = !activeDraft
+    ? "Start record"
+    : reconstructionHasSource
+      ? "Ready to build"
+      : "Add sources";
+  const activeRecordSourceLabel = `${captureFiles.length} attached source${captureFiles.length === 1 ? "" : "s"}`;
 
   if (authStatus === "checking") {
     return <AuthShell title="Checking access..." />;
@@ -4764,13 +4770,13 @@ export default function LectureVaultApp() {
               </div>
               <div>
                 <span className={reconstructionReadyToBuild ? "readiness-badge ready" : "readiness-badge"}>
-                  {!captureForm.courseId ? "Select course" : reconstructionHasSource ? "Ready to build" : "Add a source"}
+                  {reconstructionReadinessLabel}
                 </span>
                 <div className="capture-steps" aria-label="Capture workflow">
-                  <span>1 Details</span>
-                  <span>2 Sources</span>
+                  <span className={!activeDraft ? "active" : "complete"}>1 Details</span>
+                  <span className={activeDraft && !reconstructionHasSource ? "active" : reconstructionHasSource ? "complete" : ""}>2 Sources</span>
                   <span>3 Context</span>
-                  <span>4 Build</span>
+                  <span className={reconstructionReadyToBuild ? "active" : ""}>4 Build</span>
                 </div>
               </div>
             </div>
@@ -4806,7 +4812,8 @@ export default function LectureVaultApp() {
                   {activeDraft ? (
                     <div className="capture-record-status">
                       <strong>Class record active</strong>
-                      <span>{courseLabel(activeDraft.courseId)} · shared across devices</span>
+                      <span>{courseLabel(activeDraft.courseId)} · {activeDraft.date}</span>
+                      <small>{activeRecordSourceLabel} · shared across devices</small>
                       <button type="button" onClick={discardClassDayRecord}>
                         Discard class record
                       </button>

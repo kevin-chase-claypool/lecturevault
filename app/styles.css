@@ -2046,6 +2046,12 @@ button.review-draft-button:disabled {
   font-weight: 850;
 }
 
+.capture-record-status small {
+  color: #50737a;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
 .capture-record-status button {
   justify-self: start;
   min-height: 28px;
@@ -2158,14 +2164,12 @@ button.review-draft-button:disabled {
 }
 
 .capture-guidance-ticker {
-  position: relative;
   height: 23px;
   max-width: 70ch;
   margin-top: 7px;
   overflow: hidden;
   color: var(--muted);
   line-height: 1.45;
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 26%, #000 74%, transparent 100%);
 }
 
 .capture-guidance-track {
@@ -2213,6 +2217,19 @@ button.review-draft-button:disabled {
   white-space: nowrap;
 }
 
+.capture-steps span.complete {
+  border-color: #b9ded9;
+  background: #f1faf8;
+  color: #23666b;
+}
+
+.capture-steps span.active {
+  border-color: #0b6676;
+  background: #0b6676;
+  color: #ffffff;
+  box-shadow: 0 5px 13px rgba(11, 102, 118, 0.18);
+}
+
 .readiness-badge {
   min-height: 30px;
   display: inline-grid;
@@ -2231,18 +2248,6 @@ button.review-draft-button:disabled {
   border-color: var(--success-border);
   background: var(--success-bg);
   color: #07564e;
-}
-
-.workflow-helper {
-  border: 1px solid rgba(181, 222, 216, 0.92);
-  border-radius: var(--radius);
-  padding: 10px 12px;
-  background:
-    linear-gradient(180deg, #ffffff 0%, #f5fcfa 100%);
-  color: #184f58;
-  font-size: 0.9rem;
-  font-weight: 760;
-  line-height: 1.4;
 }
 
 .capture-disclosure {
@@ -2339,11 +2344,6 @@ button.review-draft-button:disabled {
 .capture-disclosure-actions select,
 .capture-disclosure-actions button {
   min-height: 38px;
-}
-
-.capture-draft-disclosure {
-  border-color: #b9d9df;
-  background: #fafeff;
 }
 
 .capture-media-panel {
@@ -4103,10 +4103,6 @@ button.review-draft-button:disabled {
   .readiness-badge {
     justify-self: start;
     margin-top: 8px;
-  }
-
-  .workflow-helper {
-    font-size: 0.84rem;
   }
 
   .review-action-card span {
