@@ -30,6 +30,11 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Responsive Header Empty-State Fix
+
+- Prevented the tablet and phone sidebar from stretching to an empty grid row after course state changes, such as deleting the final course. The compact header now keeps only its real content height.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Android OneNote Direct Share PWA
 
 - LectureVault is now installable as a Progressive Web App. On Android, install it from Chrome and sign in once; it registers as a share destination for OneNote PDF and image exports.

@@ -3096,6 +3096,7 @@ button.review-draft-button:disabled {
   }
 
   .sidebar {
+    align-self: start;
     position: sticky;
     top: 0;
     z-index: 40;
@@ -3350,6 +3351,7 @@ button.review-draft-button:disabled {
   }
 
   .sidebar {
+    align-self: start;
     position: sticky;
     top: 0;
     z-index: 40;
