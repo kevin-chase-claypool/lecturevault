@@ -2185,6 +2185,28 @@ button.review-draft-button:disabled {
   line-height: 1.45;
 }
 
+.ai-context-preview {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-context-preview textarea {
+  min-height: 218px;
+  resize: vertical;
+  background: #f5f8fb;
+  color: #385066;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.ai-context-preview > span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 720;
+  line-height: 1.4;
+}
+
 .capture-media-item small {
   margin-top: 2px;
   color: var(--muted);

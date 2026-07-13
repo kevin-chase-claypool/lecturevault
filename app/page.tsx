@@ -2409,16 +2409,8 @@ export default function LectureVaultApp() {
         const courseTextbookIds = new Set(
           courseTextbooks.map((textbook) => textbook.id)
         );
-        const courseStudyProfile = state.courses.find(
-          (course) => course.id === captureForm.courseId
-        )?.studyProfile;
-        const reconstructionBrief = [
-          captureForm.objective.trim() && `Class-day objective: ${captureForm.objective.trim()}`,
-          captureForm.emphasis.trim() && `Instructor emphasis / board context: ${captureForm.emphasis.trim()}`,
-          captureForm.questions.trim() && `Unresolved question or uncertainty: ${captureForm.questions.trim()}`
-        ]
-          .filter(Boolean)
-          .join("\n");
+        const courseStudyProfile = reconstructionCourseProfile;
+        const reconstructionBrief = reconstructionBriefContext;
         const textbookContext = relevantTextbookChunks({
           chunks: state.textbookChunks.filter((chunk) =>
             courseTextbookIds.has(chunk.textbookId)
@@ -3516,6 +3508,46 @@ export default function LectureVaultApp() {
   const reconstructionTextbookCount = state.textbooks.filter(
     (textbook) => textbook.courseId === captureForm.courseId
   ).length;
+  const reconstructionCourseProfile = state.courses.find(
+    (course) => course.id === captureForm.courseId
+  )?.studyProfile?.trim();
+  const reconstructionBriefContext = [
+    captureForm.objective.trim() && `Class-day objective: ${captureForm.objective.trim()}`,
+    captureForm.emphasis.trim() && `Instructor emphasis / board context: ${captureForm.emphasis.trim()}`,
+    captureForm.questions.trim() && `Unresolved question or uncertainty: ${captureForm.questions.trim()}`
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const reconstructionAiContextPreview = [
+    `Course: ${courseLabel(captureForm.courseId)}`,
+    `Topic: ${captureForm.title.trim() || "Untitled reconstruction"}`,
+    reconstructionCourseProfile
+      ? `Saved course study profile:\n${reconstructionCourseProfile}`
+      : "Saved course study profile: none",
+    reconstructionBriefContext
+      ? `Class-day reconstruction brief:\n${reconstructionBriefContext}`
+      : "Class-day reconstruction brief: none",
+    captureForm.transcript.trim()
+      ? `Pasted notes / OneNote text:\n${captureForm.transcript.trim()}`
+      : "Pasted notes / OneNote text: none",
+    captureFiles.length
+      ? [
+          "Source media manifest:",
+          ...captureFiles.map((source, index) =>
+            [
+              `${index + 1}. ${source.file.name}`,
+              `role: ${source.role}`,
+              source.caption.trim() ? `caption: ${source.caption.trim()}` : ""
+            ]
+              .filter(Boolean)
+              .join(" | ")
+          )
+        ].join("\n")
+      : "Source media manifest: none",
+    reconstructionTextbookCount
+      ? `Textbook context: relevant excerpts will be retrieved from ${reconstructionTextbookCount} indexed course textbook${reconstructionTextbookCount === 1 ? "" : "s"}.`
+      : "Textbook context: no indexed course textbooks."
+  ].join("\n\n");
   const reconstructionHasSource = Boolean(
     captureFiles.length || reconstructionNotesReady
   );
@@ -4337,6 +4369,13 @@ export default function LectureVaultApp() {
                   />
                 </label>
               </div>
+              <label className="ai-context-preview">
+                AI context preview <small>Read-only</small>
+                <textarea value={reconstructionAiContextPreview} readOnly rows={12} />
+                <span>
+                  This is the supplemental context sent with your sources. Audio transcription and the relevant textbook excerpts are added during the build.
+                </span>
+              </label>
             </div>
 
             <div className="capture-actions">

@@ -32,6 +32,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ### 2026-07-13 - Source-Grounded AI Context
 
+- Added a live read-only AI context preview to the Reconstruction Brief so users can inspect the course profile, brief fields, pasted notes, source roles/captions, and textbook-retrieval status before starting a token-spending build.
 - Added an optional, saved course study profile for exam format, allowed materials, notation, textbook scope, and recurring instructor priorities. It is included in reconstruction and review AI requests for that course.
 - Added a compact per-class `Reconstruction Brief` with a class-day objective, instructor/board emphasis, and unresolved-question field so the model can preserve important worked problems and flag uncertainty instead of guessing.
 - Added source roles and optional captions to every reconstruction upload. These persist with media records and tell AI whether a file is lecture audio, board work, a worked example, OneNote export, handout, or other context.
