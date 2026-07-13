@@ -41,6 +41,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Removed the redundant `Save Source Bundle` control; `Build Reconstruction` is now the single action that persists the source bundle and creates the AI artifact.
 - Added a responsive dashboard workflow diagram showing `Capture -> Reconstruct -> Archive -> Review` beside the dashboard title on desktop and as a compact step strip on smaller screens.
 - Fixed the phone/tablet workflow strip inheriting a desktop flex height, which caused excessive vertical whitespace between its numbers and labels.
+- Shortened the workflow diagram's second step from `Reconstruct` to `Build` so it cannot split awkwardly at compact widths.
 - Verified with `npm run typecheck` and `npm run build`.
 - Disabled `Build Reconstruction` and `Save Source Bundle` until at least one source exists, matching the source-bundle workflow.
 - Added concise helper text explaining that one source is enough and clarifying what token-spending actions do.

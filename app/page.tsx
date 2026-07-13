@@ -4828,7 +4828,7 @@ function Dashboard({
 function WorkflowDiagram() {
   const steps = [
     ["1", "Capture", "Audio, notes, images"],
-    ["2", "Reconstruct", "AI builds the class record"],
+    ["2", "Build", "AI creates the class record"],
     ["3", "Archive", "Keep sources connected"],
     ["4", "Review", "Prepare for the exam"]
   ];
