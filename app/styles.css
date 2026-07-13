@@ -2116,6 +2116,62 @@ button.review-draft-button:disabled {
   box-shadow: var(--shadow-card);
 }
 
+.source-intake-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid #b9d9df;
+  border-radius: var(--radius-lg);
+  padding: 13px 14px;
+  background: linear-gradient(135deg, #f5fcfb 0%, #ffffff 72%);
+}
+
+.source-intake-heading > div {
+  min-width: 0;
+}
+
+.source-intake-heading h3,
+.source-intake-heading p {
+  margin: 4px 0 0;
+}
+
+.source-intake-heading h3 {
+  font-size: 1rem;
+}
+
+.source-intake-heading p {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 680;
+  line-height: 1.4;
+}
+
+.primary-link {
+  flex: 0 0 auto;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 7px 14px rgba(3, 91, 102, 0.2);
+}
+
+.primary-link:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.connection-state {
+  flex: 0 0 auto;
+  border: 1px solid #b9d9df;
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #effaf8;
+  color: #07564e;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
 .onenote-source-panel {
   display: grid;
   gap: 10px;
@@ -3666,6 +3722,16 @@ button.review-draft-button:disabled {
 
   .onenote-picker-grid {
     grid-template-columns: 1fr;
+  }
+
+  .source-intake-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .source-intake-heading .button-like,
+  .source-intake-heading button {
+    width: 100%;
   }
 
   .onenote-page-row,

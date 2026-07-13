@@ -45,6 +45,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Replaced immutable native redirect responses with `NextResponse` in the OneNote connect and callback routes, allowing the OAuth verification cookie to be set and cleared correctly.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 
+### 2026-07-13 - Make OneNote Connection Discoverable
+
+- Moved `Connect OneNote` into a prominent source-action panel directly below the course, topic, and date fields on New Reconstruction.
+- Kept the lower OneNote source picker focused on browsing and selecting pages after the account is connected.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Source-Grounded AI Context
 
 - Reworked the read-only preview into `Full AI build context`. It now displays the exact shared organizing instructions and output contract used by the reconstruction API before the current course, notes, source manifest, and textbook-retrieval context.
