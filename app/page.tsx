@@ -6419,8 +6419,23 @@ function StorageManager({
             <span>{activeFile.mimeType || "Unknown file type"}</span>
             <small>{activeFile.updatedAt || activeFile.createdAt ? new Date(activeFile.updatedAt || activeFile.createdAt || "").toLocaleString() : "No date available"}</small>
             <div className="selected-lecture-meta">
-              <span>{typeof activeFile.size === "number" ? formatFileSize(activeFile.size) : "Unknown size"}</span>
-              <span>{activeFileUsageNames.length ? `Used by ${activeFileUsageNames.length} reconstruction${activeFileUsageNames.length === 1 ? "" : "s"}` : "No reconstruction reference"}</span>
+              <MetadataBubble label={typeof activeFile.size === "number" ? formatFileSize(activeFile.size) : "Unknown size"}>
+                <strong>File metadata</strong>
+                <span className="metadata-tooltip-item">
+                  <b>{activeFile.mimeType || "Unknown file type"}</b>
+                  <small>{activeFile.updatedAt || activeFile.createdAt ? `Updated ${new Date(activeFile.updatedAt || activeFile.createdAt || "").toLocaleString()}` : "No date available"}</small>
+                  <em>{activeFile.path}</em>
+                </span>
+              </MetadataBubble>
+              <MetadataBubble label={activeFileUsageNames.length ? `Used by ${activeFileUsageNames.length} reconstruction${activeFileUsageNames.length === 1 ? "" : "s"}` : "No reconstruction reference"}>
+                <strong>Reconstruction references</strong>
+                {activeFileUsageNames.length ? activeFileUsageNames.map((name) => (
+                  <span className="metadata-tooltip-item" key={name}>
+                    <b>{name}</b>
+                    <small>References this original Supabase file.</small>
+                  </span>
+                )) : <small>This file is not referenced by a saved reconstruction.</small>}
+              </MetadataBubble>
             </div>
             {activeFileUsageNames.length ? (
               <div className="storage-reference-list">

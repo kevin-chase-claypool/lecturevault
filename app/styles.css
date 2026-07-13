@@ -1504,6 +1504,7 @@ button.review-draft-button:disabled {
 }
 
 .selected-lecture-meta > span {
+  min-width: 0;
   border: 1px solid #c8dbe2;
   border-radius: 999px;
   padding: 4px 8px;
@@ -1538,7 +1539,9 @@ button.review-draft-button:disabled {
     top: calc(100% + 8px);
     left: 0;
     display: grid;
-    width: min(340px, calc(100vw - 44px));
+    box-sizing: border-box;
+    width: min(248px, calc(100vw - 40px));
+    min-width: 0;
     max-height: 300px;
     gap: 7px;
     overflow: auto;
@@ -1576,11 +1579,13 @@ button.review-draft-button:disabled {
 
   .metadata-tooltip > small {
     color: #b9c9d5;
+    overflow-wrap: anywhere;
   }
 
   .metadata-tooltip-item {
     display: grid;
     gap: 2px;
+    min-width: 0;
     border-top: 1px solid rgba(255, 255, 255, 0.12);
     padding-top: 7px;
   }
@@ -1598,6 +1603,8 @@ button.review-draft-button:disabled {
     color: #c6d3dc;
     font-size: 0.7rem;
     font-style: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .metadata-tooltip-item em {
@@ -2048,7 +2055,8 @@ button.review-draft-button:disabled {
   position: sticky;
   top: 18px;
   max-height: calc(100dvh - 44px);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .storage-reference-list {
@@ -2068,6 +2076,11 @@ button.review-draft-button:disabled {
   color: var(--muted);
   font-size: 0.76rem;
   overflow-wrap: anywhere;
+}
+
+.storage-file-details .selected-lecture-title {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .storage-explorer-empty {

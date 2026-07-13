@@ -957,6 +957,11 @@ For archive organization changes, manually verify:
 
 ## Next Priorities
 
+### 2026-07-13 - Inspector Tooltip Refinement
+
+- Constrained desktop metadata tooltips to the available details-pane width and made long source names, paths, and concept details wrap safely instead of creating horizontal overflow.
+- Added hover and keyboard-focus metadata inspectors to Media Library file-size and reconstruction-reference bubbles, while retaining the visible reference list for touch devices.
+
 - Add direct browser-to-Supabase signed uploads if deployment body limits block large MP3 uploads.
 - Replace single-row Supabase JSON state with relational tables and conflict-aware sync if multi-user editing becomes important.
 - Add explicit image upload/re-upload controls for archive items.
