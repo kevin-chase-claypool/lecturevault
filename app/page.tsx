@@ -13,6 +13,10 @@ import {
 import type { ReactNode } from "react";
 import JSZip from "jszip";
 import katex from "katex";
+import {
+  LECTURE_AI_INSTRUCTIONS,
+  LECTURE_AI_OUTPUT_CONTRACT
+} from "../lib/lecture-ai-context";
 
 type Screen =
   | "dashboard"
@@ -3519,6 +3523,11 @@ export default function LectureVaultApp() {
     .filter(Boolean)
     .join("\n");
   const reconstructionAiContextPreview = [
+    "AI ORGANIZING INSTRUCTIONS:",
+    LECTURE_AI_INSTRUCTIONS,
+    "REQUIRED OUTPUT STRUCTURE:",
+    LECTURE_AI_OUTPUT_CONTRACT,
+    "CURRENT RECONSTRUCTION CONTEXT:",
     `Course: ${courseLabel(captureForm.courseId)}`,
     `Topic: ${captureForm.title.trim() || "Untitled reconstruction"}`,
     reconstructionCourseProfile
@@ -4370,10 +4379,10 @@ export default function LectureVaultApp() {
                 </label>
               </div>
               <label className="ai-context-preview">
-                AI context preview <small>Read-only</small>
+                Full AI build context <small>Read-only</small>
                 <textarea value={reconstructionAiContextPreview} readOnly rows={12} />
                 <span>
-                  This is the supplemental context sent with your sources. Audio transcription and the relevant textbook excerpts are added during the build.
+                  This shows the organizing instructions, output contract, and current source context. Audio transcription and the retrieved textbook excerpts are added during the build.
                 </span>
               </label>
             </div>

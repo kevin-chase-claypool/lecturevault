@@ -32,6 +32,8 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ### 2026-07-13 - Source-Grounded AI Context
 
+- Reworked the read-only preview into `Full AI build context`. It now displays the exact shared organizing instructions and output contract used by the reconstruction API before the current course, notes, source manifest, and textbook-retrieval context.
+- Centralized the reconstruction AI instructions and output contract in `lib/lecture-ai-context.ts`, which is imported by both the API route and the client preview to prevent divergence.
 - Added a live read-only AI context preview to the Reconstruction Brief so users can inspect the course profile, brief fields, pasted notes, source roles/captions, and textbook-retrieval status before starting a token-spending build.
 - Added an optional, saved course study profile for exam format, allowed materials, notation, textbook scope, and recurring instructor priorities. It is included in reconstruction and review AI requests for that course.
 - Added a compact per-class `Reconstruction Brief` with a class-day objective, instructor/board emphasis, and unresolved-question field so the model can preserve important worked problems and flag uncertainty instead of guessing.
