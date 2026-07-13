@@ -4392,9 +4392,11 @@ export default function LectureVaultApp() {
               <span className="cart-icon" aria-hidden="true">Review Draft</span>
               <strong>{basketCount}</strong>
             </button>
-            <button className="primary" type="button" onClick={() => setScreen("capture")}>
-              New Reconstruction
-            </button>
+            {screen !== "capture" ? (
+              <button className="primary" type="button" onClick={() => setScreen("capture")}>
+                New Reconstruction
+              </button>
+            ) : null}
             {installPrompt ? (
               <button className="quiet-button install-button" type="button" onClick={() => void installLectureVault()}>
                 Install app
