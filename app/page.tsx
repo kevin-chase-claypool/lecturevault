@@ -4406,21 +4406,6 @@ export default function LectureVaultApp() {
               </label>
             </div>
 
-            <section className="source-intake-heading" aria-label="Reconstruction source actions">
-              <div>
-                <span className="pill">Source bundle</span>
-                <h3>Add class-day sources</h3>
-                <p>Audio, board images, files, and selected OneNote pages can be combined for one reconstruction.</p>
-              </div>
-              {oneNoteStatus.connected ? (
-                <button type="button" onClick={() => void loadOneNoteExplorer()} disabled={oneNoteLoading}>
-                  {oneNoteLoading ? "Loading OneNote..." : "Browse OneNote"}
-                </button>
-              ) : (
-                <a className="button-like primary-link" href="/api/onenote/connect">Connect OneNote</a>
-              )}
-            </section>
-
             <label
               className="dropzone lecture-dropzone"
               onDragOver={(event) => event.preventDefault()}
@@ -4429,7 +4414,7 @@ export default function LectureVaultApp() {
                 addCaptureFiles(Array.from(event.dataTransfer.files || []));
               }}
             >
-              <span>Reconstruction source files</span>
+              <span>Files for this reconstruction</span>
               <input
                 type="file"
                 multiple
@@ -4454,14 +4439,14 @@ export default function LectureVaultApp() {
               <div className="capture-media-panel">
                 <div className="section-heading">
                   <div>
-                    <span className="pill">Source Bundle</span>
-                    <h3>Attached Sources</h3>
+                    <span className="pill">Files</span>
+                    <h3>Attached Files</h3>
                   </div>
                   <button
                     type="button"
                     onClick={() => setCaptureFiles([])}
                   >
-                    Clear All
+                    Clear Files
                   </button>
                 </div>
                 <div className="capture-media-list">
@@ -4522,16 +4507,20 @@ export default function LectureVaultApp() {
                   <span className="pill">OneNote</span>
                   <h3>Class Notes</h3>
                 </div>
-                {oneNoteStatus.connected ? <span className="connection-state">Connected</span> : <span className="connection-state">Optional source</span>}
+                {oneNoteStatus.connected ? (
+                  <span className="connection-state">Connected</span>
+                ) : (
+                  <a className="button-like onenote-connect-link" href="/api/onenote/connect">Connect OneNote</a>
+                )}
               </div>
               <p>
                 Select only the pages that belong to this class day. LectureVault saves a text snapshot with the reconstruction, so later edits in OneNote do not change your archived record.
               </p>
               {!oneNoteStatus.configured ? (
-                <small>OneNote connection is not configured on this deployment yet. Add its environment variables, redeploy, then use Connect OneNote above.</small>
+                <small>OneNote connection is not configured on this deployment yet. Add its environment variables, redeploy, then connect it here.</small>
               ) : null}
               {oneNoteStatus.configured && !oneNoteStatus.connected ? (
-                <small>Use Connect OneNote above, then return here to choose class-day pages.</small>
+                <small>Connect OneNote here, then choose the pages for this class day.</small>
               ) : null}
               {oneNoteStatus.connected ? (
                 <>

@@ -71,6 +71,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - OneNote folder browsing no longer fails silently; the panel now explains what was loaded or why Microsoft did not return data.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 
+### 2026-07-13 - Simplify Reconstruction Sources
+
+- Removed the redundant `Source bundle` intake panel from New Reconstruction.
+- Renamed the remaining upload area to `Files for this reconstruction` / `Attached Files` and moved the OneNote connection action into the Class Notes header.
+- The same source data is still saved and used for the reconstruction; this change removes visual duplication only.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Source-Grounded AI Context
 
 - Reworked the read-only preview into `Full AI build context`. It now displays the exact shared organizing instructions and output contract used by the reconstruction API before the current course, notes, source manifest, and textbook-retrieval context.
