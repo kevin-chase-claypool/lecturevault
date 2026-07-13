@@ -964,6 +964,11 @@ For archive organization changes, manually verify:
 - Removed horizontal scrolling from the Vault Details inspector while preserving vertical scrolling for long records.
 - Removed course-term labels from workspace page headers to keep navigation context compact and consistent.
 
+### 2026-07-13 - Interface Refinement Pass
+
+- Tightened the shared control and surface system with calmer secondary actions, tactile button feedback, centered desktop composition, and more legible dashboard rows.
+- Reworked phone header actions so the primary reconstruction action has a full row, with the review draft and log-out controls placed beneath it.
+
 - Add direct browser-to-Supabase signed uploads if deployment body limits block large MP3 uploads.
 - Replace single-row Supabase JSON state with relational tables and conflict-aware sync if multi-user editing becomes important.
 - Add explicit image upload/re-upload controls for archive items.
