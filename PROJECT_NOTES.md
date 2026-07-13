@@ -65,6 +65,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Selected pages remain imported as fixed reconstruction snapshots with their notebook and section provenance.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 
+### 2026-07-13 - OneNote Explorer Feedback
+
+- Added visible in-panel loading, successful-load, empty-library, and Graph error feedback to the OneNote explorer controls.
+- OneNote folder browsing no longer fails silently; the panel now explains what was loaded or why Microsoft did not return data.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Source-Grounded AI Context
 
 - Reworked the read-only preview into `Full AI build context`. It now displays the exact shared organizing instructions and output contract used by the reconstruction API before the current course, notes, source manifest, and textbook-retrieval context.

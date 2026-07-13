@@ -1339,6 +1339,8 @@ export default function LectureVaultApp() {
   const [oneNoteExpandedIds, setOneNoteExpandedIds] = useState<string[]>([]);
   const [oneNoteTrails, setOneNoteTrails] = useState<Record<string, OneNoteTrail>>({});
   const [oneNoteLoading, setOneNoteLoading] = useState(false);
+  const [oneNoteExplorerFeedback, setOneNoteExplorerFeedback] = useState("");
+  const [oneNoteExplorerError, setOneNoteExplorerError] = useState("");
   const [examForm, setExamForm] = useState({
     courseId: "",
     name: "",
@@ -3349,6 +3351,12 @@ export default function LectureVaultApp() {
 
   async function loadOneNoteExplorer(parent?: OneNoteLibraryItem) {
     setOneNoteLoading(true);
+    setOneNoteExplorerError("");
+    setOneNoteExplorerFeedback(
+      parent
+        ? `Loading ${parent.displayName || parent.title || "OneNote folder"}...`
+        : "Loading OneNote notebooks..."
+    );
     try {
       const query = parent
         ? parent.kind === "notebook"
@@ -3378,8 +3386,18 @@ export default function LectureVaultApp() {
         }
         return next;
       });
+      setOneNoteExplorerFeedback(
+        items.length
+          ? `${items.length} ${parent ? "item" : "notebook"}${items.length === 1 ? "" : "s"} loaded.`
+          : parent
+            ? "This folder has no sections or pages."
+            : "No OneNote notebooks were returned for this Microsoft account."
+      );
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Could not load OneNote library.");
+      const message = error instanceof Error ? error.message : "Could not load OneNote library.";
+      setOneNoteExplorerFeedback("");
+      setOneNoteExplorerError(message);
+      setStatus(message);
     } finally {
       setOneNoteLoading(false);
     }
@@ -4518,6 +4536,8 @@ export default function LectureVaultApp() {
               {oneNoteStatus.connected ? (
                 <>
                   <small>Connected{oneNoteStatus.accountLabel ? ` as ${oneNoteStatus.accountLabel}` : ""}.</small>
+                  {oneNoteExplorerFeedback ? <p className="onenote-explorer-feedback" role="status">{oneNoteExplorerFeedback}</p> : null}
+                  {oneNoteExplorerError ? <p className="onenote-explorer-feedback error" role="alert">{oneNoteExplorerError}</p> : null}
                   {oneNoteExplorer.root?.length ? (
                     <OneNoteExplorer
                       childrenById={oneNoteExplorer}

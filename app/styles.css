@@ -2211,6 +2211,23 @@ button.review-draft-button:disabled {
   padding: 0;
 }
 
+.onenote-explorer-feedback {
+  margin: 0;
+  border: 1px solid #c8dbe2;
+  border-radius: 7px;
+  padding: 7px 9px;
+  background: #f5fbfc;
+  color: #275968;
+  font-size: 0.78rem;
+  font-weight: 760;
+}
+
+.onenote-explorer-feedback.error {
+  border-color: #efbbb5;
+  background: #fff5f3;
+  color: #ab2d24;
+}
+
 .onenote-explorer-branch {
   display: grid;
   gap: 3px;
