@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Archive Folder Sync Protection
+
+- Prevented the background Supabase poll from applying an older whole-state snapshot while a local archive update is still queued or being saved. This protects new folders and existing reconstructions from a stale overwrite.
+- Archive subfolders now inherit their selected parent folder's course directly, preventing a new subfolder from being saved under an invisible or stale course selection.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - AI-Generated Reconstruction Titles
 
 - The reconstruction AI now returns a concise, searchable 3-10 word title as part of the same reconstruction request. It uses the provided audio, visual notes, source roles, and relevant textbook context without a second API call.

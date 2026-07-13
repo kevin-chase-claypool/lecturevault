@@ -1468,6 +1468,7 @@ export default function LectureVaultApp() {
   const [isStorageLoading, setIsStorageLoading] = useState(false);
   const stateJsonRef = useRef(JSON.stringify(state));
   const skipNextCloudSaveRef = useRef(false);
+  const cloudSavePendingRef = useRef(false);
   const draftUploadsRef = useRef(new Set<string>());
   const loadedDraftVersionRef = useRef("");
   const suppressDraftSaveRef = useRef(false);
@@ -1711,6 +1712,9 @@ export default function LectureVaultApp() {
       return;
     }
 
+    // Do not let the background poll replace this in-memory state with a snapshot from
+    // before the local change has reached Supabase.
+    cloudSavePendingRef.current = true;
     const timeoutId = window.setTimeout(async () => {
       try {
         const response = await fetch("/api/vault-state", {
@@ -1735,6 +1739,8 @@ export default function LectureVaultApp() {
         const message =
           error instanceof Error ? error.message : "Could not save Supabase archive state.";
         setStatus(`Supabase save failed: ${message}`);
+      } finally {
+        cloudSavePendingRef.current = false;
       }
     }, 700);
 
@@ -1750,6 +1756,7 @@ export default function LectureVaultApp() {
 
     async function pullLatestCloudState() {
       try {
+        if (cloudSavePendingRef.current) return;
         const response = await fetch("/api/vault-state", {
           credentials: "include",
           headers: {
@@ -1763,7 +1770,7 @@ export default function LectureVaultApp() {
           error?: string;
         };
 
-        if (!active || !response.ok || !data.configured || !data.state) {
+        if (!active || cloudSavePendingRef.current || !response.ok || !data.configured || !data.state) {
           return;
         }
 
@@ -2467,9 +2474,18 @@ export default function LectureVaultApp() {
       selectedArchiveFolderId === "all" || selectedArchiveFolderId === "unfiled"
         ? undefined
         : selectedArchiveFolderId;
+    const parentFolder = parentId
+      ? state.archiveFolders.find((item) => item.id === parentId)
+      : undefined;
+    const courseId = parentFolder?.courseId || selectedCourseId;
+
+    if (!courseId) {
+      setStatus("Select a course before adding an archive folder.");
+      return;
+    }
     const folder: ArchiveFolder = {
       id: uid("folder"),
-      courseId: selectedCourseId,
+      courseId,
       parentId,
       name,
       createdAt: new Date().toISOString()
