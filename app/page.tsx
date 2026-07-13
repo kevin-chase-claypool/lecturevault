@@ -4392,7 +4392,7 @@ export default function LectureVaultApp() {
               <span className="cart-icon" aria-hidden="true">Review Draft</span>
               <strong>{basketCount}</strong>
             </button>
-            {screen !== "capture" ? (
+            {screen !== "capture" && screen !== "dashboard" ? (
               <button className="primary" type="button" onClick={() => setScreen("capture")}>
                 New Reconstruction
               </button>
