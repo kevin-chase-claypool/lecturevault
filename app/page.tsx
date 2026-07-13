@@ -3857,13 +3857,12 @@ export default function LectureVaultApp() {
                     <h3>Folder Contents</h3>
                   </div>
                 </div>
-                <div className="lecture-grid compact">
+                <div className="lecture-list" aria-label="Lectures in this folder">
                   {archiveLectures.map((lecture) => (
-                    <LectureCard
+                    <LectureListRow
                       key={lecture.id}
                       lecture={lecture}
                       courseLabel={courseLabel}
-                      compact
                       selected={selectedLectureId === lecture.id}
                       mediaCount={
                         state.mediaItems.filter(
@@ -3897,9 +3896,22 @@ export default function LectureVaultApp() {
                 <h3>Selected Lecture</h3>
                 {selectedArchiveLecture ? (
                   <>
-                    <strong>{selectedArchiveLecture.title}</strong>
+                    <span className="selected-lecture-kicker">Selected reconstruction</span>
+                    <strong className="selected-lecture-title">{selectedArchiveLecture.title}</strong>
                     <span>{courseLabel(selectedArchiveLecture.courseId)}</span>
                     <small>{selectedArchiveLecture.date}</small>
+                    <div className="selected-lecture-meta">
+                      <span>
+                        {state.mediaItems.filter(
+                          (item) => item.lectureId === selectedArchiveLecture.id
+                        ).length} media
+                      </span>
+                      <span>
+                        {state.concepts.filter(
+                          (concept) => concept.lectureId === selectedArchiveLecture.id
+                        ).length} concepts
+                      </span>
+                    </div>
                     <p>
                       <MathPreview text={selectedArchiveLecture.summary} />
                     </p>
@@ -5441,6 +5453,65 @@ function LectureCard({
             Delete
           </button>
         ) : null}
+      </div>
+    </article>
+  );
+}
+
+function LectureListRow({
+  lecture,
+  courseLabel,
+  mediaCount,
+  conceptCount,
+  selected = false,
+  onSelect,
+  onOpen,
+  onAdd,
+  onDelete
+}: {
+  lecture: Lecture;
+  courseLabel: (id: string) => string;
+  mediaCount: number;
+  conceptCount: number;
+  selected?: boolean;
+  onSelect?: () => void;
+  onOpen: () => void;
+  onAdd: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <article
+      className={selected ? "lecture-list-row selected" : "lecture-list-row"}
+      draggable
+      onClick={onSelect}
+      onDragStart={(event) =>
+        event.dataTransfer.setData("text/lecture-id", lecture.id)
+      }
+    >
+      <div className="lecture-list-main">
+        <div className="lecture-list-heading">
+          <span className="pill">{courseLabel(lecture.courseId)}</span>
+          <strong>{lecture.title}</strong>
+        </div>
+        <p>
+          <MathPreview text={lecture.summary} />
+        </p>
+      </div>
+      <div className="card-meta">
+        <span>{lecture.date}</span>
+        <span>{mediaCount} media</span>
+        <span>{conceptCount} concepts</span>
+      </div>
+      <div className="button-row" onClick={(event) => event.stopPropagation()}>
+        <button type="button" onClick={onOpen}>
+          Open
+        </button>
+        <button className="primary" type="button" onClick={onAdd}>
+          Add to Review
+        </button>
+        <button className="danger" type="button" onClick={onDelete}>
+          Delete
+        </button>
       </div>
     </article>
   );

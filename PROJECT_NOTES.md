@@ -43,6 +43,8 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Fixed the phone/tablet workflow strip inheriting a desktop flex height, which caused excessive vertical whitespace between its numbers and labels.
 - Shortened the workflow diagram's second step from `Reconstruct` to `Build` so it cannot split awkwardly at compact widths.
 - Grouped desktop navigation into `Workspace`, `Library`, and `Study` sections while keeping the mobile menu as a compact flat grid.
+- Reworked Vault folder contents into a scalable selectable lecture list with a sticky selected-reconstruction inspector and inline `Open`, `Add to Review`, and `Delete` actions.
+- Made the Vault list stack cleanly on phone widths while removing its desktop max-height restriction on small screens.
 - Verified with `npm run typecheck` and `npm run build`.
 - Disabled `Build Reconstruction` and `Save Source Bundle` until at least one source exists, matching the source-bundle workflow.
 - Added concise helper text explaining that one source is enough and clarifying what token-spending actions do.
