@@ -533,6 +533,13 @@ label {
   justify-content: start;
 }
 
+.topbar-actions button {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.15;
+}
+
 .button-row {
   align-items: center;
 }
@@ -2856,6 +2863,9 @@ label {
     min-height: 38px;
     padding: 8px 9px;
     font-size: 0.84rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.15;
   }
 
   .cart-button {
@@ -3123,6 +3133,11 @@ label {
 
   .topbar-actions button {
     width: 100%;
+    min-height: 42px;
+    padding-inline: 7px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.15;
   }
 
   .exam-item {
