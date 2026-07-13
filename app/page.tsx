@@ -2266,11 +2266,6 @@ export default function LectureVaultApp() {
     setStatus(folderId ? "Moved lecture into archive folder." : "Moved lecture.");
   }
 
-  async function saveCapture(event: FormEvent) {
-    event.preventDefault();
-    await persistCapture(false);
-  }
-
   async function saveCaptureWithAi() {
     await persistCapture(true);
   }
@@ -3965,7 +3960,10 @@ export default function LectureVaultApp() {
         ) : null}
 
         {screen === "capture" ? (
-          <form className="capture panel capture-workflow" onSubmit={saveCapture}>
+          <form
+            className="capture panel capture-workflow"
+            onSubmit={(event) => event.preventDefault()}
+          >
             <div className="capture-hero">
               <div>
                 <span className="eyebrow">New Reconstruction</span>
@@ -4166,8 +4164,8 @@ export default function LectureVaultApp() {
               <div className="capture-action-copy">
                 <span className="eyebrow">Ready when you are</span>
                 <p>
-                  Build now for AI reconstruction, or save the source bundle and
-                  come back later.
+                  Add the sources you have, then build one complete reconstruction
+                  for this class day.
                 </p>
               </div>
               <div className="button-row">
@@ -4178,12 +4176,6 @@ export default function LectureVaultApp() {
                   disabled={isLectureGenerating || !reconstructionHasSource}
                 >
                   {isLectureGenerating ? "Working..." : "Build Reconstruction"}
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLectureGenerating || !reconstructionHasSource}
-                >
-                  Save Source Bundle
                 </button>
                 <button
                   type="button"
