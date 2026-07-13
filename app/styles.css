@@ -2012,6 +2012,12 @@ button.review-draft-button:disabled {
   background: #f6f9fb;
 }
 
+.archive-organizer .archive-folder-tree {
+  max-height: 50dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 .storage-folder-branch,
 .storage-folder-children {
   display: grid;
