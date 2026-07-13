@@ -4350,11 +4350,13 @@ export default function LectureVaultApp() {
             <span>Archive storage</span>
             <strong>{cloudSyncLabel}</strong>
           </div>
+          <CompactUsageSummary state={state} className="mobile-usage-summary" />
         </nav>
         <div className="sidebar-note">
           <strong>{state.lectures.length}</strong> archived items
           <span>{state.exams.length} review sets</span>
           <span>{cloudSyncLabel}</span>
+          <CompactUsageSummary state={state} className="sidebar-usage-summary" />
         </div>
       </aside>
 
@@ -5758,22 +5760,6 @@ function Dashboard({
 }) {
   const recentLectures = state.lectures.slice(0, 4);
   const activeExams = state.exams.slice(0, 4);
-  const transcriptionUsage = state.transcripts.reduce(
-    (total, transcript) => addTokenUsage(total, transcript.usage),
-    {} as TokenUsage
-  );
-  const reviewUsage = state.studyGuides.reduce(
-    (total, guide) => addTokenUsage(total, guide.usage),
-    {} as TokenUsage
-  );
-  const textbookEmbeddingUsage = state.textbooks.reduce(
-    (total, textbook) => addTokenUsage(total, textbook.embeddingUsage),
-    {} as TokenUsage
-  );
-  const totalUsage = [transcriptionUsage, reviewUsage, textbookEmbeddingUsage].reduce(
-    (total, usage) => addTokenUsage(total, usage),
-    {} as TokenUsage
-  );
 
   return (
     <section className="dashboard">
@@ -5795,38 +5781,6 @@ function Dashboard({
           <span>Review sets</span>
         </div>
       </div>
-
-      <section className="panel usage-dashboard">
-        <div className="section-heading">
-          <div>
-            <span className="pill">AI Usage</span>
-            <h3>Token Usage Summary</h3>
-            <p className="section-note">
-              Usage is recorded when AI builds reconstructions, indexes textbooks,
-              or generates reviews.
-            </p>
-          </div>
-          <span>
-            {usageHasTokens(totalUsage)
-              ? formatTokenUsage(totalUsage)
-              : "No token usage recorded yet"}
-          </span>
-        </div>
-        <div className="usage-dashboard-grid">
-          <UsageSummaryCard
-            label="Reconstruction transcription and artifact generation"
-            usage={transcriptionUsage}
-          />
-          <UsageSummaryCard
-            label="Textbook embedding and indexing"
-            usage={textbookEmbeddingUsage}
-          />
-          <UsageSummaryCard
-            label="Review generation"
-            usage={reviewUsage}
-          />
-        </div>
-      </section>
 
       <div className="dashboard-grid">
         <section className="panel action-panel capture-action">
@@ -5971,17 +5925,41 @@ function PipelineStatus({
   );
 }
 
-function UsageSummaryCard({
-  label,
-  usage
+function CompactUsageSummary({
+  className,
+  state
 }: {
-  label: string;
-  usage?: TokenUsage | null;
+  className: string;
+  state: VaultState;
 }) {
+  const reconstructionUsage = state.transcripts.reduce(
+    (total, transcript) => addTokenUsage(total, transcript.usage),
+    {} as TokenUsage
+  );
+  const textbookUsage = state.textbooks.reduce(
+    (total, textbook) => addTokenUsage(total, textbook.embeddingUsage),
+    {} as TokenUsage
+  );
+  const reviewUsage = state.studyGuides.reduce(
+    (total, guide) => addTokenUsage(total, guide.usage),
+    {} as TokenUsage
+  );
+  const totalUsage = [reconstructionUsage, textbookUsage, reviewUsage].reduce(
+    (total, usage) => addTokenUsage(total, usage),
+    {} as TokenUsage
+  );
+
   return (
-    <div className="usage-summary-card">
-      <strong>{usageHasTokens(usage) ? formatTokenUsage(usage) : "No usage yet"}</strong>
-      <span>{label}</span>
+    <div className={className} aria-label="AI token usage summary">
+      <span className="compact-usage-label">AI usage</span>
+      <strong title={usageHasTokens(totalUsage) ? formatTokenUsage(totalUsage) : undefined}>
+        {usageHasTokens(totalUsage) ? formatTokenUsage(totalUsage) : "No usage yet"}
+      </strong>
+      <div className="compact-usage-breakdown">
+        <span>Rebuild <b>{usageHasTokens(reconstructionUsage) ? formatTokenUsage(reconstructionUsage) : "None"}</b></span>
+        <span>Textbooks <b>{usageHasTokens(textbookUsage) ? formatTokenUsage(textbookUsage) : "None"}</b></span>
+        <span>Reviews <b>{usageHasTokens(reviewUsage) ? formatTokenUsage(reviewUsage) : "None"}</b></span>
+      </div>
     </div>
   );
 }
