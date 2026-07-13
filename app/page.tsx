@@ -351,6 +351,19 @@ function defaultSourceRole(file: File) {
   }
 }
 
+function sourceRoleDescription(role: string) {
+  const descriptions: Record<string, string> = {
+    "Lecture audio": "the spoken class explanation and pacing",
+    "Lecture recording": "the audiovisual lecture sequence",
+    "Board work": "handwritten formulas, diagrams, and board annotations",
+    "Worked example": "the problem setup, solution steps, and result",
+    "OneNote export": "the original handwritten page layout, formulas, and diagrams",
+    "Reference handout": "supporting definitions, instructions, or reference material",
+    "Other context": "additional background that helps explain this class day"
+  };
+  return descriptions[role] || descriptions["Other context"];
+}
+
 function fileKey(file: File) {
   return [file.name, file.size, file.lastModified].join("-");
 }
@@ -4786,6 +4799,7 @@ export default function LectureVaultApp() {
                   <div>
                     <span className="pill">Files</span>
                     <h3>Attached Files</h3>
+                    <p className="capture-file-purpose">Choose how AI should interpret each file. This classifies the source; it does not open another menu or change the original file.</p>
                   </div>
                   <button
                     type="button"
@@ -4812,10 +4826,14 @@ export default function LectureVaultApp() {
                           </small>
                         </div>
                         <label className="capture-source-role">
-                          <span>Role</span>
+                          <span>Use this file as</span>
                           <select
                             value={source.role}
-                            onChange={(event) => updateCaptureSource(key, { role: event.target.value })}
+                            onChange={(event) => {
+                              const role = event.target.value;
+                              updateCaptureSource(key, { role });
+                              setStatus(`${file.name} will be used as ${role}.`);
+                            }}
                           >
                             <option>Lecture audio</option>
                             <option>Lecture recording</option>
@@ -4825,6 +4843,7 @@ export default function LectureVaultApp() {
                             <option>Reference handout</option>
                             <option>Other context</option>
                           </select>
+                          <small className="capture-source-role-confirmation">AI will use this as {sourceRoleDescription(source.role)}.</small>
                         </label>
                         <label className="capture-source-caption">
                           <span>Caption <small>Optional</small></span>

@@ -2407,6 +2407,15 @@ button.review-draft-button:disabled {
   margin-bottom: 0;
 }
 
+.capture-file-purpose {
+  max-width: 680px;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
 .capture-media-item {
   display: grid;
   grid-template-columns: 82px minmax(150px, 1fr) minmax(150px, 0.7fr) minmax(220px, 1.2fr) auto;
@@ -2444,6 +2453,13 @@ button.review-draft-button:disabled {
   min-height: 36px;
   padding: 6px 8px;
   font-size: 0.8rem;
+}
+
+.capture-source-role-confirmation {
+  color: #456172;
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.28;
 }
 
 .capture-source-caption span small {

@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Clearer Attached-File Roles
+
+- Reworded the attached-source role picker to explain that it classifies a file for AI rather than opening a follow-up menu or changing the original file.
+- Each source now confirms, directly below its selector, how the reconstruction AI will use that chosen role. Selecting a role also reports the saved classification in the page status.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Conflict-Safe Class-Day Source Sync
 
 - Prevented a stale phone or tablet draft view from replacing sources that were already uploaded from another device. Draft hydration is now read-only for its first render, and later saves merge permanent Supabase source references by storage path.
