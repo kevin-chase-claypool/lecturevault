@@ -4625,8 +4625,8 @@ export default function LectureVaultApp() {
                 <h3>Reconstruct a class meeting</h3>
                 <p>
                   Build one daily class record from whatever sources you have:
-                  audio, OneNote notes, board images, textbook context, or rough
-                  notes.
+                  audio, visual OneNote pages, board images, textbook context, or
+                  rough notes.
                 </p>
               </div>
               <div>
@@ -4643,7 +4643,7 @@ export default function LectureVaultApp() {
             </div>
             <p className="workflow-helper">
               One source is enough. Add audio when you have it, board images when
-              they matter, and notes or OneNote text when they clarify what happened.
+              they matter, and a shared OneNote PDF when handwriting or diagrams clarify what happened.
             </p>
             <details className="capture-disclosure capture-draft-disclosure" open>
               <summary>
@@ -4862,63 +4862,9 @@ export default function LectureVaultApp() {
               </div>
             ) : null}
 
-            <details className="capture-disclosure onenote-source-panel" aria-label="OneNote source picker">
-              <summary>
-                <span><strong>Import readable OneNote text</strong><small>Browse notebooks and attach typed or OCR-readable page text.</small></span>
-                <span className="disclosure-state">{oneNoteSources.length ? `${oneNoteSources.length} selected` : oneNoteStatus.connected ? "Connected" : "Optional"}</span>
-              </summary>
-              <div className="capture-disclosure-body">
-              <div className="section-heading compact-heading">
-                <div>
-                  <span className="pill">OneNote</span>
-                  <h3>Class Notes</h3>
-                </div>
-                {oneNoteStatus.connected ? (
-                  <span className="connection-state">Connected</span>
-                ) : (
-                  <a className="button-like onenote-connect-link" href="/api/onenote/connect">Connect OneNote</a>
-                )}
-              </div>
-              <p>
-                Select only the pages that belong to this class day. LectureVault saves OneNote&apos;s readable text as a snapshot, so later edits do not change your archived record. Handwritten ink and page images are not imported here; add them as files when they matter.
-              </p>
-              {!oneNoteStatus.configured ? (
-                <small>OneNote connection is not configured on this deployment yet. Add its environment variables, redeploy, then connect it here.</small>
-              ) : null}
-              {oneNoteStatus.configured && !oneNoteStatus.connected ? (
-                <small>Connect OneNote here, then choose the pages for this class day.</small>
-              ) : null}
-              {oneNoteStatus.connected ? (
-                <>
-                  <small>Connected{oneNoteStatus.accountLabel ? ` as ${oneNoteStatus.accountLabel}` : ""}.</small>
-                  {oneNoteExplorerFeedback ? <p className="onenote-explorer-feedback" role="status">{oneNoteExplorerFeedback}</p> : null}
-                  {oneNoteExplorerError ? <p className="onenote-explorer-feedback error" role="alert">{oneNoteExplorerError}</p> : null}
-                  {oneNoteExplorer.root?.length ? (
-                    <OneNoteExplorer
-                      childrenById={oneNoteExplorer}
-                      expandedIds={oneNoteExpandedIds}
-                      isLoading={oneNoteLoading}
-                      nodes={oneNoteExplorer.root}
-                      selectedPageIds={oneNoteSources.map((source) => source.pageId)}
-                      onToggle={(node) => void toggleOneNoteExplorerNode(node)}
-                    />
-                  ) : <button type="button" onClick={() => void loadOneNoteExplorer()} disabled={oneNoteLoading}>Open OneNote folders</button>}
-                </>
-              ) : null}
-              {oneNoteSources.length ? (
-                <div className="onenote-selected-list">
-                  {oneNoteSources.map((source) => <div key={source.id}>
-                    <span><strong>{source.title}</strong><small>{source.notebookName} / {source.sectionName}</small></span>
-                    <button type="button" onClick={() => setOneNoteSources((current) => current.filter((item) => item.id !== source.id))}>Remove</button>
-                  </div>)}
-                </div>
-              ) : null}
-              </div>
-            </details>
-
               <details className="capture-disclosure">
                 <summary>
-                  <span><strong>Paste notes or a partial transcript</strong><small>Optional when your attached sources already tell the story.</small></span>
+                  <span><strong>Paste typed notes or a partial transcript</strong><small>Optional when your attached sources already tell the story.</small></span>
                   <span className="disclosure-state">{captureForm.transcript.trim() ? "Added" : "Optional"}</span>
                 </summary>
                 <div className="capture-disclosure-body">
@@ -4933,7 +4879,7 @@ export default function LectureVaultApp() {
                         }))
                       }
                       rows={7}
-                      placeholder="Paste OneNote text, a partial transcript, or rough notes. This is optional if you attached audio, images, or documents."
+                      placeholder="Paste typed notes, a partial transcript, or rough notes. This is optional if you attached audio, images, or documents."
                     />
                   </label>
                 </div>

@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Handwritten OneNote PDF Workflow
+
+- Removed the readable-text OneNote browser from New Reconstruction. The intended OneNote workflow is now exclusively sharing an exported PDF or image into the active class-day workspace, preserving handwritten math, diagrams, and page layout for AI inspection.
+- Existing OneNote integration and historical source snapshots remain intact; the unused import route is simply no longer presented in the reconstruction workflow.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Compartmentalized Reconstruction Workflow
 
 - Reworked New Reconstruction into a progressive workflow: the class-day workspace remains prominent, while Android OneNote sharing, readable OneNote browsing, pasted notes, optional AI instructions, and the full AI context preview are compact expanders.
