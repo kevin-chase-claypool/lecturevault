@@ -2618,8 +2618,7 @@ button.review-draft-button:disabled {
   font-size: 1rem;
 }
 
-.workflow-steps,
-.source-readiness {
+.workflow-steps {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
@@ -2673,29 +2672,36 @@ button.review-draft-button:disabled {
 }
 
 .source-readiness {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .source-readiness div {
-  display: grid;
-  gap: 2px;
-  text-align: center;
+  display: inline-flex;
+  min-height: 30px;
+  align-items: baseline;
+  gap: 5px;
+  padding: 5px 8px;
+  text-align: left;
 }
 
 .source-readiness strong {
   color: var(--text);
-  font-size: 1.15rem;
+  font-size: 0.84rem;
+  line-height: 1;
 }
 
 .source-readiness span {
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 0.68rem;
   font-weight: 900;
   text-transform: uppercase;
+  line-height: 1;
 }
 
 .reconstruction-readiness {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .reconstruction-readiness div {
@@ -2706,7 +2712,6 @@ button.review-draft-button:disabled {
 
 .reconstruction-readiness strong {
   color: var(--primary-dark);
-  font-size: 1rem;
 }
 
 .exam-instructions,
@@ -3193,7 +3198,6 @@ button.review-draft-button:disabled {
   .form-grid,
   .capture-hero,
   .capture-actions,
-  .source-readiness,
   .toolbar {
     grid-template-columns: 1fr;
   }
@@ -3561,7 +3565,6 @@ button.review-draft-button:disabled {
   .form-grid,
   .capture-hero,
   .capture-actions,
-  .source-readiness,
   .toolbar {
     grid-template-columns: 1fr;
   }

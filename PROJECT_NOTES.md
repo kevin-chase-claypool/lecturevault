@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Compact Reconstruction Source Status
+
+- Replaced the large stacked source-readiness cards with a compact, wrapping metadata strip for audio/video, board images, documents, notes, and textbooks.
+- The same compact treatment now applies to review-source summaries, keeping source counts visible without consuming the working area on phone and tablet layouts.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - OneNote Source Picker
 
 - Added Microsoft Graph OAuth routes for connecting a personal or school OneNote account, with encrypted refresh-token storage in Supabase.
