@@ -31,6 +31,14 @@ function safeId(prefix) {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
+function isAudioFile(file) {
+  return file.type.startsWith("audio/") || /\.(mp3|m4a|aac|wav|ogg|opus)$/i.test(file.name || "");
+}
+
+function isSupportedSharedFile(file) {
+  return file.type === "application/pdf" || file.type.startsWith("image/") || isAudioFile(file);
+}
+
 async function createSignedUpload(file, lectureId, mediaId) {
   const response = await fetch("/api/media/signed-upload", {
     body: JSON.stringify({ fileName: file.name, lectureId, mediaId }),
@@ -71,14 +79,14 @@ async function receiveShare(request) {
 
   try {
     for (const file of files) {
-      if (!(file.type === "application/pdf" || file.type.startsWith("image/"))) {
-        throw new Error("Only PDF and image pages can be shared to LectureVault.");
+      if (!isSupportedSharedFile(file)) {
+        throw new Error("Only PDF, image, and audio files can be shared to LectureVault.");
       }
       await savePendingSource(await uploadSharedFile(file));
     }
     return Response.redirect("/?shared=1", 303);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not receive the shared page.";
+    const message = error instanceof Error ? error.message : "Could not receive the shared file.";
     return Response.redirect(`/?share-error=${encodeURIComponent(message)}`, 303);
   }
 }

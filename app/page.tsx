@@ -1498,7 +1498,7 @@ export default function LectureVaultApp() {
     const shareError = params.get("share-error");
     if (shareError) {
       setScreen("capture");
-      setStatus(`OneNote share failed: ${shareError}`);
+      setStatus(`Direct share upload failed: ${shareError}`);
     }
 
     if (params.get("shared") === "1") {
@@ -1506,29 +1506,35 @@ export default function LectureVaultApp() {
         .then((sources) => {
           if (!sources.length) {
             setScreen("capture");
-            setStatus("No shared PDF or image was received. Share the OneNote export again.");
+            setStatus("No shared PDF, image, or audio file was received. Share it again from the source app.");
             return;
           }
 
           setCaptureFiles((current) => [
             ...current,
-            ...sources.map((source) => ({
-              file: new File([], source.name, { type: source.mimeType }),
-              role: "OneNote export",
-              caption: "Shared directly from OneNote. Preserve handwriting, formulas, diagrams, and page layout.",
-              size: source.size,
-              storageBucket: source.storageBucket,
-              storagePath: source.storagePath
-            }))
+            ...sources.map((source) => {
+              const file = new File([], source.name, { type: source.mimeType });
+              const isAudio = source.mimeType.startsWith("audio/") || /\.(mp3|m4a|aac|wav|ogg|opus)$/i.test(source.name);
+              return {
+                file,
+                role: isAudio ? "Lecture audio" : "OneNote export",
+                caption: isAudio
+                  ? "Shared directly from Android. Transcribe the spoken lecture and connect it to the visual class sources."
+                  : "Shared directly from OneNote. Preserve handwriting, formulas, diagrams, and page layout.",
+                size: source.size,
+                storageBucket: source.storageBucket,
+                storagePath: source.storagePath
+              };
+            })
           ]);
           setScreen("capture");
           setStatus(
-            `${sources.length} OneNote PDF/image source${sources.length === 1 ? "" : "s"} added to this reconstruction.`
+            `${sources.length} shared source file${sources.length === 1 ? "" : "s"} added to this reconstruction.`
           );
         })
         .catch((error) => {
           setScreen("capture");
-          setStatus(error instanceof Error ? error.message : "Could not import the shared OneNote source.");
+          setStatus(error instanceof Error ? error.message : "Could not import the shared source file.");
         });
     }
 
@@ -4778,13 +4784,13 @@ export default function LectureVaultApp() {
                 </small>
               </label>
 
-              <details className="capture-disclosure" aria-label="Android OneNote direct share">
+              <details className="capture-disclosure" aria-label="Android direct share">
                 <summary>
-                  <span><strong>Share a visual OneNote page from Android</strong><small>Use this for handwritten pages, formulas, and diagrams exported as PDFs or images.</small></span>
+                  <span><strong>Share OneNote pages or lecture audio from Android</strong><small>Send handwritten PDFs/images or your MP3 directly into this workspace.</small></span>
                   <span className="disclosure-state">Optional</span>
                 </summary>
                 <div className="capture-disclosure-body">
-                  <p>Install LectureVault once, sign in, then use OneNote&apos;s Share action and choose LectureVault. The original PDF or image uploads directly to Supabase and appears in Attached Files.</p>
+                  <p>Install LectureVault once, sign in, then use the Share action in OneNote or your recorder and choose LectureVault. The original PDF, image, or MP3 uploads directly to Supabase and appears in Attached Files.</p>
                   {installPrompt ? <button type="button" onClick={() => void installLectureVault()}>Install app</button> : null}
                 </div>
               </details>

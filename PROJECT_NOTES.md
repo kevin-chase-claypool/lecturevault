@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Direct Android Audio Sharing
+
+- Extended the installed Android share target to accept audio files as well as OneNote PDFs and images. An MP3 shared from a recorder is uploaded directly to Supabase and attached to the active class-day workspace with the `Lecture audio` role.
+- A shared OneNote PDF/image and a shared MP3 can now be sent from separate devices into the same workspace, then reconstructed together without an intermediate Media Library step.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Handwritten OneNote PDF Workflow
 
 - Removed the readable-text OneNote browser from New Reconstruction. The intended OneNote workflow is now exclusively sharing an exported PDF or image into the active class-day workspace, preserving handwritten math, diagrams, and page layout for AI inspection.

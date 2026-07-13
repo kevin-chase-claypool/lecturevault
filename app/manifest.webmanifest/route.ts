@@ -35,7 +35,7 @@ const manifest = {
       files: [
         {
           name: "lecturevault_files",
-          accept: ["application/pdf", "image/*"]
+          accept: ["application/pdf", "image/*", "audio/*"]
         }
       ]
     }
