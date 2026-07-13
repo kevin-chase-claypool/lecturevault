@@ -4645,22 +4645,24 @@ export default function LectureVaultApp() {
               One source is enough. Add audio when you have it, board images when
               they matter, and notes or OneNote text when they clarify what happened.
             </p>
-            <section className="pwa-share-panel" aria-label="Shared class-day draft">
-              <div className="section-heading compact-heading">
-                <div>
-                  <span className="pill">Shared draft</span>
-                  <h3>Class-day workspace</h3>
+            <details className="capture-disclosure capture-draft-disclosure" open>
+              <summary>
+                <span><strong>Class-day workspace</strong><small>{activeDraft ? `${courseLabel(activeDraft.courseId)} · ${activeDraft.date} · shared across devices` : "Create or open a workspace before adding sources on multiple devices."}</small></span>
+                <span className="disclosure-state">{activeDraft ? "Active" : "Choose"}</span>
+              </summary>
+              <div className="capture-disclosure-body">
+                <div className="capture-disclosure-actions">
+                  <select value={activeDraftId} onChange={(event) => openClassDayDraft(event.target.value)}>
+                    <option value="">Choose a shared draft</option>
+                    {state.reconstructionDrafts.map((draft) => (
+                      <option key={draft.id} value={draft.id}>{courseLabel(draft.courseId)} - {draft.date} - {draft.title || "Untitled"}</option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={createClassDayDraft}>New workspace</button>
                 </div>
-                <button type="button" onClick={createClassDayDraft}>New draft</button>
+                <p>{activeDraft ? "Sources and details sync through Supabase. Add from either device, then build when ready." : "A workspace keeps this class day together across your phone and tablet."}</p>
               </div>
-              <select value={activeDraftId} onChange={(event) => openClassDayDraft(event.target.value)}>
-                <option value="">Choose a shared draft</option>
-                {state.reconstructionDrafts.map((draft) => (
-                  <option key={draft.id} value={draft.id}>{courseLabel(draft.courseId)} - {draft.date} - {draft.title || "Untitled"}</option>
-                ))}
-              </select>
-              <p>{activeDraft ? "Changes to this draft sync through Supabase before reconstruction. Add sources from either device, then build when ready." : "Create or open a shared draft before adding cross-device sources."}</p>
-            </section>
+            </details>
             <section className="capture-stage" aria-labelledby="reconstruction-details-heading">
               <div className="capture-stage-heading">
                 <span>1</span>
@@ -4776,22 +4778,16 @@ export default function LectureVaultApp() {
                 </small>
               </label>
 
-              <section className="pwa-share-panel" aria-label="OneNote direct share">
-                <div className="section-heading compact-heading">
-                  <div>
-                    <span className="pill">Android OneNote</span>
-                    <h3>Share visual pages directly</h3>
-                  </div>
-                  {installPrompt ? (
-                    <button type="button" onClick={() => void installLectureVault()}>
-                      Install app
-                    </button>
-                  ) : null}
+              <details className="capture-disclosure" aria-label="Android OneNote direct share">
+                <summary>
+                  <span><strong>Share a visual OneNote page from Android</strong><small>Use this for handwritten pages, formulas, and diagrams exported as PDFs or images.</small></span>
+                  <span className="disclosure-state">Optional</span>
+                </summary>
+                <div className="capture-disclosure-body">
+                  <p>Install LectureVault once, sign in, then use OneNote&apos;s Share action and choose LectureVault. The original PDF or image uploads directly to Supabase and appears in Attached Files.</p>
+                  {installPrompt ? <button type="button" onClick={() => void installLectureVault()}>Install app</button> : null}
                 </div>
-                <p>
-                  Install LectureVault once, sign in, then use OneNote&apos;s Share action and choose LectureVault. PDFs and images upload directly to Supabase and open here as attached sources.
-                </p>
-              </section>
+              </details>
 
             {captureFiles.length ? (
               <div className="capture-media-panel">
@@ -4866,7 +4862,12 @@ export default function LectureVaultApp() {
               </div>
             ) : null}
 
-            <section className="onenote-source-panel" aria-label="OneNote source picker">
+            <details className="capture-disclosure onenote-source-panel" aria-label="OneNote source picker">
+              <summary>
+                <span><strong>Import readable OneNote text</strong><small>Browse notebooks and attach typed or OCR-readable page text.</small></span>
+                <span className="disclosure-state">{oneNoteSources.length ? `${oneNoteSources.length} selected` : oneNoteStatus.connected ? "Connected" : "Optional"}</span>
+              </summary>
+              <div className="capture-disclosure-body">
               <div className="section-heading compact-heading">
                 <div>
                   <span className="pill">OneNote</span>
@@ -4912,22 +4913,31 @@ export default function LectureVaultApp() {
                   </div>)}
                 </div>
               ) : null}
-            </section>
+              </div>
+            </details>
 
-              <label>
-                Transcript, OneNote text, or rough notes
-                <textarea
-                  value={captureForm.transcript}
-                  onChange={(event) =>
-                    setCaptureForm((current) => ({
-                      ...current,
-                      transcript: event.target.value
-                    }))
-                  }
-                  rows={9}
-                  placeholder="Paste OneNote text, a partial transcript, or rough notes. This is optional if you attached audio, images, or documents."
-                />
-              </label>
+              <details className="capture-disclosure">
+                <summary>
+                  <span><strong>Paste notes or a partial transcript</strong><small>Optional when your attached sources already tell the story.</small></span>
+                  <span className="disclosure-state">{captureForm.transcript.trim() ? "Added" : "Optional"}</span>
+                </summary>
+                <div className="capture-disclosure-body">
+                  <label>
+                    Notes for this class day
+                    <textarea
+                      value={captureForm.transcript}
+                      onChange={(event) =>
+                        setCaptureForm((current) => ({
+                          ...current,
+                          transcript: event.target.value
+                        }))
+                      }
+                      rows={7}
+                      placeholder="Paste OneNote text, a partial transcript, or rough notes. This is optional if you attached audio, images, or documents."
+                    />
+                  </label>
+                </div>
+              </details>
             </section>
 
             <section className="capture-stage" aria-labelledby="reconstruction-context-heading">
@@ -4938,16 +4948,12 @@ export default function LectureVaultApp() {
                   <p>Clarify what matters when the source materials cannot say it themselves.</p>
                 </div>
               </div>
-              <div className="capture-brief">
-                <div className="section-heading compact-heading">
-                  <div>
-                    <span className="pill">Optional AI context</span>
-                    <h3>Reconstruction Brief</h3>
-                  </div>
-                </div>
-                <p>
-                  Add only what the source bundle cannot say on its own. This context is saved with the reconstruction request.
-                </p>
+              <details className="capture-disclosure capture-brief">
+                <summary>
+                  <span><strong>Optional AI instructions</strong><small>Add instructor emphasis or questions only when the sources cannot say it themselves.</small></span>
+                  <span className="disclosure-state">{captureForm.objective.trim() || captureForm.emphasis.trim() || captureForm.questions.trim() ? "Added" : "Optional"}</span>
+                </summary>
+                <div className="capture-disclosure-body">
                 <div className="form-grid">
                   <label>
                     Today&apos;s objective
@@ -4982,14 +4988,13 @@ export default function LectureVaultApp() {
                     />
                   </label>
                 </div>
-                <label className="ai-context-preview">
-                  Full AI build context <small>Read-only</small>
+                <details className="ai-context-preview">
+                  <summary><strong>View full AI build context</strong><small>Read-only template, current source manifest, and instructions</small></summary>
                   <textarea value={reconstructionAiContextPreview} readOnly rows={12} />
-                  <span>
-                    This shows the organizing instructions, output contract, and current source context. Audio transcription and the retrieved textbook excerpts are added during the build.
-                  </span>
-                </label>
-              </div>
+                  <span>Audio transcription and retrieved textbook excerpts are added during the build.</span>
+                </details>
+                </div>
+              </details>
             </section>
 
             <section className="capture-stage" aria-labelledby="reconstruction-build-heading">

@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Compartmentalized Reconstruction Workflow
+
+- Reworked New Reconstruction into a progressive workflow: the class-day workspace remains prominent, while Android OneNote sharing, readable OneNote browsing, pasted notes, optional AI instructions, and the full AI context preview are compact expanders.
+- The primary path now stays focused on details, attaching sources, and building. All prior controls remain available without forcing every user through every source or context method.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Clearer Attached-File Roles
 
 - Reworded the attached-source role picker to explain that it classifies a file for AI rather than opening a follow-up menu or changing the original file.

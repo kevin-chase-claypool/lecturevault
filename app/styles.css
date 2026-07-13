@@ -2147,6 +2147,107 @@ button.review-draft-button:disabled {
   line-height: 1.4;
 }
 
+.capture-disclosure {
+  border: 1px solid #c8dbe4;
+  border-radius: var(--radius);
+  background: #ffffff;
+  overflow: clip;
+}
+
+.capture-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 54px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.capture-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.capture-disclosure > summary::after {
+  content: "+";
+  flex: 0 0 auto;
+  color: var(--primary-dark);
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.capture-disclosure[open] > summary {
+  border-bottom: 1px solid #dce7ee;
+  background: #f7fbfc;
+}
+
+.capture-disclosure[open] > summary::after {
+  content: "−";
+}
+
+.capture-disclosure > summary > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.capture-disclosure summary strong {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.capture-disclosure summary small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.32;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.disclosure-state {
+  flex: 0 0 auto;
+  border: 1px solid #bfdfda;
+  border-radius: 999px;
+  padding: 4px 7px;
+  background: #f1fbf9;
+  color: #07564e;
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.capture-disclosure-body {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.capture-disclosure-body > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.83rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.capture-disclosure-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+}
+
+.capture-disclosure-actions select,
+.capture-disclosure-actions button {
+  min-height: 38px;
+}
+
+.capture-draft-disclosure {
+  border-color: #b9d9df;
+  background: #fafeff;
+}
+
 .capture-media-panel {
   display: grid;
   gap: 10px;
@@ -2201,11 +2302,7 @@ button.review-draft-button:disabled {
 }
 
 .onenote-source-panel {
-  display: grid;
-  gap: 10px;
   border: 1px solid rgba(186, 208, 224, 0.98);
-  border-radius: var(--radius-lg);
-  padding: 14px;
   background: linear-gradient(180deg, #f9fbff 0%, #ffffff 100%);
 }
 
@@ -2469,11 +2566,7 @@ button.review-draft-button:disabled {
 }
 
 .capture-brief {
-  display: grid;
-  gap: 11px;
   border: 1px solid #c7dde3;
-  border-radius: var(--radius-lg);
-  padding: 14px;
   background: linear-gradient(180deg, #f9fcfd 0%, #ffffff 100%);
 }
 
@@ -2489,12 +2582,44 @@ button.review-draft-button:disabled {
 }
 
 .ai-context-preview {
+  border: 1px solid #d2e0e8;
+  border-radius: var(--radius-sm);
+  background: #f8fbfc;
+  overflow: clip;
+}
+
+.ai-context-preview > summary {
   display: grid;
-  gap: 6px;
+  gap: 2px;
+  padding: 9px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.ai-context-preview > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ai-context-preview > summary::after {
+  content: "+";
+  float: right;
+  color: var(--primary-dark);
+  font-weight: 900;
+}
+
+.ai-context-preview[open] > summary {
+  border-bottom: 1px solid #d2e0e8;
+}
+
+.ai-context-preview[open] > summary::after {
+  content: "−";
 }
 
 .ai-context-preview textarea {
+  display: block;
+  width: calc(100% - 20px);
   min-height: 218px;
+  margin: 10px;
   resize: vertical;
   background: #f5f8fb;
   color: #385066;
@@ -2504,6 +2629,8 @@ button.review-draft-button:disabled {
 }
 
 .ai-context-preview > span {
+  display: block;
+  margin: 0 10px 10px;
   color: var(--muted);
   font-size: 0.8rem;
   font-weight: 720;
@@ -3854,6 +3981,24 @@ button.review-draft-button:disabled {
 }
 
 @media (max-width: 620px) {
+  .capture-disclosure > summary {
+    align-items: flex-start;
+  }
+
+  .capture-disclosure summary small {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .capture-disclosure-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .capture-disclosure-actions button {
+    width: 100%;
+  }
+
   .button-row {
     grid-auto-flow: row;
     grid-template-columns: 1fr;
