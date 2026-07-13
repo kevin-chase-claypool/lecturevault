@@ -58,6 +58,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Tightened token-usage summaries and dashboard action-card height while retaining the same information and controls.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 
+### 2026-07-13 - OneNote File Explorer
+
+- Replaced the OneNote notebook/section dropdowns with a lazy-loaded file explorer.
+- The explorer supports notebooks, nested OneNote section groups, sections, and page-level selection without loading the complete account tree at once.
+- Selected pages remain imported as fixed reconstruction snapshots with their notebook and section provenance.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Source-Grounded AI Context
 
 - Reworked the read-only preview into `Full AI build context`. It now displays the exact shared organizing instructions and output contract used by the reconstruction API before the current course, notes, source manifest, and textbook-retrieval context.

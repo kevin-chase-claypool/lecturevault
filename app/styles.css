@@ -2193,6 +2193,112 @@ button.review-draft-button:disabled {
   gap: 10px;
 }
 
+.onenote-explorer {
+  display: grid;
+  gap: 3px;
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid #d5e0e9;
+  border-radius: var(--radius);
+  padding: 6px;
+  background: #ffffff;
+}
+
+.onenote-explorer.nested {
+  max-height: none;
+  overflow: visible;
+  border: 0;
+  padding: 0;
+}
+
+.onenote-explorer-branch {
+  display: grid;
+  gap: 3px;
+}
+
+.onenote-explorer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  min-width: 0;
+}
+
+.onenote-explorer-item {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  min-height: 32px;
+  border-color: transparent;
+  border-radius: 6px;
+  padding: 5px 8px 5px calc(8px + (var(--depth) * 18px));
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 760;
+  text-align: left;
+}
+
+.onenote-explorer-item:hover:not(:disabled) {
+  border-color: #b9d9df;
+  background: #f3fbfa;
+  box-shadow: none;
+  transform: none;
+}
+
+.onenote-explorer-item > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.onenote-node-icon {
+  width: 14px;
+  height: 11px;
+  border: 1px solid #d3a944;
+  border-radius: 2px;
+  background: #f6cc62;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.onenote-explorer-row.folder .onenote-node-icon::before {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 3px;
+  margin-top: -4px;
+  margin-left: 1px;
+  border: 1px solid #d3a944;
+  border-bottom: 0;
+  border-radius: 2px 2px 0 0;
+  background: #f9d878;
+}
+
+.onenote-explorer-row.page .onenote-node-icon {
+  width: 12px;
+  height: 15px;
+  border-color: #8da9bb;
+  background: #eef6fb;
+}
+
+.onenote-explorer-row > button:last-child {
+  min-height: 30px;
+  padding: 5px 8px;
+  font-size: 0.75rem;
+}
+
+.onenote-explorer-empty {
+  margin-left: calc(30px + (var(--depth) * 18px));
+  padding: 4px 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .onenote-page-list,
 .onenote-selected-list {
   display: grid;

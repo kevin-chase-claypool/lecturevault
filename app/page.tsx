@@ -89,10 +89,16 @@ type OneNoteSource = {
 };
 
 type OneNoteLibraryItem = {
+  kind?: "notebook" | "sectionGroup" | "section" | "page";
   id: string;
   displayName?: string;
   title?: string;
   links?: { oneNoteWebUrl?: { href?: string } };
+};
+
+type OneNoteTrail = {
+  notebookName: string;
+  sectionName: string;
 };
 
 type Transcript = {
@@ -1329,11 +1335,9 @@ export default function LectureVaultApp() {
     accountLabel?: string;
     reason?: string;
   }>({});
-  const [oneNoteNotebooks, setOneNoteNotebooks] = useState<OneNoteLibraryItem[]>([]);
-  const [oneNoteSections, setOneNoteSections] = useState<OneNoteLibraryItem[]>([]);
-  const [oneNotePages, setOneNotePages] = useState<OneNoteLibraryItem[]>([]);
-  const [oneNoteNotebookId, setOneNoteNotebookId] = useState("");
-  const [oneNoteSectionId, setOneNoteSectionId] = useState("");
+  const [oneNoteExplorer, setOneNoteExplorer] = useState<Record<string, OneNoteLibraryItem[]>>({});
+  const [oneNoteExpandedIds, setOneNoteExpandedIds] = useState<string[]>([]);
+  const [oneNoteTrails, setOneNoteTrails] = useState<Record<string, OneNoteTrail>>({});
   const [oneNoteLoading, setOneNoteLoading] = useState(false);
   const [examForm, setExamForm] = useState({
     courseId: "",
@@ -3343,25 +3347,57 @@ export default function LectureVaultApp() {
     );
   }
 
-  async function loadOneNoteLibrary(kind: "notebooks" | "sections" | "pages", parentId?: string) {
+  async function loadOneNoteExplorer(parent?: OneNoteLibraryItem) {
     setOneNoteLoading(true);
     try {
-      const query = kind === "sections"
-        ? `?notebookId=${encodeURIComponent(parentId || "")}`
-        : kind === "pages"
-          ? `?sectionId=${encodeURIComponent(parentId || "")}`
-          : "";
+      const query = parent
+        ? parent.kind === "notebook"
+          ? `?notebookId=${encodeURIComponent(parent.id)}`
+          : parent.kind === "sectionGroup"
+            ? `?sectionGroupId=${encodeURIComponent(parent.id)}`
+            : parent.kind === "section"
+              ? `?sectionId=${encodeURIComponent(parent.id)}`
+              : ""
+        : "";
       const response = await fetch(`/api/onenote/library${query}`, { credentials: "include" });
       const data = (await response.json()) as { error?: string; value?: OneNoteLibraryItem[] };
       if (!response.ok) throw new Error(data.error || "Could not load OneNote library.");
       const items = data.value || [];
-      if (kind === "notebooks") setOneNoteNotebooks(items);
-      if (kind === "sections") setOneNoteSections(items);
-      if (kind === "pages") setOneNotePages(items);
+      const parentKey = parent?.id || "root";
+      const parentTrail = parent ? oneNoteTrails[parent.id] : undefined;
+      setOneNoteExplorer((current) => ({ ...current, [parentKey]: items }));
+      setOneNoteTrails((current) => {
+        const next = { ...current };
+        for (const item of items) {
+          const itemName = item.displayName || item.title || "Untitled OneNote item";
+          next[item.id] = item.kind === "notebook"
+            ? { notebookName: itemName, sectionName: "" }
+            : item.kind === "section"
+              ? { notebookName: parentTrail?.notebookName || "OneNote notebook", sectionName: itemName }
+              : parentTrail || { notebookName: "OneNote notebook", sectionName: "" };
+        }
+        return next;
+      });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not load OneNote library.");
     } finally {
       setOneNoteLoading(false);
+    }
+  }
+
+  async function toggleOneNoteExplorerNode(node: OneNoteLibraryItem) {
+    if (node.kind === "page") {
+      await importOneNotePage(node);
+      return;
+    }
+
+    const isExpanded = oneNoteExpandedIds.includes(node.id);
+    setOneNoteExpandedIds((current) =>
+      isExpanded ? current.filter((id) => id !== node.id) : [...current, node.id]
+    );
+
+    if (!isExpanded && !oneNoteExplorer[node.id]) {
+      await loadOneNoteExplorer(node);
     }
   }
 
@@ -3372,15 +3408,14 @@ export default function LectureVaultApp() {
       const data = (await response.json()) as { error?: string; pageId?: string; text?: string; title?: string; webUrl?: string };
       if (!response.ok) throw new Error(data.error || "Could not import OneNote page.");
       if (!data.text?.trim()) throw new Error("That OneNote page did not contain readable text.");
-      const notebookName = oneNoteNotebooks.find((item) => item.id === oneNoteNotebookId)?.displayName || "OneNote notebook";
-      const sectionName = oneNoteSections.find((item) => item.id === oneNoteSectionId)?.displayName || "OneNote section";
+      const trail = oneNoteTrails[page.id];
       const source: OneNoteSource = {
         id: `onenote-${data.pageId || page.id}`,
         pageId: data.pageId || page.id,
         title: data.title || page.title || "Untitled OneNote page",
         text: data.text.trim(),
-        notebookName,
-        sectionName,
+        notebookName: trail?.notebookName || "OneNote notebook",
+        sectionName: trail?.sectionName || "OneNote section",
         webUrl: data.webUrl || page.links?.oneNoteWebUrl?.href || "",
         importedAt: new Date().toISOString()
       };
@@ -4360,7 +4395,7 @@ export default function LectureVaultApp() {
                 <p>Audio, board images, files, and selected OneNote pages can be combined for one reconstruction.</p>
               </div>
               {oneNoteStatus.connected ? (
-                <button type="button" onClick={() => void loadOneNoteLibrary("notebooks")} disabled={oneNoteLoading}>
+                <button type="button" onClick={() => void loadOneNoteExplorer()} disabled={oneNoteLoading}>
                   {oneNoteLoading ? "Loading OneNote..." : "Browse OneNote"}
                 </button>
               ) : (
@@ -4483,49 +4518,16 @@ export default function LectureVaultApp() {
               {oneNoteStatus.connected ? (
                 <>
                   <small>Connected{oneNoteStatus.accountLabel ? ` as ${oneNoteStatus.accountLabel}` : ""}.</small>
-                  {oneNoteNotebooks.length ? (
-                    <div className="onenote-picker-grid">
-                      <label>
-                        Notebook
-                        <select value={oneNoteNotebookId} onChange={(event) => {
-                          const id = event.target.value;
-                          setOneNoteNotebookId(id);
-                          setOneNoteSectionId("");
-                          setOneNoteSections([]);
-                          setOneNotePages([]);
-                          if (id) void loadOneNoteLibrary("sections", id);
-                        }}>
-                          <option value="">Select a notebook</option>
-                          {oneNoteNotebooks.map((item) => <option key={item.id} value={item.id}>{item.displayName || "Untitled notebook"}</option>)}
-                        </select>
-                      </label>
-                      <label>
-                        Section
-                        <select value={oneNoteSectionId} disabled={!oneNoteSections.length} onChange={(event) => {
-                          const id = event.target.value;
-                          setOneNoteSectionId(id);
-                          setOneNotePages([]);
-                          if (id) void loadOneNoteLibrary("pages", id);
-                        }}>
-                          <option value="">Select a section</option>
-                          {oneNoteSections.map((item) => <option key={item.id} value={item.id}>{item.displayName || "Untitled section"}</option>)}
-                        </select>
-                      </label>
-                    </div>
-                  ) : null}
-                  {oneNotePages.length ? (
-                    <div className="onenote-page-list">
-                      {oneNotePages.map((page) => {
-                        const imported = oneNoteSources.some((source) => source.pageId === page.id);
-                        return <div key={page.id} className="onenote-page-row">
-                          <strong>{page.title || "Untitled OneNote page"}</strong>
-                          <button type="button" onClick={() => void importOneNotePage(page)} disabled={oneNoteLoading || imported}>
-                            {imported ? "Selected" : "Add to Reconstruction"}
-                          </button>
-                        </div>;
-                      })}
-                    </div>
-                  ) : null}
+                  {oneNoteExplorer.root?.length ? (
+                    <OneNoteExplorer
+                      childrenById={oneNoteExplorer}
+                      expandedIds={oneNoteExpandedIds}
+                      isLoading={oneNoteLoading}
+                      nodes={oneNoteExplorer.root}
+                      selectedPageIds={oneNoteSources.map((source) => source.pageId)}
+                      onToggle={(node) => void toggleOneNoteExplorerNode(node)}
+                    />
+                  ) : <button type="button" onClick={() => void loadOneNoteExplorer()} disabled={oneNoteLoading}>Open OneNote folders</button>}
                 </>
               ) : null}
               {oneNoteSources.length ? (
@@ -5926,6 +5928,80 @@ function LectureListRow({
         </button>
       </div>
     </article>
+  );
+}
+
+function OneNoteExplorer({
+  childrenById,
+  depth = 0,
+  expandedIds,
+  isLoading,
+  nodes,
+  onToggle,
+  selectedPageIds
+}: {
+  childrenById: Record<string, OneNoteLibraryItem[]>;
+  depth?: number;
+  expandedIds: string[];
+  isLoading: boolean;
+  nodes: OneNoteLibraryItem[];
+  onToggle: (node: OneNoteLibraryItem) => void;
+  selectedPageIds: string[];
+}) {
+  return (
+    <div className={depth ? "onenote-explorer nested" : "onenote-explorer"} aria-label={depth ? undefined : "OneNote file explorer"}>
+      {nodes.map((node) => {
+        const isPage = node.kind === "page";
+        const isExpanded = expandedIds.includes(node.id);
+        const childNodes = childrenById[node.id] || [];
+        const label = node.displayName || node.title || "Untitled OneNote item";
+        const selected = selectedPageIds.includes(node.id);
+
+        return (
+          <div className="onenote-explorer-branch" key={node.id}>
+            <div
+              className={isPage ? "onenote-explorer-row page" : "onenote-explorer-row folder"}
+              style={{ "--depth": depth } as CSSProperties}
+            >
+              <button
+                aria-expanded={isPage ? undefined : isExpanded}
+                className="onenote-explorer-item"
+                type="button"
+                onClick={() => onToggle(node)}
+              >
+                <span className="onenote-node-icon" aria-hidden="true" />
+                <span>{label}</span>
+              </button>
+              {isPage ? (
+                <button
+                  className={selected ? "review-draft-button" : ""}
+                  disabled={isLoading || selected}
+                  type="button"
+                  onClick={() => onToggle(node)}
+                >
+                  {selected ? "Selected" : "Add"}
+                </button>
+              ) : null}
+            </div>
+            {!isPage && isExpanded ? (
+              childNodes.length ? (
+                <OneNoteExplorer
+                  childrenById={childrenById}
+                  depth={depth + 1}
+                  expandedIds={expandedIds}
+                  isLoading={isLoading}
+                  nodes={childNodes}
+                  onToggle={onToggle}
+                  selectedPageIds={selectedPageIds}
+                />
+              ) : (
+                <small className="onenote-explorer-empty" style={{ "--depth": depth + 1 } as CSSProperties}>{isLoading ? "Loading..." : "No folders or pages here."}</small>
+              )
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
