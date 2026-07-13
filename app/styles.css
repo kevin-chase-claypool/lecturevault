@@ -620,6 +620,11 @@ label {
   line-height: 1.15;
 }
 
+/* Installation is part of the Android sharing workflow, not the Windows workspace. */
+.topbar-actions .install-button {
+  display: none;
+}
+
 .button-row {
   align-items: center;
 }
@@ -3267,6 +3272,10 @@ button.review-draft-button:disabled {
 }
 
 @media (max-width: 1120px) and (min-width: 761px) {
+  .topbar-actions .install-button {
+    display: inline-flex;
+  }
+
   body {
     background:
       radial-gradient(circle at top left, rgba(11, 102, 118, 0.1), transparent 320px),
@@ -3522,6 +3531,10 @@ button.review-draft-button:disabled {
 }
 
 @media (max-width: 760px) {
+  .topbar-actions .install-button {
+    display: inline-flex;
+  }
+
   body {
     background:
       radial-gradient(circle at top left, rgba(11, 102, 118, 0.12), transparent 280px),

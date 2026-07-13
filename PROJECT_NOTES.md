@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Desktop Top Bar Cleanup
+
+- Removed the PWA `Install app` action from the desktop top bar, where the Windows workspace does not need it.
+- Kept the action on tablet and phone layouts, where installing LectureVault enables Android sharing from OneNote and audio-recorder apps.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Quiet Surface and Capacity UI Polish
 
 - Simplified the visual system with quieter page backgrounds, solid content surfaces, lighter card elevation, and slightly denser panel spacing so information reads before decoration.
