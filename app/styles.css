@@ -1315,6 +1315,12 @@ label {
   font-size: 0.76rem;
 }
 
+button.review-draft-button:disabled {
+  border-color: #a9d6cf;
+  background: #ecfaf7;
+  color: #07564e;
+}
+
 .archive-organizer > .side-panel {
   position: sticky;
   top: 18px;

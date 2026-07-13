@@ -45,6 +45,8 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Grouped desktop navigation into `Workspace`, `Library`, and `Study` sections while keeping the mobile menu as a compact flat grid.
 - Reworked Vault folder contents into a scalable selectable lecture list with a sticky selected-reconstruction inspector and inline `Open`, `Add to Review`, and `Delete` actions.
 - Made the Vault list stack cleanly on phone widths while removing its desktop max-height restriction on small screens.
+- Added clear `In Review Draft` states to Vault list rows and the details pane so sources already selected for the active review cannot be added twice.
+- Renamed Vault pane headings to `Reconstructions` and `Details` and added an accessible label to the selected-course control.
 - Verified with `npm run typecheck` and `npm run build`.
 - Disabled `Build Reconstruction` and `Save Source Bundle` until at least one source exists, matching the source-bundle workflow.
 - Added concise helper text explaining that one source is enough and clarifying what token-spending actions do.

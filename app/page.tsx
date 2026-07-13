@@ -3778,6 +3778,7 @@ export default function LectureVaultApp() {
                 />
               </label>
               <select
+                aria-label="Selected course"
                 value={selectedCourseId}
                 onChange={(event) => selectArchiveCourse(event.target.value)}
               >
@@ -3854,7 +3855,7 @@ export default function LectureVaultApp() {
                       {archiveLectures.length} item
                       {archiveLectures.length === 1 ? "" : "s"}
                     </span>
-                    <h3>Folder Contents</h3>
+                    <h3>Reconstructions</h3>
                   </div>
                 </div>
                 <div className="lecture-list" aria-label="Lectures in this folder">
@@ -3863,6 +3864,7 @@ export default function LectureVaultApp() {
                       key={lecture.id}
                       lecture={lecture}
                       courseLabel={courseLabel}
+                      inReviewDraft={builderSelectedLectureIds.includes(lecture.id)}
                       selected={selectedLectureId === lecture.id}
                       mediaCount={
                         state.mediaItems.filter(
@@ -3893,7 +3895,7 @@ export default function LectureVaultApp() {
               </section>
 
               <aside className="panel side-panel">
-                <h3>Selected Lecture</h3>
+                <h3>Details</h3>
                 {selectedArchiveLecture ? (
                   <>
                     <span className="selected-lecture-kicker">Selected reconstruction</span>
@@ -3917,10 +3919,18 @@ export default function LectureVaultApp() {
                     </p>
                     <div className="button-row stacked">
                       <button
+                        className={
+                          builderSelectedLectureIds.includes(selectedArchiveLecture.id)
+                            ? "review-draft-button"
+                            : ""
+                        }
                         type="button"
                         onClick={() => addLectureToBasket(selectedArchiveLecture.id)}
+                        disabled={builderSelectedLectureIds.includes(selectedArchiveLecture.id)}
                       >
-                        Add to Review
+                        {builderSelectedLectureIds.includes(selectedArchiveLecture.id)
+                          ? "In Review Draft"
+                          : "Add to Review"}
                       </button>
                       <button
                         type="button"
@@ -5463,6 +5473,7 @@ function LectureListRow({
   courseLabel,
   mediaCount,
   conceptCount,
+  inReviewDraft = false,
   selected = false,
   onSelect,
   onOpen,
@@ -5473,6 +5484,7 @@ function LectureListRow({
   courseLabel: (id: string) => string;
   mediaCount: number;
   conceptCount: number;
+  inReviewDraft?: boolean;
   selected?: boolean;
   onSelect?: () => void;
   onOpen: () => void;
@@ -5506,8 +5518,13 @@ function LectureListRow({
         <button type="button" onClick={onOpen}>
           Open
         </button>
-        <button className="primary" type="button" onClick={onAdd}>
-          Add to Review
+        <button
+          className={inReviewDraft ? "review-draft-button" : "primary"}
+          type="button"
+          onClick={onAdd}
+          disabled={inReviewDraft}
+        >
+          {inReviewDraft ? "In Review Draft" : "Add to Review"}
         </button>
         <button className="danger" type="button" onClick={onDelete}>
           Delete
