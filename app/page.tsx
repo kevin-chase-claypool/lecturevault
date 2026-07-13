@@ -4330,7 +4330,6 @@ export default function LectureVaultApp() {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">{selectedCourse?.term || "LectureVault Workspace"}</p>
             <h2>{screenTitle(screen)}</h2>
           </div>
           {screen === "dashboard" ? <WorkflowDiagram /> : null}
