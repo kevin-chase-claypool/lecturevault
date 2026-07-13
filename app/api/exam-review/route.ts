@@ -44,6 +44,8 @@ type ExamReviewMediaItem = {
   dataUrl?: string;
   storageBucket?: string;
   storagePath?: string;
+  sourceRole?: string;
+  sourceCaption?: string;
 };
 
 type ExamReviewFigure = {
@@ -55,6 +57,7 @@ type ExamReviewFigure = {
   mimeType?: string;
   storageBucket?: string;
   storagePath?: string;
+  sourceCaption?: string;
 };
 
 function jsonError(message: string, status: number) {
@@ -116,6 +119,7 @@ async function buildFigures(
       lectureId: cleanString(item.lectureId),
       lectureTitle: cleanString(lecture?.title) || "Untitled lecture",
       name: cleanString(item.name) || `Board image ${index}`,
+      sourceCaption: cleanString(item.sourceCaption) || undefined,
       dataUrl: await dataUrlForMedia(item),
       mimeType: cleanString(item.mimeType) || undefined,
       storageBucket: cleanString(item.storageBucket) || undefined,
@@ -179,7 +183,14 @@ Board figures:
 ${
   lectureFigures.length
     ? lectureFigures
-        .map((figure) => `- ${figure.label}: ${figure.name}`)
+        .map(
+          (figure) =>
+            `- ${figure.label}: ${figure.name}${
+              cleanString(figure.sourceCaption)
+                ? ` - ${cleanString(figure.sourceCaption)}`
+                : ""
+            }`
+        )
         .join("\n")
     : "- No board images saved."
 }
@@ -287,6 +298,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       examName?: string;
       courseName?: string;
+      courseStudyProfile?: string;
       instructions?: string;
       lectures?: ExamReviewLecture[];
       transcripts?: ExamReviewTranscript[];
@@ -311,6 +323,7 @@ export async function POST(request: Request) {
     const figures = await buildFigures(lectures, mediaItems);
     const examName = cleanString(body.examName) || "Exam";
     const courseName = cleanString(body.courseName);
+    const courseStudyProfile = cleanString(body.courseStudyProfile);
     const instructions = cleanString(body.instructions);
 
     if (!process.env.OPENAI_API_KEY) {
@@ -340,6 +353,7 @@ export async function POST(request: Request) {
           instructions ? `User exam instructions:\n${instructions}` : "",
           `Exam: ${examName}`,
           `Course: ${courseName || "Unfiled"}`,
+          courseStudyProfile ? `Saved course study profile:\n${courseStudyProfile}` : "",
           "Selected archive materials:",
           buildLectureBundle({ lectures, transcripts, concepts, figures })
         ]

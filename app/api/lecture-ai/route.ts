@@ -24,6 +24,8 @@ type LectureMediaItem = {
   dataUrl?: string;
   storageBucket?: string;
   storagePath?: string;
+  sourceRole?: string;
+  sourceCaption?: string;
 };
 
 type TextbookContextChunk = {
@@ -196,6 +198,7 @@ export async function POST(request: Request) {
       courseId?: string;
       date?: string;
       courseName?: string;
+      courseStudyProfile?: string;
       notes?: string;
       mediaItems?: LectureMediaItem[];
       textbookContext?: TextbookContextChunk[];
@@ -235,7 +238,14 @@ export async function POST(request: Request) {
         model:
           process.env.OPENAI_TRANSCRIPTION_MODEL ||
           process.env.OPENAI_LECTURE_TRANSCRIPTION_MODEL ||
-          DEFAULT_TRANSCRIPTION_MODEL
+          DEFAULT_TRANSCRIPTION_MODEL,
+        prompt: [
+          cleanString(body.courseName),
+          cleanString(body.title),
+          cleanString(body.courseStudyProfile).slice(0, 900)
+        ]
+          .filter(Boolean)
+          .join(". ") || undefined
       });
       const text = cleanString(transcription.text);
 
@@ -266,7 +276,17 @@ export async function POST(request: Request) {
     const mediaManifest = mediaItems
       .map(
         (item, index) =>
-          `${index + 1}. ${cleanString(item.name) || "Unnamed media"} | ${cleanString(item.kind) || "media"} | ${cleanString(item.mimeType) || "unknown type"} | id: ${cleanString(item.id)}`
+          [
+            `${index + 1}. ${cleanString(item.name) || "Unnamed media"}`,
+            `role: ${cleanString(item.sourceRole) || cleanString(item.kind) || "media"}`,
+            `type: ${cleanString(item.mimeType) || "unknown type"}`,
+            cleanString(item.sourceCaption)
+              ? `caption: ${cleanString(item.sourceCaption)}`
+              : "",
+            `id: ${cleanString(item.id)}`
+          ]
+            .filter(Boolean)
+            .join(" | ")
       )
       .join("\n");
     const textbookQuery = [
@@ -335,6 +355,9 @@ export async function POST(request: Request) {
           `Lecture title: ${cleanString(body.title) || "Untitled lecture"}`,
           `Course: ${cleanString(body.courseName) || "Unfiled"}`,
           `Date: ${cleanString(body.date) || "No date"}`,
+          cleanString(body.courseStudyProfile)
+            ? `Saved course study profile:\n${cleanString(body.courseStudyProfile)}`
+            : "",
           cleanString(body.notes)
             ? `User notes/context:\n${cleanString(body.notes)}`
             : "",
@@ -349,7 +372,7 @@ export async function POST(request: Request) {
             "Return strict JSON with this shape:",
             "{",
             '  "summary": "exam-focused lecture reconstruction summary with important formulas in LaTeX",',
-            '  "transcriptText": "cleaned lecture reconstruction/study notes in Markdown; include Source Media Used and Textbook Context Used sections; cite textbook pages when useful; refer to images as Fig. 1, Fig. 2 when useful; explicitly state when a source type was not provided",',
+            '  "transcriptText": "cleaned lecture reconstruction/study notes in Markdown; include learning objectives, formulas with variable/unit definitions where available, a worked-problem section for source-supported examples (givens, method, steps, check), common mistakes or instructor warnings, Source Media Used, and Textbook Context Used; cite textbook pages when useful; refer to images as Fig. 1, Fig. 2 when useful; explicitly flag uncertainty instead of guessing and state when a source type was not provided",',
             '  "concepts": [{"title": "short concept title", "detail": "exam-useful explanation", "sourceMediaId": "optional media id"}]',
             "}",
             "Do not invent facts not supported by the source media, transcript, notes, or textbook excerpts."
@@ -370,8 +393,9 @@ export async function POST(request: Request) {
         "You create source-grounded engineering/math lecture reconstructions from whatever source bundle the user provides: lecture audio transcripts, board images, screenshots, PDFs/notes metadata, textbook excerpts, and user notes.",
         "Course textbook excerpts are supporting context, not a replacement for the lecture. Use them to clarify formulas, definitions, and exam-relevant connections, and cite page numbers when they are used.",
         "Images are first-class study material. Refer to uploaded images as figures in the transcriptText where they support formulas, diagrams, board work, or worked examples.",
+        "Treat each source media role and caption as an instruction about why that source was included and what study evidence to preserve.",
         "Not every source type will be present. Build the best reconstruction possible from the provided sources and do not pretend missing audio, images, notes, or textbook context was supplied.",
-        "The output must be useful for exam preparation, not just a summary.",
+        "The output must be useful for exam preparation, not just a summary. When a worked problem is supported by the sources, explain its givens, method selection, ordered steps, and a check or interpretation. Define variables and units when supported. State uncertainty rather than inventing an inaudible, unreadable, or missing step.",
         "Use LaTeX-compatible math syntax for formulas."
       ].join(" "),
       model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL

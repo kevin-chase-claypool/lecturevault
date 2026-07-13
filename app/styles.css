@@ -1539,6 +1539,33 @@ button.review-draft-button:disabled {
   white-space: nowrap;
 }
 
+.course-study-profile {
+  grid-column: 1 / -1;
+  border-top: 1px solid #dde6ef;
+  padding-top: 10px;
+}
+
+.course-study-profile summary {
+  color: var(--primary-dark);
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.course-study-profile p {
+  margin: 8px 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.course-study-profile textarea {
+  min-height: 108px;
+}
+
+.course-study-profile .button-row {
+  margin-top: 9px;
+}
+
 .course-textbook-list {
   grid-column: 1 / -1;
   display: grid;
@@ -2095,7 +2122,7 @@ button.review-draft-button:disabled {
 
 .capture-media-item {
   display: grid;
-  grid-template-columns: 82px minmax(0, 1fr) auto;
+  grid-template-columns: 82px minmax(150px, 1fr) minmax(150px, 0.7fr) minmax(220px, 1.2fr) auto;
   gap: 10px;
   align-items: center;
   border: 1px solid rgba(188, 201, 214, 0.92);
@@ -2112,6 +2139,50 @@ button.review-draft-button:disabled {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.capture-source-role,
+.capture-source-caption {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.capture-source-role select,
+.capture-source-caption input {
+  min-width: 0;
+  min-height: 36px;
+  padding: 6px 8px;
+  font-size: 0.8rem;
+}
+
+.capture-source-caption span small {
+  display: inline;
+  margin: 0;
+  font-size: inherit;
+}
+
+.capture-brief {
+  display: grid;
+  gap: 11px;
+  border: 1px solid #c7dde3;
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  background: linear-gradient(180deg, #f9fcfd 0%, #ffffff 100%);
+}
+
+.capture-brief .section-heading,
+.capture-brief p {
+  margin: 0;
+}
+
+.capture-brief p {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .capture-media-item small {
@@ -3493,5 +3564,15 @@ button.review-draft-button:disabled {
 
   .media-kind {
     justify-self: start;
+  }
+}
+
+@media (min-width: 621px) and (max-width: 1040px) {
+  .capture-media-item {
+    grid-template-columns: 82px minmax(0, 1fr) minmax(150px, 0.8fr) auto;
+  }
+
+  .capture-source-caption {
+    grid-column: 2 / -1;
   }
 }

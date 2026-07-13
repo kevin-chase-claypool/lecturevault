@@ -30,6 +30,7 @@ type Course = {
   code: string;
   name: string;
   term: string;
+  studyProfile?: string;
   createdAt: string;
 };
 
@@ -61,7 +62,15 @@ type MediaItem = {
   dataUrl?: string;
   storageBucket?: string;
   storagePath?: string;
+  sourceRole?: string;
+  sourceCaption?: string;
   createdAt: string;
+};
+
+type CaptureSource = {
+  file: File;
+  role: string;
+  caption: string;
 };
 
 type Transcript = {
@@ -256,6 +265,19 @@ function fileKind(file: File): MediaItem["kind"] {
     return "image";
   }
   return "document";
+}
+
+function defaultSourceRole(file: File) {
+  switch (fileKind(file)) {
+    case "audio":
+      return "Lecture audio";
+    case "video":
+      return "Lecture recording";
+    case "image":
+      return "Board work";
+    default:
+      return "Reference handout";
+  }
 }
 
 function fileKey(file: File) {
@@ -1263,16 +1285,20 @@ export default function LectureVaultApp() {
   const [courseForm, setCourseForm] = useState({
     code: "",
     name: "",
-    term: ""
+    term: "",
+    studyProfile: ""
   });
+  const [courseProfileDrafts, setCourseProfileDrafts] = useState<Record<string, string>>({});
   const [captureForm, setCaptureForm] = useState({
     courseId: "",
     title: "",
     date: new Date().toISOString().slice(0, 10),
     transcript: "",
-    summary: ""
+    objective: "",
+    emphasis: "",
+    questions: ""
   });
-  const [captureFiles, setCaptureFiles] = useState<File[]>([]);
+  const [captureFiles, setCaptureFiles] = useState<CaptureSource[]>([]);
   const [examForm, setExamForm] = useState({
     courseId: "",
     name: "",
@@ -1796,6 +1822,7 @@ export default function LectureVaultApp() {
       code: courseForm.code.trim() || "COURSE",
       name: courseForm.name.trim(),
       term: courseForm.term.trim() || "Current term",
+      studyProfile: courseForm.studyProfile.trim(),
       createdAt: new Date().toISOString()
     };
     const lectureFolder = createDefaultLectureFolder(course.id, course.createdAt);
@@ -1805,10 +1832,28 @@ export default function LectureVaultApp() {
       courses: [course, ...current.courses],
       archiveFolders: [lectureFolder, ...current.archiveFolders]
     }));
-    setCourseForm({ code: "", name: "", term: "" });
+    setCourseForm({ code: "", name: "", term: "", studyProfile: "" });
     setSelectedCourseId(course.id);
     setSelectedArchiveFolderId(lectureFolder.id);
     setStatus(`Created ${course.code} with a default Lectures folder.`);
+  }
+
+  function saveCourseStudyProfile(courseId: string) {
+    const course = state.courses.find((item) => item.id === courseId);
+
+    if (!course) {
+      return;
+    }
+
+    const studyProfile = (courseProfileDrafts[courseId] ?? course.studyProfile ?? "").trim();
+    setState((current) => ({
+      ...current,
+      courses: current.courses.map((item) =>
+        item.id === courseId ? { ...item, studyProfile } : item
+      )
+    }));
+    setCourseProfileDrafts((current) => ({ ...current, [courseId]: studyProfile }));
+    setStatus(`${course.code} study profile saved.`);
   }
 
   async function addCourseTextbooks(courseId: string, files: File[]) {
@@ -2291,7 +2336,8 @@ export default function LectureVaultApp() {
       ]);
       setStatus("Building lecture reconstruction from available source material...");
 
-      for (const file of captureFiles) {
+      for (const source of captureFiles) {
+        const { file } = source;
         const mediaId = uid("media");
         let storage: Pick<MediaItem, "storageBucket" | "storagePath"> = {};
         let dataUrl: string | undefined;
@@ -2317,6 +2363,8 @@ export default function LectureVaultApp() {
           mimeType: file.type || "application/octet-stream",
           size: file.size,
           dataUrl,
+          sourceRole: source.role.trim(),
+          sourceCaption: source.caption.trim(),
           ...storage,
           createdAt
         });
@@ -2361,11 +2409,21 @@ export default function LectureVaultApp() {
         const courseTextbookIds = new Set(
           courseTextbooks.map((textbook) => textbook.id)
         );
+        const courseStudyProfile = state.courses.find(
+          (course) => course.id === captureForm.courseId
+        )?.studyProfile;
+        const reconstructionBrief = [
+          captureForm.objective.trim() && `Class-day objective: ${captureForm.objective.trim()}`,
+          captureForm.emphasis.trim() && `Instructor emphasis / board context: ${captureForm.emphasis.trim()}`,
+          captureForm.questions.trim() && `Unresolved question or uncertainty: ${captureForm.questions.trim()}`
+        ]
+          .filter(Boolean)
+          .join("\n");
         const textbookContext = relevantTextbookChunks({
           chunks: state.textbookChunks.filter((chunk) =>
             courseTextbookIds.has(chunk.textbookId)
           ),
-          query: [title, captureForm.summary.trim(), pastedTranscript]
+          query: [title, courseStudyProfile, reconstructionBrief, pastedTranscript]
             .filter(Boolean)
             .join("\n\n"),
           textbooks: courseTextbooks
@@ -2375,8 +2433,9 @@ export default function LectureVaultApp() {
             courseName: courseLabel(captureForm.courseId),
             courseId: captureForm.courseId,
             date: captureForm.date,
+            courseStudyProfile,
             mediaItems,
-            notes: [captureForm.summary.trim(), pastedTranscript]
+            notes: [reconstructionBrief, pastedTranscript]
               .filter(Boolean)
               .join("\n\n"),
             textbookContext,
@@ -2485,7 +2544,8 @@ export default function LectureVaultApp() {
       date: captureForm.date,
       summary:
         aiSummary ||
-        captureForm.summary.trim() ||
+        captureForm.objective.trim() ||
+        captureForm.emphasis.trim() ||
         transcript.segments
           .slice(0, 2)
           .map((segment) => segment.text)
@@ -2512,7 +2572,9 @@ export default function LectureVaultApp() {
       ...current,
       title: "",
       transcript: "",
-      summary: ""
+      objective: "",
+      emphasis: "",
+      questions: ""
     }));
     setStatus(`Built and saved ${title} as a lecture reconstruction.`);
     completePipeline("Lecture reconstruction saved to the vault.");
@@ -2789,6 +2851,9 @@ export default function LectureVaultApp() {
     const selectedMediaItems = state.mediaItems.filter((item) =>
       sourceLectureIds.includes(item.lectureId)
     );
+    const courseStudyProfile = state.courses.find(
+      (course) => course.id === selectedExam.courseId
+    )?.studyProfile;
     const reviewMediaItems = selectedMediaItems.map((item) =>
       item.kind === "image" && embeddedDataUrlForMedia(item)
         ? { ...item, dataUrl: embeddedDataUrlForMedia(item) }
@@ -2812,6 +2877,7 @@ export default function LectureVaultApp() {
         body: JSON.stringify({
           examName: selectedExam.name,
           courseName: courseLabel(selectedExam.courseId),
+          courseStudyProfile,
           instructions: submittedContext,
           lectures: selectedExamLectures,
           transcripts: selectedTranscripts,
@@ -3177,14 +3243,14 @@ export default function LectureVaultApp() {
     }
 
     setCaptureFiles((current) => {
-      const existingKeys = new Set(current.map(fileKey));
+      const existingKeys = new Set(current.map((source) => fileKey(source.file)));
       const next = [...current];
 
       for (const file of files) {
         const key = fileKey(file);
 
         if (!existingKeys.has(key)) {
-          next.push(file);
+          next.push({ file, role: defaultSourceRole(file), caption: "" });
           existingKeys.add(key);
         }
       }
@@ -3198,7 +3264,15 @@ export default function LectureVaultApp() {
 
   function removeCaptureFile(key: string) {
     setCaptureFiles((current) =>
-      current.filter((file) => fileKey(file) !== key)
+      current.filter((source) => fileKey(source.file) !== key)
+    );
+  }
+
+  function updateCaptureSource(key: string, updates: Partial<Omit<CaptureSource, "file">>) {
+    setCaptureFiles((current) =>
+      current.map((source) =>
+        fileKey(source.file) === key ? { ...source, ...updates } : source
+      )
     );
   }
 
@@ -3425,16 +3499,19 @@ export default function LectureVaultApp() {
   }
 
   const reconstructionAudioCount = captureFiles.filter(
-    (file) => fileKind(file) === "audio" || fileKind(file) === "video"
+    (source) => fileKind(source.file) === "audio" || fileKind(source.file) === "video"
   ).length;
   const reconstructionImageCount = captureFiles.filter(
-    (file) => fileKind(file) === "image"
+    (source) => fileKind(source.file) === "image"
   ).length;
   const reconstructionDocumentCount = captureFiles.filter(
-    (file) => fileKind(file) === "document"
+    (source) => fileKind(source.file) === "document"
   ).length;
   const reconstructionNotesReady = Boolean(
-    captureForm.transcript.trim() || captureForm.summary.trim()
+    captureForm.transcript.trim() ||
+      captureForm.objective.trim() ||
+      captureForm.emphasis.trim() ||
+      captureForm.questions.trim()
   );
   const reconstructionTextbookCount = state.textbooks.filter(
     (textbook) => textbook.courseId === captureForm.courseId
@@ -3633,6 +3710,20 @@ export default function LectureVaultApp() {
                   placeholder="Fall 2026"
                 />
               </label>
+              <label>
+                Course study profile <small>Optional</small>
+                <textarea
+                  value={courseForm.studyProfile}
+                  onChange={(event) =>
+                    setCourseForm((current) => ({
+                      ...current,
+                      studyProfile: event.target.value
+                    }))
+                  }
+                  rows={5}
+                  placeholder="Exam format, allowed materials, notation or units, textbook scope, and recurring instructor priorities."
+                />
+              </label>
               <button className="primary" type="submit">
                 Save Course
               </button>
@@ -3695,6 +3786,28 @@ export default function LectureVaultApp() {
                       Delete course
                     </button>
                   </div>
+                  <details className="course-study-profile">
+                    <summary>Study profile</summary>
+                    <p>
+                      Saved course context is included with every reconstruction for this course.
+                    </p>
+                    <textarea
+                      value={courseProfileDrafts[course.id] ?? course.studyProfile ?? ""}
+                      onChange={(event) =>
+                        setCourseProfileDrafts((current) => ({
+                          ...current,
+                          [course.id]: event.target.value
+                        }))
+                      }
+                      rows={5}
+                      placeholder="Exam format, allowed materials, notation or units, textbook scope, and recurring instructor priorities."
+                    />
+                    <div className="button-row">
+                      <button type="button" onClick={() => saveCourseStudyProfile(course.id)}>
+                        Save study profile
+                      </button>
+                    </div>
+                  </details>
                   {textbookCount ? (
                     <div className="course-textbook-list">
                       {state.textbooks
@@ -4114,7 +4227,8 @@ export default function LectureVaultApp() {
                   </button>
                 </div>
                 <div className="capture-media-list">
-                  {captureFiles.map((file) => {
+                  {captureFiles.map((source) => {
+                    const { file } = source;
                     const key = fileKey(file);
                     const kind = fileKind(file);
 
@@ -4128,6 +4242,29 @@ export default function LectureVaultApp() {
                             {file.type || "unknown type"}
                           </small>
                         </div>
+                        <label className="capture-source-role">
+                          <span>Role</span>
+                          <select
+                            value={source.role}
+                            onChange={(event) => updateCaptureSource(key, { role: event.target.value })}
+                          >
+                            <option>Lecture audio</option>
+                            <option>Lecture recording</option>
+                            <option>Board work</option>
+                            <option>Worked example</option>
+                            <option>OneNote export</option>
+                            <option>Reference handout</option>
+                            <option>Other context</option>
+                          </select>
+                        </label>
+                        <label className="capture-source-caption">
+                          <span>Caption <small>Optional</small></span>
+                          <input
+                            value={source.caption}
+                            onChange={(event) => updateCaptureSource(key, { caption: event.target.value })}
+                            placeholder="What should AI inspect or preserve?"
+                          />
+                        </label>
                         <button
                           type="button"
                           onClick={() => removeCaptureFile(key)}
@@ -4156,20 +4293,51 @@ export default function LectureVaultApp() {
               />
             </label>
 
-            <label>
-              Instructor emphasis / board context
-              <textarea
-                value={captureForm.summary}
-                onChange={(event) =>
-                  setCaptureForm((current) => ({
-                    ...current,
-                    summary: event.target.value
-                  }))
-                }
-                rows={4}
-                placeholder="Definitions, board diagrams, formulas, worked problem steps, instructor emphasis..."
-              />
-            </label>
+            <div className="capture-brief">
+              <div className="section-heading compact-heading">
+                <div>
+                  <span className="pill">Optional AI context</span>
+                  <h3>Reconstruction Brief</h3>
+                </div>
+              </div>
+              <p>
+                Add only what the source bundle cannot say on its own. This context is saved with the reconstruction request.
+              </p>
+              <div className="form-grid">
+                <label>
+                  Today&apos;s objective
+                  <input
+                    value={captureForm.objective}
+                    onChange={(event) =>
+                      setCaptureForm((current) => ({ ...current, objective: event.target.value }))
+                    }
+                    placeholder="Apply nodal analysis to multi-source circuits"
+                  />
+                </label>
+                <label>
+                  Instructor emphasis / board context
+                  <textarea
+                    value={captureForm.emphasis}
+                    onChange={(event) =>
+                      setCaptureForm((current) => ({ ...current, emphasis: event.target.value }))
+                    }
+                    rows={4}
+                    placeholder="Worked problem on the left board is exam-relevant. Preserve the method and why each step is used."
+                  />
+                </label>
+                <label>
+                  Unresolved question <small>Optional</small>
+                  <textarea
+                    value={captureForm.questions}
+                    onChange={(event) =>
+                      setCaptureForm((current) => ({ ...current, questions: event.target.value }))
+                    }
+                    rows={4}
+                    placeholder="The final substitution was hard to hear; flag it rather than guessing."
+                  />
+                </label>
+              </div>
+            </div>
 
             <div className="capture-actions">
               <div className="capture-action-copy">
