@@ -33,6 +33,10 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 ### 2026-07-12 - Intuitive workflow polish
 
 - Added a visible `Ready to build` / `Add a source` state to the New Reconstruction screen.
+- Grouped reconstruction completion controls into a dedicated action area with clear guidance for building now versus saving the source bundle for later.
+- Strengthened the shared shell hierarchy with a primary `New Reconstruction` action, quieter logout treatment, more generous desktop spacing, and clearer navigation rhythm.
+- Added subtle metric-card depth and tightened capture-media panel shadows without changing workflow behavior.
+- Verified with `npm run typecheck` and `npm run build`.
 - Disabled `Build Reconstruction` and `Save Source Bundle` until at least one source exists, matching the source-bundle workflow.
 - Added concise helper text explaining that one source is enough and clarifying what token-spending actions do.
 - Renamed dashboard archive heading to `Recent Reconstructions` and added lightweight section notes for dashboard usage and review sets.

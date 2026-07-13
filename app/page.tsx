@@ -3586,10 +3586,10 @@ export default function LectureVaultApp() {
               <span className="cart-icon" aria-hidden="true">Review</span>
               <strong>{basketCount}</strong>
             </button>
-            <button type="button" onClick={() => setScreen("capture")}>
+            <button className="primary" type="button" onClick={() => setScreen("capture")}>
               New Reconstruction
             </button>
-            <button type="button" onClick={() => void logout()}>
+            <button className="quiet-button" type="button" onClick={() => void logout()}>
               Log out
             </button>
           </div>
@@ -4166,35 +4166,44 @@ export default function LectureVaultApp() {
               />
             </label>
 
-            <div className="button-row">
-              <button
-                className="primary"
-                type="button"
-                onClick={() => void saveCaptureWithAi()}
-                disabled={isLectureGenerating || !reconstructionHasSource}
-              >
-                {isLectureGenerating ? "Working..." : "Build Reconstruction"}
-              </button>
-              <button
-                type="submit"
-                disabled={isLectureGenerating || !reconstructionHasSource}
-              >
-                Save Source Bundle
-              </button>
-              <button
-                type="button"
-                disabled={isLectureGenerating}
-                onClick={() =>
-                  setCaptureForm((current) => ({
-                    ...current,
-                    transcript:
-                      current.transcript ||
-                      "Today we introduced the main definition, worked through an example, and identified common exam mistakes. Use inline math like $F=ma$ or display math like $$E=mc^2$$ when formulas matter."
-                  }))
-                }
-              >
-                Draft Notes
-              </button>
+            <div className="capture-actions">
+              <div className="capture-action-copy">
+                <span className="eyebrow">Ready when you are</span>
+                <p>
+                  Build now for AI reconstruction, or save the source bundle and
+                  come back later.
+                </p>
+              </div>
+              <div className="button-row">
+                <button
+                  className="primary"
+                  type="button"
+                  onClick={() => void saveCaptureWithAi()}
+                  disabled={isLectureGenerating || !reconstructionHasSource}
+                >
+                  {isLectureGenerating ? "Working..." : "Build Reconstruction"}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLectureGenerating || !reconstructionHasSource}
+                >
+                  Save Source Bundle
+                </button>
+                <button
+                  type="button"
+                  disabled={isLectureGenerating}
+                  onClick={() =>
+                    setCaptureForm((current) => ({
+                      ...current,
+                      transcript:
+                        current.transcript ||
+                        "Today we introduced the main definition, worked through an example, and identified common exam mistakes. Use inline math like $F=ma$ or display math like $$E=mc^2$$ when formulas matter."
+                    }))
+                  }
+                >
+                  Draft Notes
+                </button>
+              </div>
             </div>
           </form>
         ) : null}
