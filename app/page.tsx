@@ -2161,16 +2161,31 @@ export default function LectureVaultApp() {
       createdAt: new Date().toISOString()
     };
     const lectureFolder = createDefaultLectureFolder(course.id, course.createdAt);
+    const reassignUnfiledLectures = state.courses.length === 0;
+    const unfiledLectureCount = reassignUnfiledLectures
+      ? state.lectures.filter((lecture) => !lecture.courseId).length
+      : 0;
 
     setState((current) => ({
       ...current,
       courses: [course, ...current.courses],
-      archiveFolders: [lectureFolder, ...current.archiveFolders]
+      archiveFolders: [lectureFolder, ...current.archiveFolders],
+      lectures: reassignUnfiledLectures
+        ? current.lectures.map((lecture) =>
+            lecture.courseId
+              ? lecture
+              : { ...lecture, courseId: course.id, folderId: lectureFolder.id }
+          )
+        : current.lectures
     }));
     setCourseForm({ code: "", name: "", term: "", studyProfile: "" });
     setSelectedCourseId(course.id);
     setSelectedArchiveFolderId(lectureFolder.id);
-    setStatus(`Created ${course.code} with a default Lectures folder.`);
+    setStatus(
+      unfiledLectureCount
+        ? `Created ${course.code}, added its Lectures folder, and recovered ${unfiledLectureCount} unassigned reconstruction${unfiledLectureCount === 1 ? "" : "s"}.`
+        : `Created ${course.code} with a default Lectures folder.`
+    );
   }
 
   function saveCourseStudyProfile(courseId: string) {
@@ -2660,6 +2675,10 @@ export default function LectureVaultApp() {
   }
 
   async function persistCapture() {
+    if (!captureForm.courseId) {
+      setStatus("Select a course before building a reconstruction.");
+      return;
+    }
     const title = captureForm.title.trim() || "Untitled reconstruction";
     const lectureId = uid("lecture");
     const createdAt = new Date().toISOString();
@@ -3633,6 +3652,11 @@ export default function LectureVaultApp() {
   }
 
   function startClassDayRecord() {
+    if (!state.courses.length) {
+      setStatus("Create a course before starting a class record.");
+      setScreen("courses");
+      return;
+    }
     const currentRecord = state.reconstructionDrafts[0];
     if (currentRecord) {
       openClassDayDraft(currentRecord.id);
@@ -4094,6 +4118,7 @@ export default function LectureVaultApp() {
   const reconstructionHasSource = Boolean(
     captureFiles.length || reconstructionNotesReady || oneNoteSources.length
   );
+  const reconstructionReadyToBuild = Boolean(captureForm.courseId && reconstructionHasSource);
 
   if (authStatus === "checking") {
     return <AuthShell title="Checking access..." />;
@@ -4436,17 +4461,21 @@ export default function LectureVaultApp() {
                   placeholder="Title, course, formula, keyword, transcript..."
                 />
               </label>
-              <select
-                aria-label="Selected course"
-                value={selectedCourseId}
-                onChange={(event) => selectArchiveCourse(event.target.value)}
-              >
-                {state.courses.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.code} {course.name}
-                  </option>
-                ))}
-              </select>
+              {state.courses.length ? (
+                <select
+                  aria-label="Selected course"
+                  value={selectedCourseId}
+                  onChange={(event) => selectArchiveCourse(event.target.value)}
+                >
+                  {state.courses.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.code} {course.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <button type="button" onClick={() => setScreen("courses")}>Add a course</button>
+              )}
             </div>
 
             <div className="archive-organizer">
@@ -4461,14 +4490,17 @@ export default function LectureVaultApp() {
                   <input
                     value={archiveFolderName}
                     onChange={(event) => setArchiveFolderName(event.target.value)}
+                    disabled={!selectedCourseId}
                     placeholder={
-                      selectedArchiveFolderId === "all" ||
+                      !selectedCourseId
+                        ? "Create a course first"
+                        : selectedArchiveFolderId === "all" ||
                       selectedArchiveFolderId === "unfiled"
-                        ? "New folder"
-                        : "New subfolder"
+                          ? "New folder"
+                          : "New subfolder"
                     }
                   />
-                  <button type="submit">Add</button>
+                  <button type="submit" disabled={!selectedCourseId}>Add</button>
                 </form>
                 <div className="folder-actions">
                   <button
@@ -4495,16 +4527,20 @@ export default function LectureVaultApp() {
                     Delete
                   </button>
                 </div>
-                <ArchiveFolderTree
-                  courses={state.courses}
-                  folders={state.archiveFolders}
-                  lectures={state.lectures}
-                  selectedCourseId={selectedCourseId}
-                  selectedFolderId={selectedArchiveFolderId}
-                  onSelectCourse={selectArchiveCourse}
-                  onSelectFolder={selectArchiveFolder}
-                  onDropLecture={moveLectureToFolder}
-                />
+                {state.courses.length ? (
+                  <ArchiveFolderTree
+                    courses={state.courses}
+                    folders={state.archiveFolders}
+                    lectures={state.lectures}
+                    selectedCourseId={selectedCourseId}
+                    selectedFolderId={selectedArchiveFolderId}
+                    onSelectCourse={selectArchiveCourse}
+                    onSelectFolder={selectArchiveFolder}
+                    onDropLecture={moveLectureToFolder}
+                  />
+                ) : (
+                  <p className="empty">Create a course first. Existing unassigned reconstructions will be recovered into its Lectures folder.</p>
+                )}
               </aside>
 
               <section className="archive-list-panel">
@@ -4679,8 +4715,8 @@ export default function LectureVaultApp() {
                 </p>
               </div>
               <div>
-                <span className={reconstructionHasSource ? "readiness-badge ready" : "readiness-badge"}>
-                  {reconstructionHasSource ? "Ready to build" : "Add a source"}
+                <span className={reconstructionReadyToBuild ? "readiness-badge ready" : "readiness-badge"}>
+                  {!captureForm.courseId ? "Select course" : reconstructionHasSource ? "Ready to build" : "Add a source"}
                 </span>
                 <div className="capture-steps" aria-label="Capture workflow">
                   <span>1 Details</span>
@@ -5011,7 +5047,7 @@ export default function LectureVaultApp() {
                     className="primary"
                     type="button"
                     onClick={() => void buildReconstruction()}
-                    disabled={isLectureGenerating || !reconstructionHasSource}
+                    disabled={isLectureGenerating || !reconstructionReadyToBuild}
                   >
                     {isLectureGenerating ? "Working..." : "Build Reconstruction"}
                   </button>

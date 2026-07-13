@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Require Courses for Archive Organization
+
+- New reconstructions now require a selected course before they can be built. This prevents future unassigned (`Unfiled`) archive records that cannot belong to an archive tree.
+- When the first course is created, any existing unassigned reconstructions are recovered into that course's default Lectures folder. The Vault now clearly directs users to create a course instead of presenting an empty course selector and inert folder controls.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Archive Folder Sync Protection
 
 - Prevented the background Supabase poll from applying an older whole-state snapshot while a local archive update is still queued or being saved. This protects new folders and existing reconstructions from a stale overwrite.
