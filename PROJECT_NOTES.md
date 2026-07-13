@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Conflict-Safe Class-Day Source Sync
+
+- Prevented a stale phone or tablet draft view from replacing sources that were already uploaded from another device. Draft hydration is now read-only for its first render, and later saves merge permanent Supabase source references by storage path.
+- This keeps a OneNote PDF attached to the selected class-day workspace after another device opens the same workspace before its normal sync interval completes.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Shared Class-Day Drafts
 
 - Added Supabase-synced pre-reconstruction drafts for a course/date/topic, notes, and permanent source references. A draft can be opened on phone or tablet before AI reconstruction.

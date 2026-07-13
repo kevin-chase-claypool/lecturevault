@@ -1457,6 +1457,7 @@ export default function LectureVaultApp() {
   const skipNextCloudSaveRef = useRef(false);
   const draftUploadsRef = useRef(new Set<string>());
   const loadedDraftVersionRef = useRef("");
+  const suppressDraftSaveRef = useRef(false);
 
   useEffect(() => {
     const savedDraftId = window.localStorage.getItem("lecturevault-active-draft");
@@ -1789,12 +1790,18 @@ export default function LectureVaultApp() {
     const version = `${activeDraft.id}:${activeDraft.updatedAt}`;
     if (loadedDraftVersionRef.current === version) return;
     loadedDraftVersionRef.current = version;
+    // Hydrating a draft from cloud state must never immediately save an empty local source list back over it.
+    suppressDraftSaveRef.current = true;
     setCaptureForm({ courseId: activeDraft.courseId, title: activeDraft.title, date: activeDraft.date, transcript: activeDraft.transcript, objective: activeDraft.objective, emphasis: activeDraft.emphasis, questions: activeDraft.questions });
     setCaptureFiles(activeDraft.sources.map((source) => ({ file: new File([], source.name, { type: source.mimeType }), role: source.role, caption: source.caption, size: source.size, storageBucket: source.storageBucket, storagePath: source.storagePath })));
   }, [activeDraft]);
 
   useEffect(() => {
     if (!activeDraftId) return;
+    if (suppressDraftSaveRef.current) {
+      suppressDraftSaveRef.current = false;
+      return;
+    }
     const sources = captureFiles.map((source) => ({
       id: fileKey(source.file), name: source.file.name, mimeType: source.file.type || "application/octet-stream",
       size: source.size ?? source.file.size, role: source.role, caption: source.caption,
@@ -1802,9 +1809,23 @@ export default function LectureVaultApp() {
     }));
     setState((current) => {
       const existing = current.reconstructionDrafts.find((draft) => draft.id === activeDraftId);
-      if (existing && JSON.stringify({ ...existing, updatedAt: "" }) === JSON.stringify({ ...existing, ...captureForm, sources, updatedAt: "" })) return current;
+      if (!existing) return current;
+      // Sources are uploaded independently from the form state. Keep every saved storage reference when
+      // another device has not yet pulled it, then layer this device's edits on top.
+      const mergedSources = [...existing.sources];
+      for (const source of sources) {
+        const index = mergedSources.findIndex((saved) =>
+          source.storagePath
+            ? saved.storagePath === source.storagePath
+            : !saved.storagePath && saved.id === source.id
+        );
+        if (index >= 0) mergedSources[index] = { ...mergedSources[index], ...source };
+        else mergedSources.push(source);
+      }
+      const nextDraft = { ...existing, ...captureForm, sources: mergedSources, updatedAt: "" };
+      if (JSON.stringify({ ...existing, updatedAt: "" }) === JSON.stringify(nextDraft)) return current;
       return { ...current, reconstructionDrafts: current.reconstructionDrafts.map((draft) =>
-        draft.id === activeDraftId ? { ...draft, ...captureForm, sources, updatedAt: new Date().toISOString() } : draft
+        draft.id === activeDraftId ? { ...nextDraft, updatedAt: new Date().toISOString() } : draft
       ) };
     });
   }, [activeDraftId, captureFiles, captureForm]);
@@ -3579,6 +3600,10 @@ export default function LectureVaultApp() {
   function openClassDayDraft(id: string) {
     const draft = state.reconstructionDrafts.find((item) => item.id === id);
     if (!draft) return;
+    const hasPendingSource = captureFiles.some(
+      (source) => source.storagePath && !draft.sources.some((saved) => saved.storagePath === source.storagePath)
+    );
+    suppressDraftSaveRef.current = !hasPendingSource;
     setActiveDraftId(id);
     setCaptureForm({
       courseId: draft.courseId,
