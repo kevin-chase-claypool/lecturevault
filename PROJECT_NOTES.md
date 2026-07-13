@@ -30,6 +30,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Vault Metadata Tooltips
+
+- Added desktop hover and keyboard-focus tooltips to the selected reconstruction's media and concept bubbles.
+- Media metadata now exposes saved file name, kind, size, source role, and optional caption; concept metadata exposes the title, linked source timestamp/media, and extracted detail.
+- Tooltips stay hidden on touch-first layouts to keep the compact mobile Details pane clean.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Vault Explorer List
 
 - Replaced the Vault reconstruction card list with a compact explorer-style Name, Date, and Source Size list; selection keeps all remaining reconstruction information and actions in the Details pane.

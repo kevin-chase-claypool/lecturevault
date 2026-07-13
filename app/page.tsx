@@ -1951,6 +1951,19 @@ export default function LectureVaultApp() {
   const selectedArchiveLecture = archiveLectures.find(
     (lecture) => lecture.id === selectedLectureId
   );
+  const selectedArchiveMedia = selectedArchiveLecture
+    ? state.mediaItems.filter((item) => item.lectureId === selectedArchiveLecture.id)
+    : [];
+  const selectedArchiveConcepts = selectedArchiveLecture
+    ? state.concepts.filter((concept) => concept.lectureId === selectedArchiveLecture.id)
+    : [];
+  const selectedArchiveTranscript = selectedArchiveLecture
+    ? state.transcripts.find((transcript) => transcript.lectureId === selectedArchiveLecture.id)
+    : undefined;
+  const selectedArchiveSourceSize = selectedArchiveMedia.reduce(
+    (total, item) => total + item.size,
+    0
+  );
   const selectedArchiveFolder = state.archiveFolders.find(
     (folder) => folder.id === selectedArchiveFolderId
   );
@@ -4689,22 +4702,32 @@ export default function LectureVaultApp() {
                     <span>{courseLabel(selectedArchiveLecture.courseId)}</span>
                     <small>{selectedArchiveLecture.date}</small>
                     <div className="selected-lecture-meta">
+                      <MetadataBubble label={`${selectedArchiveMedia.length} media`}>
+                        <strong>Source media</strong>
+                        {selectedArchiveMedia.length ? selectedArchiveMedia.map((item) => (
+                          <span className="metadata-tooltip-item" key={item.id}>
+                            <b>{item.name}</b>
+                            <small>{item.kind} · {formatFileSize(item.size)} · {item.sourceRole || "Source material"}</small>
+                            {item.sourceCaption ? <em>{item.sourceCaption}</em> : null}
+                          </span>
+                        )) : <small>No source media was saved.</small>}
+                      </MetadataBubble>
+                      <MetadataBubble label={`${selectedArchiveConcepts.length} concepts`}>
+                        <strong>Extracted concepts</strong>
+                        {selectedArchiveConcepts.length ? selectedArchiveConcepts.map((concept) => {
+                          const segment = selectedArchiveTranscript?.segments.find((item) => item.id === concept.sourceSegmentId);
+                          const media = selectedArchiveMedia.find((item) => item.id === concept.mediaItemId);
+                          return (
+                            <span className="metadata-tooltip-item" key={concept.id}>
+                              <b>{concept.title}</b>
+                              <small>{segment ? `Source ${formatSeconds(segment.startSeconds)}` : "Source segment unavailable"}{media ? ` · ${media.name}` : ""}</small>
+                              <em>{concept.detail}</em>
+                            </span>
+                          );
+                        }) : <small>No concepts were extracted.</small>}
+                      </MetadataBubble>
                       <span>
-                        {state.mediaItems.filter(
-                          (item) => item.lectureId === selectedArchiveLecture.id
-                        ).length} media
-                      </span>
-                      <span>
-                        {state.concepts.filter(
-                          (concept) => concept.lectureId === selectedArchiveLecture.id
-                        ).length} concepts
-                      </span>
-                      <span>
-                        {formatFileSize(
-                          state.mediaItems
-                            .filter((item) => item.lectureId === selectedArchiveLecture.id)
-                            .reduce((total, item) => total + item.size, 0)
-                        )} source size
+                        {formatFileSize(selectedArchiveSourceSize)} source size
                       </span>
                     </div>
                     <p>
@@ -6416,6 +6439,17 @@ function LectureCard({
         ) : null}
       </div>
     </article>
+  );
+}
+
+function MetadataBubble({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <span className="metadata-bubble" tabIndex={0}>
+      {label}
+      <span className="metadata-tooltip" role="tooltip">
+        {children}
+      </span>
+    </span>
   );
 }
 

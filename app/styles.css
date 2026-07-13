@@ -1503,7 +1503,7 @@ button.review-draft-button:disabled {
   gap: 6px;
 }
 
-.selected-lecture-meta span {
+.selected-lecture-meta > span {
   border: 1px solid #c8dbe2;
   border-radius: 999px;
   padding: 4px 8px;
@@ -1511,6 +1511,102 @@ button.review-draft-button:disabled {
   color: var(--primary-dark);
   font-size: 0.74rem;
   font-weight: 850;
+}
+
+.metadata-bubble {
+  position: relative;
+  cursor: help;
+}
+
+.metadata-tooltip {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .metadata-bubble {
+    outline: none;
+  }
+
+  .metadata-bubble:focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  .metadata-bubble .metadata-tooltip {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 8px);
+    left: 0;
+    display: grid;
+    width: min(340px, calc(100vw - 44px));
+    max-height: 300px;
+    gap: 7px;
+    overflow: auto;
+    border: 1px solid #9eb9c8;
+    border-radius: 9px;
+    padding: 10px;
+    background: #112333;
+    box-shadow: 0 16px 30px rgba(15, 31, 45, 0.24);
+    color: #eaf3f8;
+    font-size: 0.74rem;
+    font-weight: 650;
+    line-height: 1.35;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-3px);
+    transition: opacity 140ms ease, transform 140ms ease, visibility 140ms ease;
+    visibility: hidden;
+  }
+
+  .metadata-bubble:hover .metadata-tooltip,
+  .metadata-bubble:focus-visible .metadata-tooltip {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+    visibility: visible;
+  }
+
+  .metadata-tooltip > strong {
+    color: #f3c95b;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .metadata-tooltip > small {
+    color: #b9c9d5;
+  }
+
+  .metadata-tooltip-item {
+    display: grid;
+    gap: 2px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    padding-top: 7px;
+  }
+
+  .metadata-tooltip-item b {
+    overflow: hidden;
+    color: #ffffff;
+    font-size: 0.76rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .metadata-tooltip-item small,
+  .metadata-tooltip-item em {
+    color: #c6d3dc;
+    font-size: 0.7rem;
+    font-style: normal;
+  }
+
+  .metadata-tooltip-item em {
+    display: -webkit-box;
+    overflow: hidden;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
 }
 
 .lecture-grid {
