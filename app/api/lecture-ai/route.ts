@@ -41,6 +41,15 @@ type TextbookContextChunk = {
   textbookName?: string;
 };
 
+type OneNoteSource = {
+  notebookName?: string;
+  pageId?: string;
+  sectionName?: string;
+  text?: string;
+  title?: string;
+  webUrl?: string;
+};
+
 type MatchTextbookChunk = {
   content?: string;
   id?: string;
@@ -205,9 +214,11 @@ export async function POST(request: Request) {
       courseStudyProfile?: string;
       notes?: string;
       mediaItems?: LectureMediaItem[];
+      oneNoteSources?: OneNoteSource[];
       textbookContext?: TextbookContextChunk[];
     };
     const mediaItems = Array.isArray(body.mediaItems) ? body.mediaItems : [];
+    const oneNoteSources = Array.isArray(body.oneNoteSources) ? body.oneNoteSources : [];
     let textbookContext = Array.isArray(body.textbookContext)
       ? body.textbookContext.slice(0, 10)
       : [];
@@ -293,6 +304,18 @@ export async function POST(request: Request) {
             .join(" | ")
       )
       .join("\n");
+    const oneNoteContext = oneNoteSources
+      .map((source, index) =>
+        [
+          `OneNote page ${index + 1}: ${cleanString(source.title) || "Untitled page"}`,
+          `Notebook: ${cleanString(source.notebookName) || "unknown"} | Section: ${cleanString(source.sectionName) || "unknown"}`,
+          cleanString(source.webUrl) ? `Original page: ${cleanString(source.webUrl)}` : "",
+          cleanString(source.text)
+        ]
+          .filter(Boolean)
+          .join("\n")
+      )
+      .join("\n\n---\n\n");
     const textbookQuery = [
       cleanString(body.title),
       cleanString(body.courseName),
@@ -365,6 +388,7 @@ export async function POST(request: Request) {
           cleanString(body.notes)
             ? `User notes/context:\n${cleanString(body.notes)}`
             : "",
+          oneNoteContext ? `Selected OneNote page snapshots:\n${oneNoteContext}` : "",
           mediaManifest ? `Source media manifest:\n${mediaManifest}` : "",
           textbookContextText
             ? `Relevant course textbook excerpts:\n${textbookContextText}`

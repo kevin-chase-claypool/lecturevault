@@ -30,6 +30,16 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - OneNote Source Picker
+
+- Added Microsoft Graph OAuth routes for connecting a personal or school OneNote account, with encrypted refresh-token storage in Supabase.
+- Added a reconstruction-level OneNote picker: browse notebooks, sections, and pages, then add selected page snapshots to the current class-day source bundle.
+- Selected pages are included in the visible `Full AI build context`, passed to the reconstruction AI request, and saved on the resulting reconstruction transcript with the original OneNote page link and notebook/section names.
+- OneNote is deliberately snapshot-based: future changes or moves in OneNote do not rewrite the reconstruction that used the page.
+- Added `supabase/onenote_tokens.sql`. Run it in the LectureVault Supabase SQL Editor before connecting an account.
+- Added required Vercel variable `ONENOTE_TOKEN_ENCRYPTION_KEY`, a random 32-byte base64 value used only to encrypt the stored OAuth tokens.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Source-Grounded AI Context
 
 - Reworked the read-only preview into `Full AI build context`. It now displays the exact shared organizing instructions and output contract used by the reconstruction API before the current course, notes, source manifest, and textbook-retrieval context.
@@ -170,6 +180,16 @@ Optional shared state row override:
 
 ```text
 LECTUREVAULT_STATE_ID
+```
+
+Required for OneNote source selection:
+
+```text
+ONENOTE_CLIENT_ID
+ONENOTE_CLIENT_SECRET
+ONENOTE_TENANT_ID=common
+ONENOTE_REDIRECT_URI
+ONENOTE_TOKEN_ENCRYPTION_KEY
 ```
 
 Optional model override:

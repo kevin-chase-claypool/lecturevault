@@ -77,6 +77,24 @@ type CaptureSource = {
   caption: string;
 };
 
+type OneNoteSource = {
+  id: string;
+  pageId: string;
+  title: string;
+  text: string;
+  notebookName: string;
+  sectionName: string;
+  webUrl?: string;
+  importedAt: string;
+};
+
+type OneNoteLibraryItem = {
+  id: string;
+  displayName?: string;
+  title?: string;
+  links?: { oneNoteWebUrl?: { href?: string } };
+};
+
 type Transcript = {
   id: string;
   lectureId: string;
@@ -87,6 +105,7 @@ type Transcript = {
   segments: TranscriptSegment[];
   generatedBy?: "manual" | "placeholder" | "openai";
   usage?: TokenUsage | null;
+  oneNoteSources?: OneNoteSource[];
   createdAt: string;
 };
 
@@ -1303,6 +1322,19 @@ export default function LectureVaultApp() {
     questions: ""
   });
   const [captureFiles, setCaptureFiles] = useState<CaptureSource[]>([]);
+  const [oneNoteSources, setOneNoteSources] = useState<OneNoteSource[]>([]);
+  const [oneNoteStatus, setOneNoteStatus] = useState<{
+    configured?: boolean;
+    connected?: boolean;
+    accountLabel?: string;
+    reason?: string;
+  }>({});
+  const [oneNoteNotebooks, setOneNoteNotebooks] = useState<OneNoteLibraryItem[]>([]);
+  const [oneNoteSections, setOneNoteSections] = useState<OneNoteLibraryItem[]>([]);
+  const [oneNotePages, setOneNotePages] = useState<OneNoteLibraryItem[]>([]);
+  const [oneNoteNotebookId, setOneNoteNotebookId] = useState("");
+  const [oneNoteSectionId, setOneNoteSectionId] = useState("");
+  const [oneNoteLoading, setOneNoteLoading] = useState(false);
   const [examForm, setExamForm] = useState({
     courseId: "",
     name: "",
@@ -1364,6 +1396,42 @@ export default function LectureVaultApp() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (authStatus !== "ready") {
+      return;
+    }
+
+    let active = true;
+    async function loadOneNoteStatus() {
+      try {
+        const response = await fetch("/api/onenote/status", { credentials: "include" });
+        const data = (await response.json()) as {
+          configured?: boolean;
+          connected?: boolean;
+          accountLabel?: string;
+          reason?: string;
+        };
+        if (active) setOneNoteStatus(data);
+      } catch {
+        if (active) setOneNoteStatus({ configured: false, reason: "Could not check OneNote connection." });
+      }
+    }
+
+    void loadOneNoteStatus();
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("onenote") === "connected") {
+      setStatus("OneNote connected. Select the notes for this class day.");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("onenote_message")) {
+      setStatus(params.get("onenote_message") || "OneNote connection was not completed.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [authStatus]);
 
   useEffect(() => {
     if (authStatus !== "ready") {
@@ -2434,6 +2502,7 @@ export default function LectureVaultApp() {
             notes: [reconstructionBrief, pastedTranscript]
               .filter(Boolean)
               .join("\n\n"),
+            oneNoteSources,
             textbookContext,
             title
           }),
@@ -2520,6 +2589,7 @@ export default function LectureVaultApp() {
       segments: splitTranscript(transcriptText),
       generatedBy,
       usage: transcriptUsage,
+      oneNoteSources,
       createdAt
     };
 
@@ -2564,6 +2634,7 @@ export default function LectureVaultApp() {
     }));
     setSelectedLectureId(lectureId);
     setCaptureFiles([]);
+    setOneNoteSources([]);
     setCaptureForm((current) => ({
       ...current,
       title: "",
@@ -3272,6 +3343,56 @@ export default function LectureVaultApp() {
     );
   }
 
+  async function loadOneNoteLibrary(kind: "notebooks" | "sections" | "pages", parentId?: string) {
+    setOneNoteLoading(true);
+    try {
+      const query = kind === "sections"
+        ? `?notebookId=${encodeURIComponent(parentId || "")}`
+        : kind === "pages"
+          ? `?sectionId=${encodeURIComponent(parentId || "")}`
+          : "";
+      const response = await fetch(`/api/onenote/library${query}`, { credentials: "include" });
+      const data = (await response.json()) as { error?: string; value?: OneNoteLibraryItem[] };
+      if (!response.ok) throw new Error(data.error || "Could not load OneNote library.");
+      const items = data.value || [];
+      if (kind === "notebooks") setOneNoteNotebooks(items);
+      if (kind === "sections") setOneNoteSections(items);
+      if (kind === "pages") setOneNotePages(items);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not load OneNote library.");
+    } finally {
+      setOneNoteLoading(false);
+    }
+  }
+
+  async function importOneNotePage(page: OneNoteLibraryItem) {
+    setOneNoteLoading(true);
+    try {
+      const response = await fetch(`/api/onenote/page?pageId=${encodeURIComponent(page.id)}`, { credentials: "include" });
+      const data = (await response.json()) as { error?: string; pageId?: string; text?: string; title?: string; webUrl?: string };
+      if (!response.ok) throw new Error(data.error || "Could not import OneNote page.");
+      if (!data.text?.trim()) throw new Error("That OneNote page did not contain readable text.");
+      const notebookName = oneNoteNotebooks.find((item) => item.id === oneNoteNotebookId)?.displayName || "OneNote notebook";
+      const sectionName = oneNoteSections.find((item) => item.id === oneNoteSectionId)?.displayName || "OneNote section";
+      const source: OneNoteSource = {
+        id: `onenote-${data.pageId || page.id}`,
+        pageId: data.pageId || page.id,
+        title: data.title || page.title || "Untitled OneNote page",
+        text: data.text.trim(),
+        notebookName,
+        sectionName,
+        webUrl: data.webUrl || page.links?.oneNoteWebUrl?.href || "",
+        importedAt: new Date().toISOString()
+      };
+      setOneNoteSources((current) => current.some((item) => item.pageId === source.pageId) ? current : [...current, source]);
+      setStatus(`Imported OneNote page: ${source.title}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not import OneNote page.");
+    } finally {
+      setOneNoteLoading(false);
+    }
+  }
+
   function selectArchiveCourse(courseId: string) {
     const nextLectures = archiveLecturesForLocation(state, courseId, "all");
 
@@ -3503,6 +3624,14 @@ export default function LectureVaultApp() {
   const reconstructionDocumentCount = captureFiles.filter(
     (source) => fileKind(source.file) === "document"
   ).length;
+  const oneNoteContext = oneNoteSources
+    .map((source, index) => [
+      `OneNote page ${index + 1}: ${source.title}`,
+      `Notebook: ${source.notebookName} | Section: ${source.sectionName}`,
+      source.webUrl ? `Original page: ${source.webUrl}` : "",
+      source.text
+    ].filter(Boolean).join("\n"))
+    .join("\n\n---\n\n");
   const reconstructionNotesReady = Boolean(
     captureForm.transcript.trim() ||
       captureForm.objective.trim() ||
@@ -3536,9 +3665,9 @@ export default function LectureVaultApp() {
     reconstructionBriefContext
       ? `Class-day reconstruction brief:\n${reconstructionBriefContext}`
       : "Class-day reconstruction brief: none",
-    captureForm.transcript.trim()
-      ? `Pasted notes / OneNote text:\n${captureForm.transcript.trim()}`
-      : "Pasted notes / OneNote text: none",
+    captureForm.transcript.trim() || oneNoteContext
+      ? `Pasted notes / selected OneNote pages:\n${[captureForm.transcript.trim(), oneNoteContext].filter(Boolean).join("\n\n")}`
+      : "Pasted notes / selected OneNote pages: none",
     captureFiles.length
       ? [
           "Source media manifest:",
@@ -3558,7 +3687,7 @@ export default function LectureVaultApp() {
       : "Textbook context: no indexed course textbooks."
   ].join("\n\n");
   const reconstructionHasSource = Boolean(
-    captureFiles.length || reconstructionNotesReady
+    captureFiles.length || reconstructionNotesReady || oneNoteSources.length
   );
 
   if (authStatus === "checking") {
@@ -4318,6 +4447,84 @@ export default function LectureVaultApp() {
                 </div>
               </div>
             ) : null}
+
+            <section className="onenote-source-panel" aria-label="OneNote source picker">
+              <div className="section-heading compact-heading">
+                <div>
+                  <span className="pill">OneNote</span>
+                  <h3>Class Notes</h3>
+                </div>
+                {oneNoteStatus.connected ? (
+                  <button type="button" onClick={() => void loadOneNoteLibrary("notebooks")} disabled={oneNoteLoading}>
+                    {oneNoteLoading ? "Loading..." : "Browse Notes"}
+                  </button>
+                ) : (
+                  <a className="button-link" href="/api/onenote/connect">Connect OneNote</a>
+                )}
+              </div>
+              <p>
+                Select only the pages that belong to this class day. LectureVault saves a text snapshot with the reconstruction, so later edits in OneNote do not change your archived record.
+              </p>
+              {!oneNoteStatus.configured ? (
+                <small>OneNote connection is not configured on this deployment yet.</small>
+              ) : null}
+              {oneNoteStatus.connected ? (
+                <>
+                  <small>Connected{oneNoteStatus.accountLabel ? ` as ${oneNoteStatus.accountLabel}` : ""}.</small>
+                  {oneNoteNotebooks.length ? (
+                    <div className="onenote-picker-grid">
+                      <label>
+                        Notebook
+                        <select value={oneNoteNotebookId} onChange={(event) => {
+                          const id = event.target.value;
+                          setOneNoteNotebookId(id);
+                          setOneNoteSectionId("");
+                          setOneNoteSections([]);
+                          setOneNotePages([]);
+                          if (id) void loadOneNoteLibrary("sections", id);
+                        }}>
+                          <option value="">Select a notebook</option>
+                          {oneNoteNotebooks.map((item) => <option key={item.id} value={item.id}>{item.displayName || "Untitled notebook"}</option>)}
+                        </select>
+                      </label>
+                      <label>
+                        Section
+                        <select value={oneNoteSectionId} disabled={!oneNoteSections.length} onChange={(event) => {
+                          const id = event.target.value;
+                          setOneNoteSectionId(id);
+                          setOneNotePages([]);
+                          if (id) void loadOneNoteLibrary("pages", id);
+                        }}>
+                          <option value="">Select a section</option>
+                          {oneNoteSections.map((item) => <option key={item.id} value={item.id}>{item.displayName || "Untitled section"}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                  ) : null}
+                  {oneNotePages.length ? (
+                    <div className="onenote-page-list">
+                      {oneNotePages.map((page) => {
+                        const imported = oneNoteSources.some((source) => source.pageId === page.id);
+                        return <div key={page.id} className="onenote-page-row">
+                          <strong>{page.title || "Untitled OneNote page"}</strong>
+                          <button type="button" onClick={() => void importOneNotePage(page)} disabled={oneNoteLoading || imported}>
+                            {imported ? "Selected" : "Add to Reconstruction"}
+                          </button>
+                        </div>;
+                      })}
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+              {oneNoteSources.length ? (
+                <div className="onenote-selected-list">
+                  {oneNoteSources.map((source) => <div key={source.id}>
+                    <span><strong>{source.title}</strong><small>{source.notebookName} / {source.sectionName}</small></span>
+                    <button type="button" onClick={() => setOneNoteSources((current) => current.filter((item) => item.id !== source.id))}>Remove</button>
+                  </div>)}
+                </div>
+              ) : null}
+            </section>
 
             <label>
               Transcript, OneNote text, or rough notes
@@ -5770,6 +5977,17 @@ function LectureDetail({
                   </span>
                 );
               })}
+            </div>
+          ) : null}
+          {transcript?.oneNoteSources?.length ? (
+            <div className="usage-source-list">
+              <h4>OneNote Pages Used</h4>
+              {transcript.oneNoteSources.map((source) => (
+                <span key={source.id}>
+                  {source.webUrl ? <a href={source.webUrl} target="_blank" rel="noreferrer">{source.title}</a> : source.title}
+                  {` - ${source.notebookName} / ${source.sectionName}`}
+                </span>
+              ))}
             </div>
           ) : null}
         </section>

@@ -2116,6 +2116,86 @@ button.review-draft-button:disabled {
   box-shadow: var(--shadow-card);
 }
 
+.onenote-source-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(186, 208, 224, 0.98);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  background: linear-gradient(180deg, #f9fbff 0%, #ffffff 100%);
+}
+
+.onenote-source-panel .section-heading,
+.onenote-source-panel p {
+  margin: 0;
+}
+
+.onenote-source-panel p,
+.onenote-source-panel > small {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 680;
+  line-height: 1.45;
+}
+
+.onenote-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.onenote-page-list,
+.onenote-selected-list {
+  display: grid;
+  gap: 7px;
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 3px;
+}
+
+.onenote-page-row,
+.onenote-selected-list > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #d5e0e9;
+  border-radius: var(--radius);
+  padding: 9px 10px;
+  background: #ffffff;
+}
+
+.onenote-page-row strong,
+.onenote-selected-list span {
+  min-width: 0;
+}
+
+.onenote-page-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.onenote-page-row button,
+.onenote-selected-list button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 6px 9px;
+  font-size: 0.78rem;
+}
+
+.onenote-selected-list span {
+  display: grid;
+  gap: 2px;
+}
+
+.onenote-selected-list small {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
 .capture-media-panel .section-heading {
   margin-bottom: 0;
 }
@@ -3582,6 +3662,15 @@ button.review-draft-button:disabled {
   .capture-media-item {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .onenote-picker-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .onenote-page-row,
+  .onenote-selected-list > div {
+    align-items: flex-start;
   }
 
   .media-kind {
