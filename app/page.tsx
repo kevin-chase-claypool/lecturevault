@@ -288,6 +288,7 @@ type VaultState = {
 const STORAGE_KEY = "lecturevault-state-v1";
 const DEFAULT_LECTURES_FOLDER_NAME = "Lectures";
 const LEGACY_UNFILED_FOLDER_NAME = "Unfiled";
+const PRO_MEDIA_STORAGE_QUOTA_BYTES = 100 * 1024 * 1024 * 1024;
 const LEGACY_DEMO_COURSE_IDS = new Set(["course-calculus", "course-physics"]);
 const DEFAULT_REVIEW_CONTEXT =
   "Prioritize high-yield concepts, formulas, worked problem patterns, common mistakes, and a practice checklist.";
@@ -409,6 +410,10 @@ async function takeSharedPwaSources(): Promise<SharedPwaSource[]> {
 
 function formatFileSize(bytes: number) {
   const megabytes = bytes / (1024 * 1024);
+
+  if (megabytes >= 1024) {
+    return `${(megabytes / 1024).toFixed(1)} GB`;
+  }
 
   if (megabytes >= 1) {
     return `${megabytes.toFixed(1)} MB`;
@@ -5917,6 +5922,8 @@ function StorageManager({
   onToggle: (path: string) => void;
 }) {
   const totalBytes = files.reduce((sum, file) => sum + (file.size || 0), 0);
+  const storageUsagePercent = Math.min(100, (totalBytes / PRO_MEDIA_STORAGE_QUOTA_BYTES) * 100);
+  const storageRemainingBytes = Math.max(0, PRO_MEDIA_STORAGE_QUOTA_BYTES - totalBytes);
   const folderIds = new Set(folders.map((folder) => folder.id));
   const selectedFolderIds =
     selectedFolderId === "all" || selectedFolderId === "unfiled"
@@ -6048,6 +6055,23 @@ function StorageManager({
           objects. Lecture and review links keep pointing to the original file
           paths.
         </p>
+        <div className="media-storage-usage" aria-label="Supabase media storage usage">
+          <div>
+            <span>Supabase media storage</span>
+            <strong>{formatFileSize(totalBytes)} of 100 GB</strong>
+          </div>
+          <div
+            aria-label={`${storageUsagePercent.toFixed(2)} percent of included media storage used`}
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={storageUsagePercent}
+            className="media-storage-meter"
+            role="progressbar"
+          >
+            <span style={{ width: `${Math.max(1, storageUsagePercent)}%` }} />
+          </div>
+          <small>{formatFileSize(storageRemainingBytes)} remaining on the included Pro storage allowance.</small>
+        </div>
 
         <form className="storage-folder-form" onSubmit={onCreateFolder}>
           <input

@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-13 - Media Storage Capacity Meter
+
+- Added a compact Media Library meter showing the live size of files in LectureVault's Supabase media bucket, used percentage, and remaining included capacity against the current Pro plan's 100 GB file-storage allowance.
+- This is bucket-specific media usage, not a complete Supabase billing dashboard: database disk, egress, and unrelated projects/buckets remain visible in Supabase itself.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Require Courses for Archive Organization
 
 - New reconstructions now require a selected course before they can be built. This prevents future unassigned (`Unfiled`) archive records that cannot belong to an archive tree.

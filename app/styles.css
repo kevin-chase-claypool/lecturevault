@@ -2513,6 +2513,49 @@ button.review-draft-button:disabled {
   line-height: 1.35;
 }
 
+.media-storage-usage {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 2px;
+  border: 1px solid #c6dce3;
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  background: #f7fbfc;
+}
+
+.media-storage-usage > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.media-storage-usage span,
+.media-storage-usage small {
+  color: var(--muted);
+  font-size: 0.73rem;
+  font-weight: 750;
+}
+
+.media-storage-usage strong {
+  color: var(--primary-dark);
+  font-size: 0.8rem;
+}
+
+.media-storage-meter {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dce9ee;
+}
+
+.media-storage-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+
 .capture-media-item {
   display: grid;
   grid-template-columns: 82px minmax(150px, 1fr) minmax(150px, 0.7fr) minmax(220px, 1.2fr) auto;
