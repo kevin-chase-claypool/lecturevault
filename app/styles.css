@@ -5667,6 +5667,12 @@ button.primary:hover:not(:disabled),
     padding: 0;
     overflow: hidden;
   }
+
+  /* Keep the study explorer below the responsive sticky application header. */
+  .lecture-study-explorer {
+    top: 92px;
+    max-height: calc(100dvh - 110px);
+  }
 }
 
 .lecture-study-layout {
@@ -5829,8 +5835,8 @@ button.primary:hover:not(:disabled),
   }
 
   .lecture-study-explorer {
-    position: static;
-    max-height: none;
+    top: 76px;
+    max-height: calc(100dvh - 92px);
   }
 
   .lecture-study-list {

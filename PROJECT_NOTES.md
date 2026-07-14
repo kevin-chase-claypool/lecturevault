@@ -36,6 +36,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Retained search and title/date/length sorting within the selected folder, with direct opening for focused study.
 - Made each Vault reconstruction row open its study view directly, renamed the inspector action to `Open study view`, and added a breadcrumb plus Back to Vault action that returns to the reconstruction's folder.
 - Kept the full reconstruction artifact in the primary pane and its media/review inspector beside it on desktop; the explorer stacks above the record on narrow screens.
+- Offset the sticky Reconstruction Detail explorer below the responsive header on tablet and phone layouts so its controls are never covered while reading a long reconstruction.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 
 ### 2026-07-14 - Product-Wide Visual System Refinement
