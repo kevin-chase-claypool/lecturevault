@@ -32,8 +32,9 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ### 2026-07-14 - Review Set Destination Emphasis
 
-- Gave the Review Set Draft panel a distinct pale-teal surface and stronger boundary to establish exam review creation as the primary endpoint of the app.
-- Kept its editable controls and interior organizational surfaces white, preserving contrast and an uncluttered working area.
+- Replaced the teal-heavy accent system with a cooler professional blue across primary controls, focus states, selected rows, labels, and supporting status details.
+- Gave the Review Set Draft a restrained light-blue workspace surface, distinct from neutral page panels without clashing with the app background.
+- Kept its white editable controls, compact source organizer, and trash-can removal actions for a clear, space-efficient review workflow.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 
 ### 2026-07-14 - Compact Review Draft Removal
