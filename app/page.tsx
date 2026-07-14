@@ -6991,6 +6991,7 @@ function LectureDetail({
   const [explorerSortKey, setExplorerSortKey] = useState<ArchiveSortKey>("date");
   const [explorerSortDirection, setExplorerSortDirection] = useState<SortDirection>("desc");
   const [explorerFolderId, setExplorerFolderId] = useState(lecture.folderId || "all");
+  const [isArchiveTreeOpen, setIsArchiveTreeOpen] = useState(false);
 
   useEffect(() => {
     setTargetExamId(matchingExams[0]?.id || "");
@@ -7068,6 +7069,19 @@ function LectureDetail({
     setExplorerSortDirection(key === "date" ? "desc" : "asc");
   }
 
+  function selectExplorerFolder(folderId: string) {
+    setExplorerFolderId(folderId);
+
+    if (window.matchMedia("(max-width: 760px)").matches) {
+      setIsArchiveTreeOpen(false);
+    }
+  }
+
+  const selectedExplorerFolderName =
+    explorerFolderId === "all"
+      ? "All reconstructions"
+      : archiveFolders.find((folder) => folder.id === explorerFolderId)?.name || "Folder";
+
   return (
     <section className="lecture-study-layout">
       <aside className="panel lecture-study-explorer" aria-label="Course reconstruction explorer">
@@ -7078,18 +7092,32 @@ function LectureDetail({
           </div>
           <span>{courseLectures.length} saved</span>
         </div>
-        <div className="lecture-study-tree">
-          <ArchiveFolderTree
-            courses={[course]}
-            folders={archiveFolders}
-            lectures={courseLectures}
-            selectedCourseId={course.id}
-            selectedFolderId={explorerFolderId}
-            onSelectCourse={() => setExplorerFolderId("all")}
-            onSelectFolder={setExplorerFolderId}
-            onDropLecture={() => undefined}
-          />
-        </div>
+        <details
+          className="lecture-study-tree"
+          open={isArchiveTreeOpen}
+          onToggle={(event) => setIsArchiveTreeOpen(event.currentTarget.open)}
+        >
+          <summary>
+            <span className="folder-icon" aria-hidden="true" />
+            <span>
+              <small>Browse archive</small>
+              <strong title={selectedExplorerFolderName}>{selectedExplorerFolderName}</strong>
+            </span>
+            <span>{visibleCourseLectures.length}</span>
+          </summary>
+          <div className="lecture-study-tree-content">
+            <ArchiveFolderTree
+              courses={[course]}
+              folders={archiveFolders}
+              lectures={courseLectures}
+              selectedCourseId={course.id}
+              selectedFolderId={explorerFolderId}
+              onSelectCourse={() => selectExplorerFolder("all")}
+              onSelectFolder={selectExplorerFolder}
+              onDropLecture={() => undefined}
+            />
+          </div>
+        </details>
         <div className="section-heading compact-heading lecture-study-list-heading">
           <div>
             <span className="pill">{visibleCourseLectures.length} items</span>
