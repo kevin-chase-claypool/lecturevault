@@ -13,7 +13,7 @@ import {
 import type { ReactNode } from "react";
 import JSZip from "jszip";
 import katex from "katex";
-import { Trash2 } from "lucide-react";
+import { BookOpen, FilePlus2, FolderOpen, Trash2 } from "lucide-react";
 import {
   LECTURE_AI_INSTRUCTIONS,
   LECTURE_AI_OUTPUT_CONTRACT
@@ -4588,24 +4588,28 @@ export default function LectureVaultApp() {
                 ).length;
 
                 return (
-                <div className="row-card" key={course.id}>
-                  <div>
+                <div className="row-card course-row" key={course.id}>
+                  <div className="course-summary">
                     <strong>{course.code}</strong>
                     <span>{course.name}</span>
                     <small>{course.term}</small>
                     <div className="course-stats" aria-label={`${course.code} totals`}>
                       <span>{reconstructionCount} reconstructions</span>
                       <span>{textbookCount} textbooks</span>
-                      <span>{course.syllabus ? "syllabus attached" : "no syllabus"}</span>
+                      <span>{course.syllabus ? "syllabus attached" : "syllabus not attached"}</span>
                     </div>
                   </div>
-                  <div className="button-row">
-                    <label className="button-like course-syllabus-upload">
+                  <div className="course-actions" aria-label={`${course.code} actions`}>
+                    <label
+                      className="button-like course-action-button course-syllabus-upload"
+                      title={course.syllabus ? "Replace course syllabus PDF" : "Add course syllabus PDF"}
+                    >
+                      <FilePlus2 aria-hidden="true" size={16} strokeWidth={2} />
                       {syllabusProcessingCourseId === course.id
                         ? "Uploading..."
                         : course.syllabus
-                          ? "Replace syllabus"
-                          : "Add syllabus PDF"}
+                          ? "Syllabus"
+                          : "Syllabus"}
                       <input
                         type="file"
                         accept="application/pdf,.pdf"
@@ -4619,10 +4623,14 @@ export default function LectureVaultApp() {
                         }}
                       />
                     </label>
-                    <label className="button-like course-textbook-upload">
+                    <label
+                      className="button-like course-action-button course-textbook-upload"
+                      title="Add textbook PDF"
+                    >
+                      <BookOpen aria-hidden="true" size={16} strokeWidth={2} />
                       {textbookProcessingCourseId === course.id
                         ? "Processing..."
-                        : "Add textbook PDF"}
+                        : "Textbook"}
                       <input
                         type="file"
                         multiple
@@ -4638,20 +4646,25 @@ export default function LectureVaultApp() {
                       />
                     </label>
                     <button
+                      className="course-action-button"
                       type="button"
+                      title="Open course archive"
                       onClick={() => {
                         setSelectedCourseId(course.id);
                         setScreen("archive");
                       }}
                     >
-                      Open archive
+                      <FolderOpen aria-hidden="true" size={16} strokeWidth={2} />
+                      Archive
                     </button>
                     <button
-                      className="danger"
+                      className="icon-button danger course-delete-button"
                       type="button"
+                      aria-label={`Delete ${course.code} ${course.name}`}
+                      title="Delete course"
                       onClick={() => deleteCourse(course.id)}
                     >
-                      Delete course
+                      <Trash2 aria-hidden="true" size={16} strokeWidth={2} />
                     </button>
                   </div>
                   {course.syllabus ? (

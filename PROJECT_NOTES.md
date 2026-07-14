@@ -34,6 +34,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 - Added a dedicated course-level syllabus PDF attachment, separate from textbooks and their AI indexing workflow.
 - Syllabus PDFs upload directly to Supabase Storage, support replacement, opening, downloading, and removal from the course record while preserving original files in Media Library.
+- Reworked course rows into a full-width course summary plus compact syllabus, textbook, archive, and icon-only delete actions, preventing actions from collapsing course names into a narrow column.
 - Added a compact responsive syllabus reference row to each course, including attachment status in the course totals.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 
