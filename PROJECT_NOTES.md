@@ -30,6 +30,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-14 - Course Syllabus Reference
+
+- Added a dedicated course-level syllabus PDF attachment, separate from textbooks and their AI indexing workflow.
+- Syllabus PDFs upload directly to Supabase Storage, support replacement, opening, downloading, and removal from the course record while preserving original files in Media Library.
+- Added a compact responsive syllabus reference row to each course, including attachment status in the course totals.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-14 - Review Set Destination Emphasis
 
 - Replaced the teal-heavy accent system with a cooler professional blue across primary controls, focus states, selected rows, labels, and supporting status details.

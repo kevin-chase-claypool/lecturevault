@@ -36,6 +36,7 @@ type Course = {
   name: string;
   term: string;
   studyProfile?: string;
+  syllabus?: CourseSyllabus;
   createdAt: string;
 };
 
@@ -262,6 +263,16 @@ type CourseTextbook = {
   chunkCount: number;
   indexedChunkCount?: number;
   embeddingUsage?: TokenUsage | null;
+  createdAt: string;
+};
+
+type CourseSyllabus = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  storageBucket?: string;
+  storagePath?: string;
   createdAt: string;
 };
 
@@ -1486,6 +1497,7 @@ export default function LectureVaultApp() {
   const [isPdfRendering, setIsPdfRendering] = useState(false);
   const [isGptPackageBuilding, setIsGptPackageBuilding] = useState(false);
   const [textbookProcessingCourseId, setTextbookProcessingCourseId] = useState("");
+  const [syllabusProcessingCourseId, setSyllabusProcessingCourseId] = useState("");
   const [reviewPdfStatus, setReviewPdfStatus] = useState("");
   const [storageBucket, setStorageBucket] = useState("");
   const [storageFiles, setStorageFiles] = useState<SupabaseStorageFile[]>([]);
@@ -2295,6 +2307,88 @@ export default function LectureVaultApp() {
     }));
     setCourseProfileDrafts((current) => ({ ...current, [courseId]: studyProfile }));
     setStatus(`${course.code} study profile saved.`);
+  }
+
+  async function addCourseSyllabus(courseId: string, file: File) {
+    const course = state.courses.find((item) => item.id === courseId);
+
+    if (!course) {
+      setStatus("Choose a course before adding its syllabus.");
+      return;
+    }
+
+    if (!file.type.includes("pdf") && !file.name.toLowerCase().endsWith(".pdf")) {
+      setStatus("Choose a PDF syllabus.");
+      return;
+    }
+
+    if (
+      course.syllabus &&
+      !window.confirm(
+        `Replace ${course.syllabus.name} as the syllabus for ${course.code}? The previous file will remain available in Media Library.`
+      )
+    ) {
+      return;
+    }
+
+    setSyllabusProcessingCourseId(courseId);
+
+    try {
+      const syllabusId = uid("syllabus");
+      setStatus(`Uploading ${file.name} as the syllabus for ${course.code}...`);
+      const storage = await uploadMediaFile({
+        file,
+        lectureId: `syllabus-${courseId}`,
+        mediaId: syllabusId
+      });
+      const syllabus: CourseSyllabus = {
+        id: syllabusId,
+        name: file.name,
+        mimeType: file.type || "application/pdf",
+        size: file.size,
+        storageBucket: storage.storageBucket,
+        storagePath: storage.storagePath,
+        createdAt: new Date().toISOString()
+      };
+
+      setState((current) => ({
+        ...current,
+        courses: current.courses.map((item) =>
+          item.id === courseId ? { ...item, syllabus } : item
+        )
+      }));
+      setStatus(`Added ${file.name} as the syllabus for ${course.code}.`);
+    } catch (error) {
+      setStatus(
+        error instanceof Error ? error.message : "Could not add the course syllabus."
+      );
+    } finally {
+      setSyllabusProcessingCourseId("");
+    }
+  }
+
+  function removeCourseSyllabus(courseId: string) {
+    const course = state.courses.find((item) => item.id === courseId);
+
+    if (!course?.syllabus) {
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Remove ${course.syllabus.name} from ${course.code}? The original PDF will remain in Media Library.`
+      )
+    ) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      courses: current.courses.map((item) =>
+        item.id === courseId ? { ...item, syllabus: undefined } : item
+      )
+    }));
+    setStatus(`Removed the syllabus from ${course.code}.`);
   }
 
   async function addCourseTextbooks(courseId: string, files: File[]) {
@@ -4502,9 +4596,29 @@ export default function LectureVaultApp() {
                     <div className="course-stats" aria-label={`${course.code} totals`}>
                       <span>{reconstructionCount} reconstructions</span>
                       <span>{textbookCount} textbooks</span>
+                      <span>{course.syllabus ? "syllabus attached" : "no syllabus"}</span>
                     </div>
                   </div>
                   <div className="button-row">
+                    <label className="button-like course-syllabus-upload">
+                      {syllabusProcessingCourseId === course.id
+                        ? "Uploading..."
+                        : course.syllabus
+                          ? "Replace syllabus"
+                          : "Add syllabus PDF"}
+                      <input
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        disabled={Boolean(syllabusProcessingCourseId)}
+                        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                          const file = event.target.files?.[0];
+                          if (file) {
+                            void addCourseSyllabus(course.id, file);
+                          }
+                          event.target.value = "";
+                        }}
+                      />
+                    </label>
                     <label className="button-like course-textbook-upload">
                       {textbookProcessingCourseId === course.id
                         ? "Processing..."
@@ -4540,6 +4654,53 @@ export default function LectureVaultApp() {
                       Delete course
                     </button>
                   </div>
+                  {course.syllabus ? (
+                    <div className="course-syllabus-item">
+                      <div>
+                        <span className="course-reference-kicker">Course syllabus</span>
+                        <strong title={course.syllabus.name}>{course.syllabus.name}</strong>
+                        <small>
+                          {formatFileSize(course.syllabus.size)} - added {new Date(course.syllabus.createdAt).toLocaleDateString()}
+                        </small>
+                      </div>
+                      <div className="course-syllabus-actions">
+                        {course.syllabus.storagePath ? (
+                          <>
+                            <a
+                              className="button-like"
+                              href={storageObjectUrl(
+                                course.syllabus.storagePath,
+                                course.syllabus.storageBucket
+                              )}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Open
+                            </a>
+                            <a
+                              className="button-like"
+                              href={storageObjectUrl(
+                                course.syllabus.storagePath,
+                                course.syllabus.storageBucket
+                              )}
+                              download={course.syllabus.name}
+                            >
+                              Download
+                            </a>
+                          </>
+                        ) : null}
+                        <button
+                          className="icon-button danger"
+                          type="button"
+                          aria-label={`Remove ${course.syllabus.name} from ${course.code}`}
+                          title="Remove syllabus from course"
+                          onClick={() => removeCourseSyllabus(course.id)}
+                        >
+                          <Trash2 aria-hidden="true" size={16} strokeWidth={2} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                   <details className="course-study-profile">
                     <summary>Study profile</summary>
                     <p>
