@@ -6992,10 +6992,20 @@ function LectureDetail({
   const [explorerSortDirection, setExplorerSortDirection] = useState<SortDirection>("desc");
   const [explorerFolderId, setExplorerFolderId] = useState(lecture.folderId || "all");
   const [isArchiveTreeOpen, setIsArchiveTreeOpen] = useState(false);
+  const [isStudyBrowserOpen, setIsStudyBrowserOpen] = useState(false);
 
   useEffect(() => {
     setTargetExamId(matchingExams[0]?.id || "");
   }, [matchingExams]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 1120px)");
+    const syncBrowserVisibility = () => setIsStudyBrowserOpen(!mediaQuery.matches);
+
+    syncBrowserVisibility();
+    mediaQuery.addEventListener("change", syncBrowserVisibility);
+    return () => mediaQuery.removeEventListener("change", syncBrowserVisibility);
+  }, []);
 
   useEffect(() => {
     const selectedFolderStillExists = archiveFolders.some(
@@ -7072,8 +7082,9 @@ function LectureDetail({
   function selectExplorerFolder(folderId: string) {
     setExplorerFolderId(folderId);
 
-    if (window.matchMedia("(max-width: 760px)").matches) {
+    if (window.matchMedia("(max-width: 1120px)").matches) {
       setIsArchiveTreeOpen(false);
+      setIsStudyBrowserOpen(false);
     }
   }
 
@@ -7085,89 +7096,113 @@ function LectureDetail({
   return (
     <section className="lecture-study-layout">
       <aside className="panel lecture-study-explorer" aria-label="Course reconstruction explorer">
-        <div className="section-heading compact-heading">
-          <div>
-            <span className="pill">Archive</span>
-            <h3>Archive Tree</h3>
-          </div>
-          <span>{courseLectures.length} saved</span>
-        </div>
         <details
-          className="lecture-study-tree"
-          open={isArchiveTreeOpen}
-          onToggle={(event) => setIsArchiveTreeOpen(event.currentTarget.open)}
+          className="study-browser"
+          open={isStudyBrowserOpen}
         >
-          <summary>
+          <summary onClick={(event) => {
+            event.preventDefault();
+            setIsStudyBrowserOpen((current) => !current);
+          }}>
             <span className="folder-icon" aria-hidden="true" />
             <span>
-              <small>Browse archive</small>
-              <strong title={selectedExplorerFolderName}>{selectedExplorerFolderName}</strong>
+              <small>Study navigation</small>
+              <strong title={`${courseLabel(lecture.courseId)} / ${selectedExplorerFolderName}`}>
+                {courseLabel(lecture.courseId)} / {selectedExplorerFolderName}
+              </strong>
             </span>
             <span>{visibleCourseLectures.length}</span>
           </summary>
-          <div className="lecture-study-tree-content">
-            <ArchiveFolderTree
-              courses={[course]}
-              folders={archiveFolders}
-              lectures={courseLectures}
-              selectedCourseId={course.id}
-              selectedFolderId={explorerFolderId}
-              onSelectCourse={() => selectExplorerFolder("all")}
-              onSelectFolder={selectExplorerFolder}
-              onDropLecture={() => undefined}
-            />
+          <div className="study-browser-content">
+            <div className="section-heading compact-heading">
+              <div>
+                <span className="pill">Archive</span>
+                <h3>Archive Tree</h3>
+              </div>
+              <span>{courseLectures.length} saved</span>
+            </div>
+            <details className="lecture-study-tree" open={isArchiveTreeOpen}>
+              <summary onClick={(event) => {
+                event.preventDefault();
+                setIsArchiveTreeOpen((current) => !current);
+              }}>
+                <span className="folder-icon" aria-hidden="true" />
+                <span>
+                  <small>Browse archive</small>
+                  <strong title={selectedExplorerFolderName}>{selectedExplorerFolderName}</strong>
+                </span>
+                <span>{visibleCourseLectures.length}</span>
+              </summary>
+              <div className="lecture-study-tree-content">
+                <ArchiveFolderTree
+                  courses={[course]}
+                  folders={archiveFolders}
+                  lectures={courseLectures}
+                  selectedCourseId={course.id}
+                  selectedFolderId={explorerFolderId}
+                  onSelectCourse={() => selectExplorerFolder("all")}
+                  onSelectFolder={selectExplorerFolder}
+                  onDropLecture={() => undefined}
+                />
+              </div>
+            </details>
+            <div className="section-heading compact-heading lecture-study-list-heading">
+              <div>
+                <span className="pill">{visibleCourseLectures.length} items</span>
+                <h3>Folder Contents</h3>
+              </div>
+            </div>
+            <label className="lecture-study-search">
+              Search folder
+              <input
+                value={explorerQuery}
+                onChange={(event) => setExplorerQuery(event.target.value)}
+                placeholder="Title, date, topic..."
+              />
+            </label>
+            <div className="lecture-study-sort" aria-label="Sort reconstructions">
+              {([
+                ["name", "Name"],
+                ["date", "Date"],
+                ["size", "Length"]
+              ] as Array<[ArchiveSortKey, string]>).map(([key, label]) => (
+                <button
+                  className={explorerSortKey === key ? "active" : ""}
+                  key={key}
+                  type="button"
+                  onClick={() => changeExplorerSort(key)}
+                >
+                  {label}
+                  {explorerSortKey === key ? (explorerSortDirection === "asc" ? " Asc" : " Desc") : ""}
+                </button>
+              ))}
+            </div>
+            <div className="lecture-study-list">
+              {visibleCourseLectures.map((item) => (
+                <button
+                  className={item.id === lecture.id ? "selected" : ""}
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    onOpenLecture(item.id);
+                    if (window.matchMedia("(max-width: 1120px)").matches) {
+                      setIsStudyBrowserOpen(false);
+                    }
+                  }}
+                >
+                  <span>
+                    <strong title={item.title}>{item.title}</strong>
+                    <small>{item.summary || "No summary yet."}</small>
+                  </span>
+                  <time dateTime={item.date}>{item.date || "No date"}</time>
+                </button>
+              ))}
+              {!visibleCourseLectures.length ? (
+                <p className="empty">No reconstructions match this search.</p>
+              ) : null}
+            </div>
           </div>
         </details>
-        <div className="section-heading compact-heading lecture-study-list-heading">
-          <div>
-            <span className="pill">{visibleCourseLectures.length} items</span>
-            <h3>Folder Contents</h3>
-          </div>
-        </div>
-        <label className="lecture-study-search">
-          Search folder
-          <input
-            value={explorerQuery}
-            onChange={(event) => setExplorerQuery(event.target.value)}
-            placeholder="Title, date, topic..."
-          />
-        </label>
-        <div className="lecture-study-sort" aria-label="Sort reconstructions">
-          {([
-            ["name", "Name"],
-            ["date", "Date"],
-            ["size", "Length"]
-          ] as Array<[ArchiveSortKey, string]>).map(([key, label]) => (
-            <button
-              className={explorerSortKey === key ? "active" : ""}
-              key={key}
-              type="button"
-              onClick={() => changeExplorerSort(key)}
-            >
-              {label}
-              {explorerSortKey === key ? (explorerSortDirection === "asc" ? " Asc" : " Desc") : ""}
-            </button>
-          ))}
-        </div>
-        <div className="lecture-study-list">
-          {visibleCourseLectures.map((item) => (
-            <button
-              className={item.id === lecture.id ? "selected" : ""}
-              key={item.id}
-              type="button"
-              onClick={() => onOpenLecture(item.id)}
-            >
-              <span>
-                <strong title={item.title}>{item.title}</strong>
-                <small>{item.summary || "No summary yet."}</small>
-              </span>
-              <time dateTime={item.date}>{item.date || "No date"}</time>
-            </button>
-          ))}
-          {!visibleCourseLectures.length ? (
-            <p className="empty">No reconstructions match this search.</p>
-          ) : null}
-        </div>
       </aside>
       <article className="panel detail-main">
         <div className="study-navigation">

@@ -38,6 +38,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Kept the full reconstruction artifact in the primary pane and its media/review inspector beside it on desktop; the explorer stacks above the record on narrow screens.
 - Offset the sticky Reconstruction Detail explorer below the responsive header on tablet and phone layouts so its controls are never covered while reading a long reconstruction.
 - Made the Reconstruction Detail Archive Tree a compact disclosure, closed by default; its header shows the active folder and item count, and it closes after selecting a folder on phones to preserve reading space.
+- Collapsed the entire Reconstruction Detail study navigator across tablet and phone layouts. The compact header retains course/folder context; opening it temporarily exposes the tree, search, sorting, and folder contents, then selecting a folder or reconstruction restores reading space.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 
 ### 2026-07-14 - Product-Wide Visual System Refinement

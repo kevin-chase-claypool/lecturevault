@@ -5685,9 +5685,69 @@ button.primary:hover:not(:disabled),
 .lecture-study-explorer {
   position: sticky;
   top: 18px;
+  max-height: calc(100dvh - 36px);
+}
+
+.study-browser {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.study-browser > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 48px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.study-browser > summary::-webkit-details-marker {
+  display: none;
+}
+
+.study-browser > summary > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.study-browser > summary small {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.study-browser > summary strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.study-browser > summary > span:last-child {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.study-browser[open] > summary {
+  margin-bottom: 10px;
+  border-bottom: 1px solid #dce5ed;
+  padding-bottom: 10px;
+}
+
+.study-browser-content {
   display: grid;
   gap: 10px;
-  max-height: calc(100dvh - 36px);
+  max-height: calc(100dvh - 118px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .lecture-study-tree {
@@ -5877,6 +5937,12 @@ button.primary:hover:not(:disabled),
   }
 }
 
+@media (max-width: 1120px) {
+  .study-browser-content {
+    max-height: calc(100dvh - 118px);
+  }
+}
+
 @media (max-width: 760px) {
   .lecture-study-layout {
     grid-template-columns: 1fr;
@@ -5898,6 +5964,10 @@ button.primary:hover:not(:disabled),
 
   .lecture-study-tree-content {
     max-height: min(28dvh, 250px);
+  }
+
+  .study-browser-content {
+    max-height: calc(100dvh - 108px);
   }
 
   .study-navigation {
