@@ -30,6 +30,40 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-14 - Review Set Destination Emphasis
+
+- Gave the Review Set Draft panel a distinct pale-teal surface and stronger boundary to establish exam review creation as the primary endpoint of the app.
+- Kept its editable controls and interior organizational surfaces white, preserving contrast and an uncluttered working area.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
+### 2026-07-14 - Compact Review Draft Removal
+
+- Replaced the repeated Review Set Draft `Remove` text controls with labeled trash-can icon buttons, increasing space for reconstruction titles without sacrificing accessible control names.
+- Added `lucide-react` as the shared icon source for this and future compact interface controls.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
+### 2026-07-14 - Bounded Review Draft Selection
+
+- Replaced the pre-creation Review Set Draft's expanding source-card stack with a compact, scrollable selected-reconstructions list.
+- The draft now keeps its name, date, next step, and creation actions visible while selected sources grow; each row retains the reconstruction title, date, and direct remove action.
+- The selection list is capped on both desktop and mobile, with a persistent source count and list heading for quick scanning.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
+### 2026-07-14 - Scalable Review Set Draft
+
+- Replaced the unbounded review-set source card list with a compact, internally scrollable Review Scope organizer grouped by lecture date.
+- Added a pinned readiness summary above the organizer and a single contextual Selected Reconstruction inspector, removing the previous duplicate all-source detail list.
+- Each source row now exposes transcript segments, concepts, and media counts at a glance; selecting a row reveals its attached media and archive actions without expanding the overall page.
+- The source organizer remains bounded on mobile, while the selected-source inspector naturally follows it as an inline detail panel.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
+### 2026-07-14 - Professional Interface Polish
+
+- Refined the shared visual language into a quieter, more professional workspace: neutral page surfaces, sharper radii, lighter elevation, solid control fills, and restrained hover feedback.
+- Simplified the navigation rail by removing decorative lighting while preserving its high-contrast active state and warm brand mark.
+- Reworked dashboard and review action panels around clear left-edge status accents instead of layered gradients, keeping the established capture and exam-prep hierarchy intact.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-13 - Media Library Explorer
 
 - Reworked Media Library into the same folder tree, compact explorer list, and selected-file details model used by Vault.

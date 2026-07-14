@@ -13,6 +13,7 @@ import {
 import type { ReactNode } from "react";
 import JSZip from "jszip";
 import katex from "katex";
+import { Trash2 } from "lucide-react";
 import {
   LECTURE_AI_INSTRUCTIONS,
   LECTURE_AI_OUTPUT_CONTRACT
@@ -5400,7 +5401,7 @@ export default function LectureVaultApp() {
               ) : null}
             </section>
 
-            <aside className="panel side-panel source-inspector">
+            <aside className="panel side-panel source-inspector review-draft-panel">
               <form onSubmit={createWorkspaceFromBuilder}>
                 <div className="section-heading">
                   <div>
@@ -5437,16 +5438,27 @@ export default function LectureVaultApp() {
                     }
                   />
                 </label>
-                <div className="source-list">
+                <div className="review-draft-source-list" aria-label="Selected reconstructions">
+                  <div className="review-draft-source-heading">
+                    <strong>Selected reconstructions</strong>
+                    <span>
+                      {builderSelectedLectures.length} source
+                      {builderSelectedLectures.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
                   {builderSelectedLectures.map((lecture) => (
-                    <div className="source-card" key={lecture.id}>
-                      <strong>{lecture.title}</strong>
-                      <span>{lecture.date}</span>
+                    <div className="review-draft-source-row" key={lecture.id}>
+                      <div>
+                        <strong>{lecture.title}</strong>
+                        <span>{lecture.date}</span>
+                      </div>
                       <button
+                        aria-label={`Remove ${lecture.title} from the review set draft`}
+                        className="review-draft-remove"
                         type="button"
                         onClick={() => toggleBuilderLecture(lecture.id)}
                       >
-                        Remove
+                        <Trash2 aria-hidden="true" size={16} strokeWidth={2} />
                       </button>
                     </div>
                   ))}
@@ -6943,6 +6955,7 @@ function ExamDetail({
   onOpenLecture: (lectureId: string) => void;
 }) {
   const [explorerQuery, setExplorerQuery] = useState("");
+  const [selectedScopeLectureId, setSelectedScopeLectureId] = useState<string | null>(null);
   const selectedIds = new Set(lectures.map((lecture) => lecture.id));
   const normalizedQuery = explorerQuery.trim().toLowerCase();
   const visibleCourses = courses.filter(
@@ -6979,6 +6992,47 @@ function ExamDetail({
     (item) => selectedIds.has(item.lectureId) && item.kind === "image"
   ).length;
   const reviewUsage = formatTokenUsage(selectedGuide?.usage);
+  const reviewScopeGroups = useMemo(() => {
+    const groups = new Map<string, Lecture[]>();
+
+    lectures.forEach((lecture) => {
+      const group = groups.get(lecture.date) || [];
+      group.push(lecture);
+      groups.set(lecture.date, group);
+    });
+
+    return Array.from(groups, ([date, groupLectures]) => ({
+      date: date || "Undated",
+      lectures: groupLectures
+    }));
+  }, [lectures]);
+  const selectedScopeLecture =
+    lectures.find((lecture) => lecture.id === selectedScopeLectureId) || lectures[0];
+  const selectedScopeMedia = selectedScopeLecture
+    ? mediaItems.filter((item) => item.lectureId === selectedScopeLecture.id)
+    : [];
+  const selectedScopeTranscript = selectedScopeLecture
+    ? transcripts.find((transcript) => transcript.lectureId === selectedScopeLecture.id)
+    : undefined;
+  const selectedScopeConceptCount = selectedScopeLecture
+    ? concepts.filter((concept) => concept.lectureId === selectedScopeLecture.id).length
+    : 0;
+
+  function addToReviewScope(lectureId: string) {
+    setSelectedScopeLectureId(lectureId);
+    onAdd(lectureId, exam.id);
+  }
+
+  function removeFromReviewScope(lectureId: string) {
+    const currentIndex = lectures.findIndex((lecture) => lecture.id === lectureId);
+    const nextSelection =
+      lectures[currentIndex + 1]?.id || lectures[currentIndex - 1]?.id || null;
+
+    if (selectedScopeLectureId === lectureId) {
+      setSelectedScopeLectureId(nextSelection);
+    }
+    onRemove(lectureId);
+  }
 
   return (
     <section className="exam-builder-layout">
@@ -7043,7 +7097,7 @@ function ExamDetail({
                       >
                         <button
                           type="button"
-                          onClick={() => onAdd(lecture.id, exam.id)}
+                          onClick={() => addToReviewScope(lecture.id)}
                         >
                           <span className="file-icon" aria-hidden="true" />
                           <span>
@@ -7083,7 +7137,7 @@ function ExamDetail({
           event.preventDefault();
           const lectureId = event.dataTransfer.getData("text/lecture-id");
           if (lectureId) {
-            onAdd(lectureId, exam.id);
+            addToReviewScope(lectureId);
           }
         }}
       >
@@ -7130,25 +7184,6 @@ function ExamDetail({
           </span>
         </div>
 
-        <div className="exam-items">
-          {lectures.map((lecture) => (
-            <div className="exam-item" key={lecture.id}>
-              <button type="button" onClick={() => onOpenLecture(lecture.id)}>
-                <strong>{lecture.title}</strong>
-                <span>{lecture.date}</span>
-              </button>
-              <button type="button" onClick={() => onRemove(lecture.id)}>
-                Remove from review
-              </button>
-            </div>
-          ))}
-          {!lectures.length ? (
-            <p className="empty">
-              Add lectures from the archive or drag lecture cards here.
-            </p>
-          ) : null}
-        </div>
-
         <div className="source-readiness">
           <div>
             <strong>{lectures.length}</strong>
@@ -7171,6 +7206,80 @@ function ExamDetail({
             <span>images</span>
           </div>
         </div>
+
+        <section className="review-scope" aria-label="Review set draft">
+          <div className="section-heading compact-heading">
+            <div>
+              <span className="pill">Review Scope</span>
+              <h3>Selected reconstructions</h3>
+            </div>
+            <span>
+              {lectures.length} source{lectures.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="review-scope-list">
+            {reviewScopeGroups.map((group) => (
+              <section className="review-scope-group" key={group.date}>
+                <div className="review-scope-group-heading">
+                  <strong>{group.date}</strong>
+                  <span>
+                    {group.lectures.length} reconstruction
+                    {group.lectures.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                {group.lectures.map((lecture) => {
+                  const lectureTranscript = transcripts.find(
+                    (transcript) => transcript.lectureId === lecture.id
+                  );
+                  const lectureConceptCount = concepts.filter(
+                    (concept) => concept.lectureId === lecture.id
+                  ).length;
+                  const lectureMediaCount = mediaItems.filter(
+                    (item) => item.lectureId === lecture.id
+                  ).length;
+                  const isSelected = selectedScopeLecture?.id === lecture.id;
+
+                  return (
+                    <div
+                      className={
+                        isSelected
+                          ? "review-scope-row selected"
+                          : "review-scope-row"
+                      }
+                      key={lecture.id}
+                    >
+                      <button
+                        aria-pressed={isSelected}
+                        type="button"
+                        onClick={() => setSelectedScopeLectureId(lecture.id)}
+                      >
+                        <span className="file-icon" aria-hidden="true" />
+                        <span className="review-scope-row-copy">
+                          <strong>{lecture.title}</strong>
+                          <small>
+                            {lectureTranscript?.segments.length || 0} segments · {lectureConceptCount} concepts · {lectureMediaCount} media
+                          </small>
+                        </span>
+                      </button>
+                      <button
+                        className="review-scope-remove"
+                        type="button"
+                        onClick={() => removeFromReviewScope(lecture.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
+              </section>
+            ))}
+            {!lectures.length ? (
+              <p className="empty">
+                Add lectures from the archive or drag lecture cards here.
+              </p>
+            ) : null}
+          </div>
+        </section>
 
         <section className="usage-panel" aria-label="Review generation usage">
           <div>
@@ -7320,35 +7429,47 @@ function ExamDetail({
       </article>
 
       <aside className="panel side-panel source-inspector">
-        <h3>Selected Sources</h3>
-        {lectures.map((lecture) => {
-          const lectureMedia = mediaItems.filter(
-            (item) => item.lectureId === lecture.id
-          );
-
-          return (
-            <div className="source-card" key={lecture.id}>
-              <strong>{lecture.title}</strong>
-              <span>{lecture.date}</span>
-              <small>
-                {lectureMedia.length} media item
-                {lectureMedia.length === 1 ? "" : "s"}
-              </small>
-              <small>
-                {
-                  transcripts.find((transcript) => transcript.lectureId === lecture.id)
-                    ?.segments.length || 0
-                }{" "}
-                transcript segments
-              </small>
+        <h3>Selected Reconstruction</h3>
+        {selectedScopeLecture ? (
+          <div className="source-card selected-source-card">
+            <strong>{selectedScopeLecture.title}</strong>
+            <span>{selectedScopeLecture.date}</span>
+            <small>
+              {selectedScopeTranscript?.segments.length || 0} transcript segments
+            </small>
+            <small>{selectedScopeConceptCount} extracted concepts</small>
+            <small>
+              {selectedScopeMedia.length} media item
+              {selectedScopeMedia.length === 1 ? "" : "s"}
+            </small>
+            {selectedScopeMedia.length ? (
+              <div className="selected-source-media" aria-label="Attached media">
+                {selectedScopeMedia.map((item) => (
+                  <span key={item.id}>{item.name}</span>
+                ))}
+              </div>
+            ) : null}
+            <div className="button-row stacked">
+              <button
+                type="button"
+                onClick={() => onOpenLecture(selectedScopeLecture.id)}
+              >
+                Open reconstruction
+              </button>
+              <button
+                className="danger"
+                type="button"
+                onClick={() => removeFromReviewScope(selectedScopeLecture.id)}
+              >
+                Remove from review
+              </button>
             </div>
-          );
-        })}
-        {!lectures.length ? (
+          </div>
+        ) : (
           <p className="empty">
-            Sources added to the review set will appear here.
+            Choose a reconstruction in the review scope to inspect it here.
           </p>
-        ) : null}
+        )}
       </aside>
     </section>
   );
