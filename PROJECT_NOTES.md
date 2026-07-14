@@ -32,7 +32,8 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ### 2026-07-14 - Reconstruction Study Explorer
 
-- Added a course-scoped file-explorer panel to Reconstruction Detail so saved class records can be searched, sorted by title/date/length, and opened directly for focused study.
+- Added a folder-aware Archive Tree to Reconstruction Detail so saved class records are browsed by their actual Vault folder hierarchy; the adjacent list now follows the selected folder and its descendants.
+- Retained search and title/date/length sorting within the selected folder, with direct opening for focused study.
 - Kept the full reconstruction artifact in the primary pane and its media/review inspector beside it on desktop; the explorer stacks above the record on narrow screens.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 

@@ -5025,6 +5025,17 @@ export default function LectureVaultApp() {
           <LectureDetail
             lecture={selectedLecture}
             courseLabel={courseLabel}
+            course={
+              state.courses.find((course) => course.id === selectedLecture.courseId) ||
+              {
+                id: selectedLecture.courseId,
+                code: courseLabel(selectedLecture.courseId),
+                name: "",
+                term: "",
+                createdAt: ""
+              }
+            }
+            archiveFolders={state.archiveFolders}
             courseLectures={state.lectures.filter(
               (item) => item.courseId === selectedLecture.courseId
             )}
@@ -6939,6 +6950,8 @@ function OneNoteExplorer({
 function LectureDetail({
   lecture,
   courseLabel,
+  course,
+  archiveFolders,
   courseLectures,
   mediaItems,
   transcript,
@@ -6949,6 +6962,8 @@ function LectureDetail({
 }: {
   lecture: Lecture;
   courseLabel: (id: string) => string;
+  course: Course;
+  archiveFolders: ArchiveFolder[];
   courseLectures: Lecture[];
   mediaItems: MediaItem[];
   transcript?: Transcript;
@@ -6965,14 +6980,37 @@ function LectureDetail({
   const [explorerQuery, setExplorerQuery] = useState("");
   const [explorerSortKey, setExplorerSortKey] = useState<ArchiveSortKey>("date");
   const [explorerSortDirection, setExplorerSortDirection] = useState<SortDirection>("desc");
+  const [explorerFolderId, setExplorerFolderId] = useState(lecture.folderId || "all");
 
   useEffect(() => {
     setTargetExamId(matchingExams[0]?.id || "");
   }, [matchingExams]);
 
+  useEffect(() => {
+    const selectedFolderStillExists = archiveFolders.some(
+      (folder) => folder.id === lecture.folderId && folder.courseId === lecture.courseId
+    );
+
+    setExplorerFolderId(selectedFolderStillExists && lecture.folderId ? lecture.folderId : "all");
+    setExplorerQuery("");
+  }, [archiveFolders, lecture.courseId, lecture.folderId, lecture.id]);
+
+  const selectedFolderIds = useMemo(
+    () =>
+      explorerFolderId === "all"
+        ? new Set<string>()
+        : folderDescendantIds(archiveFolders, explorerFolderId),
+    [archiveFolders, explorerFolderId]
+  );
+
   const visibleCourseLectures = useMemo(() => {
     const normalizedQuery = explorerQuery.trim().toLowerCase();
     const sorted = courseLectures.filter((item) => {
+      const belongsToFolder =
+        explorerFolderId === "all" ||
+        Boolean(item.folderId && selectedFolderIds.has(item.folderId));
+
+      if (!belongsToFolder) return false;
       if (!normalizedQuery) return true;
 
       return [item.title, item.date, item.summary]
@@ -7001,7 +7039,14 @@ function LectureDetail({
 
       return explorerSortDirection === "asc" ? comparison : -comparison;
     });
-  }, [courseLectures, explorerQuery, explorerSortDirection, explorerSortKey]);
+  }, [
+    courseLectures,
+    explorerFolderId,
+    explorerQuery,
+    explorerSortDirection,
+    explorerSortKey,
+    selectedFolderIds
+  ]);
 
   function changeExplorerSort(key: ArchiveSortKey) {
     if (explorerSortKey === key) {
@@ -7018,13 +7063,31 @@ function LectureDetail({
       <aside className="panel lecture-study-explorer" aria-label="Course reconstruction explorer">
         <div className="section-heading compact-heading">
           <div>
-            <span className="pill">Course study</span>
-            <h3>Reconstructions</h3>
+            <span className="pill">Archive</span>
+            <h3>Archive Tree</h3>
           </div>
           <span>{courseLectures.length} saved</span>
         </div>
+        <div className="lecture-study-tree">
+          <ArchiveFolderTree
+            courses={[course]}
+            folders={archiveFolders}
+            lectures={courseLectures}
+            selectedCourseId={course.id}
+            selectedFolderId={explorerFolderId}
+            onSelectCourse={() => setExplorerFolderId("all")}
+            onSelectFolder={setExplorerFolderId}
+            onDropLecture={() => undefined}
+          />
+        </div>
+        <div className="section-heading compact-heading lecture-study-list-heading">
+          <div>
+            <span className="pill">{visibleCourseLectures.length} items</span>
+            <h3>Folder Contents</h3>
+          </div>
+        </div>
         <label className="lecture-study-search">
-          Search course
+          Search folder
           <input
             value={explorerQuery}
             onChange={(event) => setExplorerQuery(event.target.value)}

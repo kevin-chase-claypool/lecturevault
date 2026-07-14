@@ -5624,6 +5624,26 @@ button.primary:hover:not(:disabled),
   max-height: calc(100dvh - 36px);
 }
 
+.lecture-study-tree {
+  min-height: 0;
+  max-height: min(29dvh, 300px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid #cad8e5;
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  background: #ffffff;
+}
+
+.lecture-study-tree .archive-folder-tree {
+  max-height: none;
+  overflow: visible;
+}
+
+.lecture-study-list-heading {
+  margin-top: 2px;
+}
+
 .lecture-study-search {
   gap: 5px;
   font-size: 0.78rem;
@@ -5755,5 +5775,9 @@ button.primary:hover:not(:disabled),
 
   .lecture-study-list {
     max-height: min(42dvh, 330px);
+  }
+
+  .lecture-study-tree {
+    max-height: min(28dvh, 250px);
   }
 }
