@@ -30,6 +30,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-14 - Interface Polish Pass
+
+- Refined hierarchy across the workspace with quieter panels, deliberate elevation, clearer section headers, consistent field feedback, and stronger primary/destructive action states.
+- Improved explorer legibility with pinned column headers, cleaner active and hover states, and a more consistent folder-selection treatment.
+- Tightened dashboard metrics, action panels, review surfaces, media controls, and mobile spacing while preserving all existing workflows and responsive behavior.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-14 - Reconstruction Study Explorer
 
 - Added a folder-aware Archive Tree to Reconstruction Detail so saved class records are browsed by their actual Vault folder hierarchy; the adjacent list now follows the selected folder and its descendants.
