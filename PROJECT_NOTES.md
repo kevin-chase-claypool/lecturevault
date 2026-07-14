@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-14 - Reconstruction Study Explorer
+
+- Added a course-scoped file-explorer panel to Reconstruction Detail so saved class records can be searched, sorted by title/date/length, and opened directly for focused study.
+- Kept the full reconstruction artifact in the primary pane and its media/review inspector beside it on desktop; the explorer stacks above the record on narrow screens.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-14 - Product-Wide Visual System Refinement
 
 - Reworked the visual system around a calm neutral workspace, steel-blue primary controls, restrained amber emphasis, and a compact dark navigation rail.

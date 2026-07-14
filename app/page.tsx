@@ -5025,6 +5025,9 @@ export default function LectureVaultApp() {
           <LectureDetail
             lecture={selectedLecture}
             courseLabel={courseLabel}
+            courseLectures={state.lectures.filter(
+              (item) => item.courseId === selectedLecture.courseId
+            )}
             mediaItems={state.mediaItems.filter(
               (item) => item.lectureId === selectedLecture.id
             )}
@@ -5036,6 +5039,10 @@ export default function LectureVaultApp() {
             )}
             exams={state.exams}
             onAddToExam={addLectureToExam}
+            onOpenLecture={(lectureId) => {
+              setSelectedLectureId(lectureId);
+              setScreen("lecture");
+            }}
           />
         ) : null}
 
@@ -6932,32 +6939,135 @@ function OneNoteExplorer({
 function LectureDetail({
   lecture,
   courseLabel,
+  courseLectures,
   mediaItems,
   transcript,
   concepts,
   exams,
-  onAddToExam
+  onAddToExam,
+  onOpenLecture
 }: {
   lecture: Lecture;
   courseLabel: (id: string) => string;
+  courseLectures: Lecture[];
   mediaItems: MediaItem[];
   transcript?: Transcript;
   concepts: ExtractedConcept[];
   exams: ExamWorkspace[];
   onAddToExam: (lectureId: string, examId?: string) => void;
+  onOpenLecture: (lectureId: string) => void;
 }) {
   const matchingExams = useMemo(
     () => exams.filter((exam) => exam.courseId === lecture.courseId),
     [exams, lecture.courseId]
   );
   const [targetExamId, setTargetExamId] = useState(matchingExams[0]?.id || "");
+  const [explorerQuery, setExplorerQuery] = useState("");
+  const [explorerSortKey, setExplorerSortKey] = useState<ArchiveSortKey>("date");
+  const [explorerSortDirection, setExplorerSortDirection] = useState<SortDirection>("desc");
 
   useEffect(() => {
     setTargetExamId(matchingExams[0]?.id || "");
   }, [matchingExams]);
 
+  const visibleCourseLectures = useMemo(() => {
+    const normalizedQuery = explorerQuery.trim().toLowerCase();
+    const sorted = courseLectures.filter((item) => {
+      if (!normalizedQuery) return true;
+
+      return [item.title, item.date, item.summary]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery);
+    });
+
+    return [...sorted].sort((left, right) => {
+      const leftValue =
+        explorerSortKey === "name"
+          ? left.title
+          : explorerSortKey === "size"
+            ? left.summary.length
+            : left.date;
+      const rightValue =
+        explorerSortKey === "name"
+          ? right.title
+          : explorerSortKey === "size"
+            ? right.summary.length
+            : right.date;
+      const comparison =
+        typeof leftValue === "number" && typeof rightValue === "number"
+          ? leftValue - rightValue
+          : String(leftValue).localeCompare(String(rightValue));
+
+      return explorerSortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [courseLectures, explorerQuery, explorerSortDirection, explorerSortKey]);
+
+  function changeExplorerSort(key: ArchiveSortKey) {
+    if (explorerSortKey === key) {
+      setExplorerSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setExplorerSortKey(key);
+    setExplorerSortDirection(key === "date" ? "desc" : "asc");
+  }
+
   return (
-    <section className="detail-grid">
+    <section className="lecture-study-layout">
+      <aside className="panel lecture-study-explorer" aria-label="Course reconstruction explorer">
+        <div className="section-heading compact-heading">
+          <div>
+            <span className="pill">Course study</span>
+            <h3>Reconstructions</h3>
+          </div>
+          <span>{courseLectures.length} saved</span>
+        </div>
+        <label className="lecture-study-search">
+          Search course
+          <input
+            value={explorerQuery}
+            onChange={(event) => setExplorerQuery(event.target.value)}
+            placeholder="Title, date, topic..."
+          />
+        </label>
+        <div className="lecture-study-sort" aria-label="Sort reconstructions">
+          {([
+            ["name", "Name"],
+            ["date", "Date"],
+            ["size", "Length"]
+          ] as Array<[ArchiveSortKey, string]>).map(([key, label]) => (
+            <button
+              className={explorerSortKey === key ? "active" : ""}
+              key={key}
+              type="button"
+              onClick={() => changeExplorerSort(key)}
+            >
+              {label}
+              {explorerSortKey === key ? (explorerSortDirection === "asc" ? " Asc" : " Desc") : ""}
+            </button>
+          ))}
+        </div>
+        <div className="lecture-study-list">
+          {visibleCourseLectures.map((item) => (
+            <button
+              className={item.id === lecture.id ? "selected" : ""}
+              key={item.id}
+              type="button"
+              onClick={() => onOpenLecture(item.id)}
+            >
+              <span>
+                <strong title={item.title}>{item.title}</strong>
+                <small>{item.summary || "No summary yet."}</small>
+              </span>
+              <time dateTime={item.date}>{item.date || "No date"}</time>
+            </button>
+          ))}
+          {!visibleCourseLectures.length ? (
+            <p className="empty">No reconstructions match this search.</p>
+          ) : null}
+        </div>
+      </aside>
       <article className="panel detail-main">
         <div className="section-heading">
           <div>
