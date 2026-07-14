@@ -5251,3 +5251,334 @@ button.review-draft-button:disabled {
     font-size: 0.75rem;
   }
 }
+
+/* Product-wide refinement: one calm workspace system across all archive, capture, and review views. */
+:root {
+  --bg: #f3f6fa;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --panel: #f8fafc;
+  --text: #162233;
+  --muted: #617187;
+  --border: #d8e2ec;
+  --border-strong: #b4c5d6;
+  --primary: #1f5f91;
+  --primary-dark: #174c75;
+  --accent: #9b641c;
+  --shadow: 0 18px 40px rgba(26, 47, 69, 0.1);
+  --shadow-soft: 0 6px 18px rgba(26, 47, 69, 0.055);
+  --shadow-card: 0 2px 8px rgba(26, 47, 69, 0.045);
+  --shadow-hairline: 0 1px 0 rgba(26, 47, 69, 0.04);
+}
+
+body {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0, rgba(243, 246, 250, 0) 320px),
+    var(--bg);
+}
+
+.app-shell {
+  grid-template-columns: 252px minmax(0, 1fr);
+}
+
+.sidebar {
+  gap: 18px;
+  padding: 20px 16px 16px;
+  background: linear-gradient(180deg, #172433 0%, #101b27 100%);
+  box-shadow: 12px 0 30px rgba(15, 29, 43, 0.12), inset -1px 0 0 rgba(255, 255, 255, 0.035);
+}
+
+.brand {
+  min-height: 60px;
+  padding: 1px 4px 16px;
+}
+
+.mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #f6d666 0%, #d6a92e 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+.nav {
+  gap: 15px;
+  padding-bottom: 16px;
+}
+
+.nav-group {
+  gap: 4px;
+}
+
+.nav-label {
+  padding-left: 10px;
+}
+
+.nav button {
+  min-height: 40px;
+  gap: 10px;
+  padding: 8px 10px;
+  font-size: 0.88rem;
+}
+
+.nav button::before {
+  display: none;
+}
+
+.nav-button-icon {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  flex: 0 0 18px;
+  place-items: center;
+  color: #9fb2c4;
+}
+
+.nav button:hover,
+.nav .active {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.nav .active {
+  box-shadow: inset 3px 0 0 #e7be49, 0 5px 14px rgba(0, 0, 0, 0.1);
+}
+
+.nav .active .nav-button-icon,
+.nav button:hover .nav-button-icon {
+  color: #f3ca54;
+}
+
+.sidebar-note {
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: none;
+}
+
+.workspace {
+  max-width: 1760px;
+  padding: 24px 28px 36px;
+}
+
+.topbar {
+  min-height: 76px;
+  margin-bottom: 16px;
+  border-color: #d3dfeb;
+  padding: 15px 18px;
+  background: linear-gradient(135deg, #ffffff 0%, #fbfdff 72%, #f2f7fc 100%);
+  box-shadow: 0 4px 14px rgba(26, 47, 69, 0.045);
+}
+
+.topbar h2 {
+  font-size: clamp(1.55rem, 2vw, 2rem);
+  font-weight: 850;
+}
+
+.panel,
+.metric,
+.lecture-card {
+  border-color: #d6e1eb;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.panel {
+  padding: 15px;
+}
+
+.content-grid,
+.dashboard-grid,
+.detail-grid {
+  align-items: start;
+  gap: 16px;
+}
+
+input,
+select,
+textarea {
+  border-color: #cedbe7;
+  background: #fcfdff;
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: #adc4d7;
+}
+
+button,
+.button-like {
+  min-height: 38px;
+  border-color: #cedbe7;
+  font-size: 0.86rem;
+}
+
+button:hover:not(:disabled),
+.button-like:hover {
+  border-color: #82a9c7;
+  box-shadow: 0 3px 10px rgba(31, 95, 145, 0.1);
+  transform: translateY(-1px);
+}
+
+button.primary,
+.primary {
+  border-color: var(--primary);
+  background: linear-gradient(135deg, #246d9f 0%, #1b5788 100%);
+  box-shadow: 0 7px 15px rgba(31, 95, 145, 0.18);
+}
+
+button.primary:hover:not(:disabled),
+.primary:hover {
+  border-color: #15476f;
+  background: linear-gradient(135deg, #2b77aa 0%, #174c75 100%);
+}
+
+.eyebrow {
+  color: #9b641c;
+}
+
+.metric {
+  min-height: 86px;
+  padding: 14px 16px;
+  border-radius: 8px;
+}
+
+.metric strong {
+  font-size: 1.7rem;
+}
+
+.action-panel {
+  min-height: 126px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.lecture-list.explorer-list,
+.storage-explorer-list {
+  border-color: #cad8e5;
+  background: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.lecture-list-header,
+.storage-explorer-header {
+  background: #f5f8fc;
+}
+
+.lecture-list-row.explorer-row:hover,
+.storage-row.explorer-row:hover {
+  background: #f6faff;
+}
+
+.lecture-list-row.explorer-row.selected,
+.storage-row.explorer-row.selected {
+  background: #edf5fc;
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.archive-folder-panel,
+.archive-explorer,
+.storage-browser-panel,
+.source-inspector,
+.storage-file-details,
+.review-draft-panel {
+  box-shadow: 0 8px 20px rgba(26, 47, 69, 0.055);
+}
+
+.capture-hero {
+  border-color: #b9d1e4;
+  background: linear-gradient(135deg, #ffffff 0%, #f2f7fc 100%);
+  box-shadow: 0 7px 18px rgba(31, 95, 145, 0.06);
+}
+
+.capture-disclosure {
+  border-color: #d1dfeb;
+  background: #ffffff;
+}
+
+.capture-disclosure[open] > summary {
+  background: #f5f9fd;
+}
+
+.review-action-card {
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+.review-action-card.primary-action {
+  border-color: #b9d1e4;
+  background: #f4f9fe;
+}
+
+.review-draft-panel {
+  border-color: #b8d2e8;
+  background: linear-gradient(180deg, #f5faff 0%, #eef6fd 100%);
+}
+
+.course-row,
+.course-syllabus-item,
+.course-study-profile,
+.course-form-profile {
+  box-shadow: none;
+}
+
+@media (max-width: 1120px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace {
+    padding: 18px 16px 30px;
+  }
+
+  .topbar {
+    min-height: 68px;
+    margin-bottom: 12px;
+  }
+}
+
+@media (max-width: 620px) {
+  .workspace {
+    padding: 12px 12px 28px;
+  }
+
+  .topbar {
+    padding: 14px;
+  }
+
+  .panel {
+    padding: 13px;
+  }
+
+  .metric {
+    min-height: 58px;
+    padding: 10px 12px;
+  }
+
+  .action-panel {
+    min-height: 0;
+    padding: 14px;
+  }
+}
+
+@media (max-width: 760px) {
+  .sidebar {
+    background: linear-gradient(180deg, #172433 0%, #101b27 100%);
+  }
+
+  .nav.mobile-open .nav-button-icon {
+    color: #b7c9d9;
+  }
+
+  .nav.mobile-open .active .nav-button-icon {
+    color: #f3ca54;
+  }
+
+  .nav.mobile-open button {
+    justify-content: flex-start;
+  }
+
+  .topbar-actions {
+    align-items: stretch;
+  }
+}

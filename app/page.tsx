@@ -13,7 +13,17 @@ import {
 import type { ReactNode } from "react";
 import JSZip from "jszip";
 import katex from "katex";
-import { BookOpen, FilePlus2, FolderOpen, Trash2 } from "lucide-react";
+import {
+  Archive,
+  BookOpen,
+  FilePlus2,
+  FolderOpen,
+  GraduationCap,
+  LayoutDashboard,
+  Plus,
+  Sparkles,
+  Trash2
+} from "lucide-react";
 import {
   LECTURE_AI_INSTRUCTIONS,
   LECTURE_AI_OUTPUT_CONTRACT
@@ -4408,26 +4418,26 @@ export default function LectureVaultApp() {
             {
               label: "Workspace",
               items: [
-                ["dashboard", "Dashboard"],
-                ["courses", "Courses"],
-                ["capture", "New Reconstruction"]
+                { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard aria-hidden="true" size={17} /> },
+                { id: "courses", label: "Courses", icon: <GraduationCap aria-hidden="true" size={17} /> },
+                { id: "capture", label: "New Reconstruction", icon: <Plus aria-hidden="true" size={17} /> }
               ]
             },
             {
               label: "Library",
               items: [
-                ["archive", "Vault"],
-                ["storage", "Media Library"]
+                { id: "archive", label: "Vault", icon: <Archive aria-hidden="true" size={17} /> },
+                { id: "storage", label: "Media Library", icon: <FolderOpen aria-hidden="true" size={17} /> }
               ]
             },
             {
               label: "Study",
-              items: [["builder", "Reviews"]]
+              items: [{ id: "builder", label: "Reviews", icon: <Sparkles aria-hidden="true" size={17} /> }]
             }
           ].map((group) => (
             <div className="nav-group" key={group.label}>
               <span className="nav-label">{group.label}</span>
-              {group.items.map(([id, label]) => (
+              {group.items.map(({ id, icon, label }) => (
                 <button
                   key={id}
                   className={
@@ -4448,6 +4458,7 @@ export default function LectureVaultApp() {
                     }
                   }}
                 >
+                  <span className="nav-button-icon">{icon}</span>
                   {label}
                 </button>
               ))}
