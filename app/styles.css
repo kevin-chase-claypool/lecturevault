@@ -5582,3 +5582,29 @@ button.primary:hover:not(:disabled),
     align-items: stretch;
   }
 }
+
+/* A closed responsive menu must not reserve the previous drawer height. */
+@media (max-width: 1120px) {
+  .app-shell {
+    align-items: start;
+    grid-auto-rows: min-content;
+  }
+
+  .sidebar {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    align-self: start;
+    overflow: visible;
+  }
+
+  .nav:not(.mobile-open) {
+    display: none !important;
+    min-height: 0;
+    max-height: 0;
+    margin: 0;
+    border: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+}

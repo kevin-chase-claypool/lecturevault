@@ -35,6 +35,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Reworked the visual system around a calm neutral workspace, steel-blue primary controls, restrained amber emphasis, and a compact dark navigation rail.
 - Replaced decorative sidebar dots with named navigation icons and refined active, hover, and focus states across primary navigation.
 - Standardized panel density, form fields, action buttons, explorer lists, capture disclosures, review surfaces, metrics, and responsive spacing while preserving all existing workflows.
+- Fixed responsive navigation collapse so a closed menu no longer retains drawer height or leaves an empty gap above workspace content on tablets and phones.
 - Verification: run `npm run typecheck`, then run `npm run build` and inspect desktop and mobile layouts.
 
 ### 2026-07-14 - Compact Course Creation
