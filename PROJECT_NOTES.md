@@ -34,6 +34,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 - Added a folder-aware Archive Tree to Reconstruction Detail so saved class records are browsed by their actual Vault folder hierarchy; the adjacent list now follows the selected folder and its descendants.
 - Retained search and title/date/length sorting within the selected folder, with direct opening for focused study.
+- Made each Vault reconstruction row open its study view directly, renamed the inspector action to `Open study view`, and added a breadcrumb plus Back to Vault action that returns to the reconstruction's folder.
 - Kept the full reconstruction artifact in the primary pane and its media/review inspector beside it on desktop; the explorer stacks above the record on narrow screens.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 

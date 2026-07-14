@@ -4928,7 +4928,10 @@ export default function LectureVaultApp() {
                       sourceSize={state.mediaItems
                         .filter((item) => item.lectureId === lecture.id)
                         .reduce((total, item) => total + item.size, 0)}
-                      onSelect={() => setSelectedLectureId(lecture.id)}
+                      onSelect={() => {
+                        setSelectedLectureId(lecture.id);
+                        setScreen("lecture");
+                      }}
                     />
                   ))}
                   {!archiveLectures.length ? (
@@ -5002,7 +5005,7 @@ export default function LectureVaultApp() {
                           setScreen("lecture");
                         }}
                       >
-                        Open detail
+                        Open study view
                       </button>
                       <button
                         className="danger"
@@ -5053,6 +5056,11 @@ export default function LectureVaultApp() {
             onOpenLecture={(lectureId) => {
               setSelectedLectureId(lectureId);
               setScreen("lecture");
+            }}
+            onBackToVault={() => {
+              setSelectedCourseId(selectedLecture.courseId);
+              setSelectedArchiveFolderId(selectedLecture.folderId || "all");
+              setScreen("archive");
             }}
           />
         ) : null}
@@ -6958,7 +6966,8 @@ function LectureDetail({
   concepts,
   exams,
   onAddToExam,
-  onOpenLecture
+  onOpenLecture,
+  onBackToVault
 }: {
   lecture: Lecture;
   courseLabel: (id: string) => string;
@@ -6971,6 +6980,7 @@ function LectureDetail({
   exams: ExamWorkspace[];
   onAddToExam: (lectureId: string, examId?: string) => void;
   onOpenLecture: (lectureId: string) => void;
+  onBackToVault: () => void;
 }) {
   const matchingExams = useMemo(
     () => exams.filter((exam) => exam.courseId === lecture.courseId),
@@ -7132,6 +7142,18 @@ function LectureDetail({
         </div>
       </aside>
       <article className="panel detail-main">
+        <div className="study-navigation">
+          <button className="study-back-button" type="button" onClick={onBackToVault}>
+            Back to Vault
+          </button>
+          <nav aria-label="Reconstruction location" className="study-breadcrumb">
+            <button type="button" onClick={onBackToVault}>Vault</button>
+            <span aria-hidden="true">/</span>
+            <span title={courseLabel(lecture.courseId)}>{courseLabel(lecture.courseId)}</span>
+            <span aria-hidden="true">/</span>
+            <strong title={lecture.title}>{lecture.title}</strong>
+          </nav>
+        </div>
         <div className="section-heading">
           <div>
             <span className="pill">{courseLabel(lecture.courseId)}</span>

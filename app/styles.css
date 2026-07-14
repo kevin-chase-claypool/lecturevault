@@ -2444,6 +2444,66 @@ button.review-draft-button:disabled {
   gap: 14px;
 }
 
+.study-navigation {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #dce5ed;
+}
+
+.study-back-button {
+  min-height: 32px;
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-color: #b7c9dc;
+  background: #f7faff;
+  color: var(--primary-dark);
+  font-size: 0.75rem;
+  font-weight: 850;
+}
+
+.study-breadcrumb {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.study-breadcrumb button {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--primary-dark);
+  font: inherit;
+  font-weight: 850;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.study-breadcrumb > span:not([aria-hidden]),
+.study-breadcrumb strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.study-breadcrumb > span:not([aria-hidden]) {
+  max-width: 15ch;
+}
+
+.study-breadcrumb strong {
+  max-width: 24ch;
+  color: var(--text);
+}
+
 .transcript-box {
   display: grid;
   gap: 8px;
@@ -5779,5 +5839,23 @@ button.primary:hover:not(:disabled),
 
   .lecture-study-tree {
     max-height: min(28dvh, 250px);
+  }
+
+  .study-navigation {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .study-breadcrumb {
+    width: 100%;
+  }
+
+  .study-breadcrumb > span:not([aria-hidden]) {
+    max-width: 12ch;
+  }
+
+  .study-breadcrumb strong {
+    max-width: 18ch;
   }
 }
