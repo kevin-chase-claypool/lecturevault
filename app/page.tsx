@@ -4517,49 +4517,54 @@ export default function LectureVaultApp() {
 
         {screen === "courses" ? (
           <section className="content-grid">
-            <form className="panel form-panel" onSubmit={addCourse}>
+            <form className="panel form-panel course-form-panel" onSubmit={addCourse}>
               <h3>Add Course</h3>
-              <label>
-                Code
-                <input
-                  value={courseForm.code}
-                  onChange={(event) =>
-                    setCourseForm((current) => ({
-                      ...current,
-                      code: event.target.value
-                    }))
-                  }
-                  placeholder="BIOL 110"
-                />
-              </label>
-              <label>
-                Name
-                <input
-                  value={courseForm.name}
-                  onChange={(event) =>
-                    setCourseForm((current) => ({
-                      ...current,
-                      name: event.target.value
-                    }))
-                  }
-                  placeholder="Cell Biology"
-                />
-              </label>
-              <label>
-                Term
-                <input
-                  value={courseForm.term}
-                  onChange={(event) =>
-                    setCourseForm((current) => ({
-                      ...current,
-                      term: event.target.value
-                    }))
-                  }
-                  placeholder="Fall 2026"
-                />
-              </label>
-              <label>
-                Course study profile <small>Optional</small>
+              <div className="course-form-fields">
+                <label>
+                  Code
+                  <input
+                    value={courseForm.code}
+                    onChange={(event) =>
+                      setCourseForm((current) => ({
+                        ...current,
+                        code: event.target.value
+                      }))
+                    }
+                    placeholder="BIOL 110"
+                  />
+                </label>
+                <label className="course-name-field">
+                  Name
+                  <input
+                    value={courseForm.name}
+                    onChange={(event) =>
+                      setCourseForm((current) => ({
+                        ...current,
+                        name: event.target.value
+                      }))
+                    }
+                    placeholder="Cell Biology"
+                  />
+                </label>
+                <label>
+                  Term
+                  <input
+                    value={courseForm.term}
+                    onChange={(event) =>
+                      setCourseForm((current) => ({
+                        ...current,
+                        term: event.target.value
+                      }))
+                    }
+                    placeholder="Fall 2026"
+                  />
+                </label>
+              </div>
+              <details className="course-form-profile">
+                <summary>Course study profile <span>Optional</span></summary>
+                <p>
+                  Add exam format, allowed materials, notation or units, textbook scope, and recurring instructor priorities.
+                </p>
                 <textarea
                   value={courseForm.studyProfile}
                   onChange={(event) =>
@@ -4568,10 +4573,10 @@ export default function LectureVaultApp() {
                       studyProfile: event.target.value
                     }))
                   }
-                  rows={5}
-                  placeholder="Exam format, allowed materials, notation or units, textbook scope, and recurring instructor priorities."
+                  rows={4}
+                  placeholder="Study profile details"
                 />
-              </label>
+              </details>
               <button className="primary" type="submit">
                 Save Course
               </button>

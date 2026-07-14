@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-14 - Compact Course Creation
+
+- Replaced the vertically expanding Add Course form with a compact code/name/term grid.
+- Moved the optional course study profile behind a collapsed disclosure and made the desktop Save Course control content-sized.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-14 - Course Syllabus Reference
 
 - Added a dedicated course-level syllabus PDF attachment, separate from textbooks and their AI indexing workflow.
