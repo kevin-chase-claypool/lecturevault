@@ -978,6 +978,7 @@ For archive organization changes, manually verify:
 - Limit the mobile Media Library explorer to five visible file rows, with a sticky header and vertical scrolling for larger libraries.
 - Limit the Vault Archive Tree to half the viewport height with internal vertical scrolling for large course/folder structures.
 - Remove the redundant Dashboard top-bar reconstruction shortcut; the dashboard action card remains the primary route into a new reconstruction.
+- Removed all duplicate New Reconstruction buttons. Navigation is intentionally available only through the sidebar and mobile Menu.
 
 - Add direct browser-to-Supabase signed uploads if deployment body limits block large MP3 uploads.
 - Replace single-row Supabase JSON state with relational tables and conflict-aware sync if multi-user editing becomes important.

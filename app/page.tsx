@@ -4392,11 +4392,6 @@ export default function LectureVaultApp() {
               <span className="cart-icon" aria-hidden="true">Review Draft</span>
               <strong>{basketCount}</strong>
             </button>
-            {screen !== "capture" && screen !== "dashboard" ? (
-              <button className="primary" type="button" onClick={() => setScreen("capture")}>
-                New Reconstruction
-              </button>
-            ) : null}
             {installPrompt ? (
               <button className="quiet-button install-button" type="button" onClick={() => void installLectureVault()}>
                 Install app
@@ -5807,9 +5802,6 @@ function Dashboard({
               <span className="eyebrow">New Reconstruction</span>
               <h3>Reconstruct a class meeting</h3>
             </div>
-            <button className="primary" type="button" onClick={() => setScreen("capture")}>
-              New Reconstruction
-            </button>
           </div>
           <p>
             Combine audio, notes, board images, and textbook context into one
