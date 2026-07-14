@@ -34,6 +34,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 - Replaced the vertically expanding Add Course form with a compact code/name/term grid.
 - Moved the optional course study profile behind a collapsed disclosure and made the desktop Save Course control content-sized.
+- Prevented the form from stretching to match the height of the adjacent course list.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 
 ### 2026-07-14 - Course Syllabus Reference

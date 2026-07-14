@@ -1058,6 +1058,7 @@ label {
 
 .course-form-panel {
   align-content: start;
+  align-self: start;
 }
 
 .course-form-fields {
