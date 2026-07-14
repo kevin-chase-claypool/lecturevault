@@ -20,6 +20,8 @@ import {
   FolderOpen,
   GraduationCap,
   LayoutDashboard,
+  Pause,
+  Play,
   Plus,
   Sparkles,
   Trash2
@@ -6846,6 +6848,94 @@ function MetadataBubble({ label, children }: { label: string; children: ReactNod
   );
 }
 
+function EmbeddedAudioPlayer({ src, title }: { src: string; title: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    if (!audio) return;
+
+    audio.pause();
+    audio.currentTime = 0;
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+  }, [src]);
+
+  async function togglePlayback() {
+    const audio = audioRef.current;
+
+    if (!audio) return;
+
+    if (audio.paused) {
+      try {
+        await audio.play();
+      } catch {
+        setIsPlaying(false);
+      }
+      return;
+    }
+
+    audio.pause();
+  }
+
+  function seek(nextTime: number) {
+    const audio = audioRef.current;
+
+    if (!audio) return;
+
+    audio.currentTime = nextTime;
+    setCurrentTime(nextTime);
+  }
+
+  return (
+    <div className="embedded-audio-player" aria-label={`Audio player for ${title}`}>
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="metadata"
+        playsInline
+        onDurationChange={(event) => {
+          const nextDuration = event.currentTarget.duration;
+          setDuration(Number.isFinite(nextDuration) ? nextDuration : 0);
+        }}
+        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => {
+          setIsPlaying(false);
+          setCurrentTime(0);
+        }}
+      />
+      <button
+        className="audio-play-button"
+        type="button"
+        aria-label={isPlaying ? `Pause ${title}` : `Play ${title}`}
+        title={isPlaying ? "Pause" : "Play"}
+        onClick={() => void togglePlayback()}
+      >
+        {isPlaying ? <Pause aria-hidden="true" size={15} /> : <Play aria-hidden="true" size={15} />}
+      </button>
+      <span className="audio-time">{formatSeconds(currentTime)} / {formatSeconds(duration)}</span>
+      <input
+        aria-label="Audio progress"
+        className="audio-progress"
+        type="range"
+        min="0"
+        max={duration || 0}
+        step="0.1"
+        value={Math.min(currentTime, duration || 0)}
+        disabled={!duration}
+        onChange={(event) => seek(Number(event.target.value))}
+      />
+    </div>
+  );
+}
+
 function LectureListRow({
   lecture,
   sourceSize,
@@ -7326,7 +7416,7 @@ function LectureDetail({
                   <img src={sourceUrl} alt={item.name} />
                 ) : null}
                 {item.kind === "audio" && sourceUrl ? (
-                  <audio src={sourceUrl} controls />
+                  <EmbeddedAudioPlayer src={sourceUrl} title={item.name} />
                 ) : null}
                 {item.kind === "video" && sourceUrl ? (
                   <video src={sourceUrl} controls />

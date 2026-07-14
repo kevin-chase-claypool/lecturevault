@@ -2580,8 +2580,53 @@ button.review-draft-button:disabled {
   background: #e8edf2;
 }
 
-.media-item audio {
+.embedded-audio-player {
+  display: grid;
+  grid-template-columns: 34px auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  margin-top: 2px;
+  border: 1px solid #d7e1ea;
+  border-radius: 7px;
+  padding: 6px;
+  background: #f7faff;
+}
+
+.embedded-audio-player audio {
+  display: none;
+}
+
+.audio-play-button {
+  display: inline-grid;
+  width: 34px;
+  min-width: 34px;
+  min-height: 30px;
+  place-items: center;
+  padding: 0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--primary-dark);
+}
+
+.audio-time {
+  min-width: 62px;
+  color: var(--muted);
+  font-size: 0.69rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.audio-progress {
   width: 100%;
+  min-width: 0;
+  accent-color: var(--primary);
+}
+
+.audio-progress:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 .concept-list .math-inline,
