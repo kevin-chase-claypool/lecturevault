@@ -6136,6 +6136,14 @@ button.primary:hover:not(:disabled),
 }
 
 @media (max-width: 1120px) {
+  /* The responsive header changes height when its menu opens, so keep the
+     study navigator in normal flow rather than letting it slide underneath. */
+  .lecture-study-explorer {
+    position: static;
+    top: auto;
+    max-height: none;
+  }
+
   .study-browser-content {
     max-height: calc(100dvh - 118px);
   }
@@ -6145,11 +6153,6 @@ button.primary:hover:not(:disabled),
   .lecture-study-layout {
     grid-template-columns: 1fr;
     gap: 12px;
-  }
-
-  .lecture-study-explorer {
-    top: 76px;
-    max-height: calc(100dvh - 92px);
   }
 
   .lecture-study-list {
