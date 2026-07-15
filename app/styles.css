@@ -5188,6 +5188,92 @@ button.review-draft-button:disabled {
 
 }
 
+/* Vault review multi-select keeps browsing and batch review-building separate. */
+.lecture-list-header.with-selection,
+.lecture-list-row.explorer-row.has-selection {
+  grid-template-columns: 40px minmax(0, 1fr) 112px 108px;
+}
+
+.explorer-select-all,
+.explorer-row-select {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  border-right: 1px solid #edf1f4;
+  padding: 0;
+  cursor: pointer;
+}
+
+.explorer-select-all input,
+.explorer-row-select input {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.lecture-list-row.explorer-row.has-selection > .explorer-row-select {
+  padding: 0;
+}
+
+.vault-review-selection-bar {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #c9dbe8;
+  border-radius: var(--radius-sm);
+  padding: 6px 8px 6px 10px;
+  background: #f7fbfe;
+}
+
+.vault-review-selection-bar > span {
+  color: var(--muted);
+  font-size: 0.77rem;
+  font-weight: 760;
+}
+
+.vault-review-selection-bar > div {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.vault-review-selection-bar button {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 0.74rem;
+}
+
+@media (max-width: 620px) {
+  .lecture-list-header.with-selection,
+  .lecture-list-row.explorer-row.has-selection {
+    grid-template-columns: 34px minmax(0, 1fr) 74px 66px;
+  }
+
+  .vault-review-selection-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .vault-review-selection-bar > div {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .vault-review-selection-bar button {
+    width: 100%;
+  }
+}
+
+@media (min-width: 621px) and (max-width: 760px) {
+  .lecture-list-header.with-selection,
+  .lecture-list-row.explorer-row.has-selection {
+    grid-template-columns: 36px minmax(0, 1fr) 90px 84px;
+  }
+}
+
 @media (max-width: 620px) {
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

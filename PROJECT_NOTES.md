@@ -30,6 +30,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-15 - Vault Review Multi-Select
+
+- Added separate checkboxes to Vault reconstruction rows so selecting review sources does not navigate away from the archive.
+- Added select-all, clear, and batch `Add selected to Review` controls for the visible folder, while retaining row clicks for opening a reconstruction's study view.
+- Batch additions preserve the selected course context and the permanent source links used by each reconstruction.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-14 - Interface Polish Pass
 
 - Refined hierarchy across the workspace with quieter panels, deliberate elevation, clearer section headers, consistent field feedback, and stronger primary/destructive action states.

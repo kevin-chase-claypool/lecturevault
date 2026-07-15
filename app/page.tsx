@@ -1502,6 +1502,7 @@ export default function LectureVaultApp() {
   const [builderSortDirection, setBuilderSortDirection] = useState<SortDirection>("desc");
   const [selectedBuilderLectureId, setSelectedBuilderLectureId] = useState("");
   const [builderSelectedLectureIds, setBuilderSelectedLectureIds] = useState<string[]>([]);
+  const [vaultReviewSelectionIds, setVaultReviewSelectionIds] = useState<string[]>([]);
   const [pipelineTitle, setPipelineTitle] = useState("");
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([]);
   const [isLectureGenerating, setIsLectureGenerating] = useState(false);
@@ -2018,6 +2019,12 @@ export default function LectureVaultApp() {
   const selectedArchiveFolder = state.archiveFolders.find(
     (folder) => folder.id === selectedArchiveFolderId
   );
+  const selectedVaultReviewCount = vaultReviewSelectionIds.filter((id) =>
+    state.lectures.some((lecture) => lecture.id === id)
+  ).length;
+  const areAllVisibleArchiveLecturesSelected =
+    archiveLectures.length > 0 &&
+    archiveLectures.every((lecture) => vaultReviewSelectionIds.includes(lecture.id));
   const builderLectures = useMemo(() => {
     const term = builderQuery.trim().toLowerCase();
 
@@ -3292,6 +3299,79 @@ export default function LectureVaultApp() {
     } else {
       addLectureToBasket(lectureId);
     }
+  }
+
+  function toggleVaultReviewSelection(lectureId: string) {
+    const lecture = state.lectures.find((item) => item.id === lectureId);
+
+    if (!lecture) return;
+
+    setVaultReviewSelectionIds((current) => {
+      if (current.includes(lectureId)) {
+        return current.filter((id) => id !== lectureId);
+      }
+
+      const currentSelectionUsesAnotherCourse = current.some((id) => {
+        const selectedLecture = state.lectures.find((item) => item.id === id);
+        return selectedLecture && selectedLecture.courseId !== lecture.courseId;
+      });
+
+      return currentSelectionUsesAnotherCourse ? [lectureId] : [...current, lectureId];
+    });
+  }
+
+  function toggleAllVisibleVaultReviewSelections() {
+    const visibleIds = archiveLectures.map((lecture) => lecture.id);
+
+    if (!visibleIds.length) return;
+
+    setVaultReviewSelectionIds((current) => {
+      const everyVisibleLectureIsSelected = visibleIds.every((id) => current.includes(id));
+
+      if (everyVisibleLectureIsSelected) {
+        return current.filter((id) => !visibleIds.includes(id));
+      }
+
+      const visibleCourseId = archiveLectures[0]?.courseId;
+      const sameCourseIds = current.filter((id) =>
+        state.lectures.some(
+          (lecture) => lecture.id === id && lecture.courseId === visibleCourseId
+        )
+      );
+
+      return Array.from(new Set([...sameCourseIds, ...visibleIds]));
+    });
+  }
+
+  function addVaultSelectionToReview() {
+    const selectedLectures = vaultReviewSelectionIds
+      .map((id) => state.lectures.find((lecture) => lecture.id === id))
+      .filter((lecture): lecture is Lecture => Boolean(lecture));
+
+    if (!selectedLectures.length) {
+      setStatus("Select one or more reconstructions before adding them to a review.");
+      return;
+    }
+
+    const courseId = selectedLectures[0].courseId;
+    const selectedIds = selectedLectures
+      .filter((lecture) => lecture.courseId === courseId)
+      .map((lecture) => lecture.id);
+
+    setExamBuilderCourse(courseId);
+    setBuilderSelectedLectureIds((current) => {
+      const sameCourseIds = current.filter((id) =>
+        state.lectures.some(
+          (lecture) => lecture.id === id && lecture.courseId === courseId
+        )
+      );
+
+      return Array.from(new Set([...sameCourseIds, ...selectedIds]));
+    });
+    setVaultReviewSelectionIds([]);
+    setStatus(
+      `Added ${selectedIds.length} reconstruction${selectedIds.length === 1 ? "" : "s"} to the review set draft.`
+    );
   }
 
   function addBuilderVisibleLectures() {
@@ -4899,8 +4979,40 @@ export default function LectureVaultApp() {
                       : "No review sources selected"}
                   </span>
                 </div>
+                <div className="vault-review-selection-bar" aria-label="Review selection actions">
+                  <span>
+                    {selectedVaultReviewCount
+                      ? `${selectedVaultReviewCount} selected for review`
+                      : "Select reconstructions to add together"}
+                  </span>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setVaultReviewSelectionIds([])}
+                      disabled={!selectedVaultReviewCount}
+                    >
+                      Clear
+                    </button>
+                    <button
+                      className="primary"
+                      type="button"
+                      onClick={addVaultSelectionToReview}
+                      disabled={!selectedVaultReviewCount}
+                    >
+                      Add selected to Review
+                    </button>
+                  </div>
+                </div>
                 <div className="lecture-list explorer-list" aria-label="Reconstructions in this folder">
-                  <div className="lecture-list-header">
+                  <div className="lecture-list-header with-selection">
+                    <label className="explorer-select-all" title="Select all visible reconstructions">
+                      <input
+                        type="checkbox"
+                        checked={areAllVisibleArchiveLecturesSelected}
+                        aria-label="Select all visible reconstructions for review"
+                        onChange={toggleAllVisibleVaultReviewSelections}
+                      />
+                    </label>
                     {([
                       ["name", "Name"],
                       ["date", "Date"],
@@ -4930,10 +5042,12 @@ export default function LectureVaultApp() {
                       sourceSize={state.mediaItems
                         .filter((item) => item.lectureId === lecture.id)
                         .reduce((total, item) => total + item.size, 0)}
+                      reviewSelected={vaultReviewSelectionIds.includes(lecture.id)}
                       onSelect={() => {
                         setSelectedLectureId(lecture.id);
                         setScreen("lecture");
                       }}
+                      onToggleReview={() => toggleVaultReviewSelection(lecture.id)}
                     />
                   ))}
                   {!archiveLectures.length ? (
@@ -6940,16 +7054,24 @@ function LectureListRow({
   lecture,
   sourceSize,
   selected = false,
-  onSelect
+  reviewSelected = false,
+  onSelect,
+  onToggleReview
 }: {
   lecture: Lecture;
   sourceSize: number;
   selected?: boolean;
+  reviewSelected?: boolean;
   onSelect: () => void;
+  onToggleReview?: () => void;
 }) {
   return (
     <article
-      className={selected ? "lecture-list-row explorer-row selected" : "lecture-list-row explorer-row"}
+      className={[
+        "lecture-list-row explorer-row",
+        selected ? "selected" : "",
+        onToggleReview ? "has-selection" : ""
+      ].filter(Boolean).join(" ")}
       draggable
       role="button"
       tabIndex={0}
@@ -6964,6 +7086,16 @@ function LectureListRow({
         event.dataTransfer.setData("text/lecture-id", lecture.id)
       }
     >
+      {onToggleReview ? (
+        <label className="explorer-row-select" onClick={(event) => event.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={reviewSelected}
+            aria-label={`Select ${lecture.title} for review`}
+            onChange={onToggleReview}
+          />
+        </label>
+      ) : null}
       <strong className="explorer-row-name" title={lecture.title}>{lecture.title}</strong>
       <time dateTime={lecture.date}>{lecture.date}</time>
       <span>{formatFileSize(sourceSize)}</span>
