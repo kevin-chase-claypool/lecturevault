@@ -1503,6 +1503,7 @@ export default function LectureVaultApp() {
   const [selectedBuilderLectureId, setSelectedBuilderLectureId] = useState("");
   const [builderSelectedLectureIds, setBuilderSelectedLectureIds] = useState<string[]>([]);
   const [vaultReviewSelectionIds, setVaultReviewSelectionIds] = useState<string[]>([]);
+  const [studyLectureIds, setStudyLectureIds] = useState<string[]>([]);
   const [pipelineTitle, setPipelineTitle] = useState("");
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([]);
   const [isLectureGenerating, setIsLectureGenerating] = useState(false);
@@ -3374,6 +3375,18 @@ export default function LectureVaultApp() {
     );
   }
 
+  function openVaultStudySelection() {
+    const selectedLectures = vaultReviewSelectionIds
+      .map((id) => state.lectures.find((lecture) => lecture.id === id))
+      .filter((lecture): lecture is Lecture => Boolean(lecture));
+
+    if (!selectedLectures.length) return;
+
+    setStudyLectureIds(selectedLectures.map((lecture) => lecture.id));
+    setSelectedLectureId(selectedLectures[0].id);
+    setScreen("lecture");
+  }
+
   function addBuilderVisibleLectures() {
     setBuilderSelectedLectureIds((current) => {
       const next = new Set(current);
@@ -5001,6 +5014,13 @@ export default function LectureVaultApp() {
                     >
                       Add selected to Review
                     </button>
+                    <button
+                      type="button"
+                      onClick={openVaultStudySelection}
+                      disabled={!selectedVaultReviewCount}
+                    >
+                      Study selected
+                    </button>
                   </div>
                 </div>
                 <div className="lecture-list explorer-list" aria-label="Reconstructions in this folder">
@@ -5045,7 +5065,6 @@ export default function LectureVaultApp() {
                       reviewSelected={vaultReviewSelectionIds.includes(lecture.id)}
                       onSelect={() => {
                         setSelectedLectureId(lecture.id);
-                        setScreen("lecture");
                       }}
                       onToggleReview={() => toggleVaultReviewSelection(lecture.id)}
                     />
@@ -5118,6 +5137,7 @@ export default function LectureVaultApp() {
                         type="button"
                         onClick={() => {
                           setSelectedLectureId(selectedArchiveLecture.id);
+                          setStudyLectureIds([selectedArchiveLecture.id]);
                           setScreen("lecture");
                         }}
                       >
@@ -5155,6 +5175,9 @@ export default function LectureVaultApp() {
               }
             }
             archiveFolders={state.archiveFolders}
+            studyLectures={studyLectureIds
+              .map((id) => state.lectures.find((lecture) => lecture.id === id))
+              .filter((lecture): lecture is Lecture => Boolean(lecture))}
             courseLectures={state.lectures.filter(
               (item) => item.courseId === selectedLecture.courseId
             )}
@@ -7182,6 +7205,7 @@ function LectureDetail({
   courseLabel,
   course,
   archiveFolders,
+  studyLectures,
   courseLectures,
   mediaItems,
   transcript,
@@ -7195,6 +7219,7 @@ function LectureDetail({
   courseLabel: (id: string) => string;
   course: Course;
   archiveFolders: ArchiveFolder[];
+  studyLectures: Lecture[];
   courseLectures: Lecture[];
   mediaItems: MediaItem[];
   transcript?: Transcript;
@@ -7427,6 +7452,30 @@ function LectureDetail({
         </details>
       </aside>
       <article className="panel detail-main">
+        {studyLectures.length > 1 ? (
+          <section className="study-selection-summary" aria-label="Selected reconstructions for study">
+            <div className="section-heading compact-heading">
+              <div>
+                <span className="pill">Study selection</span>
+                <h3>{studyLectures.length} reconstructions</h3>
+              </div>
+            </div>
+            <div className="study-selection-list">
+              {studyLectures.map((item) => (
+                <details key={item.id}>
+                  <summary>
+                    <span>{item.title}</span>
+                    <time dateTime={item.date}>{item.date}</time>
+                  </summary>
+                  <p>{item.summary || "No summary yet."}</p>
+                  <button type="button" onClick={() => onOpenLecture(item.id)}>
+                    Open reconstruction
+                  </button>
+                </details>
+              ))}
+            </div>
+          </section>
+        ) : null}
         <div className="study-navigation">
           <button className="study-back-button" type="button" onClick={onBackToVault}>
             Back to Vault

@@ -30,6 +30,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-15 - Vault Selection and Study Flow
+
+- Changed Vault reconstruction-row clicks to select and populate the Details pane rather than navigating away immediately.
+- Added a separate `Study selected` action for checked Vault sources; multiple selections open as compact collapsed reconstruction summaries before focused reading.
+- Retained the existing batch review action so study and review creation remain separate workflows.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-15 - Vault Review Multi-Select
 
 - Added separate checkboxes to Vault reconstruction rows so selecting review sources does not navigate away from the archive.
