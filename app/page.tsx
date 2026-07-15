@@ -7246,18 +7246,11 @@ function LectureDetail({
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 1120px)");
-    const finePointerQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
-    const syncBrowserVisibility = () => {
-      setIsStudyBrowserOpen(!mediaQuery.matches || finePointerQuery.matches);
-    };
+    const syncBrowserVisibility = () => setIsStudyBrowserOpen(!mediaQuery.matches);
 
     syncBrowserVisibility();
     mediaQuery.addEventListener("change", syncBrowserVisibility);
-    finePointerQuery.addEventListener("change", syncBrowserVisibility);
-    return () => {
-      mediaQuery.removeEventListener("change", syncBrowserVisibility);
-      finePointerQuery.removeEventListener("change", syncBrowserVisibility);
-    };
+    return () => mediaQuery.removeEventListener("change", syncBrowserVisibility);
   }, []);
 
   useEffect(() => {
