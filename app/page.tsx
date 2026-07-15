@@ -7238,7 +7238,6 @@ function LectureDetail({
   const [explorerSortKey, setExplorerSortKey] = useState<ArchiveSortKey>("date");
   const [explorerSortDirection, setExplorerSortDirection] = useState<SortDirection>("desc");
   const [explorerFolderId, setExplorerFolderId] = useState(lecture.folderId || "all");
-  const [isArchiveTreeOpen, setIsArchiveTreeOpen] = useState(false);
   const [isStudyBrowserOpen, setIsStudyBrowserOpen] = useState(false);
 
   useEffect(() => {
@@ -7330,7 +7329,6 @@ function LectureDetail({
     setExplorerFolderId(folderId);
 
     if (window.matchMedia("(max-width: 1120px)").matches) {
-      setIsArchiveTreeOpen(false);
       setIsStudyBrowserOpen(false);
     }
   }
@@ -7368,18 +7366,15 @@ function LectureDetail({
               </div>
               <span>{courseLectures.length} saved</span>
             </div>
-            <details className="lecture-study-tree" open={isArchiveTreeOpen}>
-              <summary onClick={(event) => {
-                event.preventDefault();
-                setIsArchiveTreeOpen((current) => !current);
-              }}>
+            <div className="lecture-study-tree">
+              <div className="lecture-study-tree-summary">
                 <span className="folder-icon" aria-hidden="true" />
                 <span>
                   <small>Browse archive</small>
                   <strong title={selectedExplorerFolderName}>{selectedExplorerFolderName}</strong>
                 </span>
                 <span>{visibleCourseLectures.length}</span>
-              </summary>
+              </div>
               <div className="lecture-study-tree-content">
                 <ArchiveFolderTree
                   courses={[course]}
@@ -7392,7 +7387,7 @@ function LectureDetail({
                   onDropLecture={() => undefined}
                 />
               </div>
-            </details>
+            </div>
             <div className="section-heading compact-heading lecture-study-list-heading">
               <div>
                 <span className="pill">{visibleCourseLectures.length} items</span>

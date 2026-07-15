@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-15 - Persistent Detail Archive Tree
+
+- Removed the redundant nested disclosure from Reconstruction Detail's Study Navigation so its Archive Tree stays expanded whenever the surrounding navigator is open.
+- Selecting a folder on mobile still closes only the outer navigator, returning screen space to the selected reconstruction.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-15 - Vault Selection and Study Flow
 
 - Changed Vault reconstruction-row clicks to select and populate the Details pane rather than navigating away immediately.
