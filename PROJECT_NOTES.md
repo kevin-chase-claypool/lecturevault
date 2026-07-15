@@ -35,6 +35,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Removed the redundant nested disclosure from Reconstruction Detail's Study Navigation so its Archive Tree stays expanded whenever the surrounding navigator is open.
 - Selecting a folder on mobile still closes only the outer navigator, returning screen space to the selected reconstruction.
 - Kept the responsive study navigator in normal page flow so it cannot slide underneath the variable-height mobile or tablet menu.
+- Kept the compact header/menu treatment for touch devices only; narrow Windows desktop windows retain the desktop sidebar and open reconstruction navigator.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 
 ### 2026-07-15 - Vault Selection and Study Flow

@@ -4311,7 +4311,8 @@ button.review-draft-button:disabled {
   overflow-x: auto;
 }
 
-@media (max-width: 1120px) and (min-width: 761px) {
+@media (max-width: 1120px) and (min-width: 761px) and (hover: none),
+  (max-width: 1120px) and (min-width: 761px) and (pointer: coarse) {
   .topbar-actions .install-button {
     display: inline-flex;
   }
@@ -4591,7 +4592,8 @@ button.review-draft-button:disabled {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 760px) and (hover: none),
+  (max-width: 760px) and (pointer: coarse) {
   .topbar-actions .install-button {
     display: inline-flex;
   }
