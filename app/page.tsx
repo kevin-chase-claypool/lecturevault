@@ -90,6 +90,7 @@ type SortDirection = "asc" | "desc";
 type MediaSortKey = "name" | "date" | "size";
 
 type CaptureSource = {
+  id: string;
   file: File;
   role: string;
   caption: string;
@@ -395,6 +396,23 @@ function sourceRoleDescription(role: string) {
 
 function fileKey(file: File) {
   return [file.name, file.size, file.lastModified].join("-");
+}
+
+function dedupeDraftSources(sources: ClassDayDraft["sources"]) {
+  const byFile = new Map<string, ClassDayDraft["sources"][number]>();
+
+  for (const source of sources) {
+    const signature = [source.name, source.size, source.mimeType].join("-");
+    const existing = byFile.get(signature);
+
+    // A storage-backed reference is the canonical copy when an older draft also
+    // contains a temporary browser placeholder for the same uploaded file.
+    if (!existing || (!existing.storagePath && source.storagePath)) {
+      byFile.set(signature, source);
+    }
+  }
+
+  return [...byFile.values()];
 }
 
 const PWA_SHARE_DATABASE = "lecturevault-pwa-share";
@@ -1576,11 +1594,12 @@ export default function LectureVaultApp() {
           }
 
           setCaptureFiles((current) => [
-            ...current,
+            ...current.filter((item) => !sources.some((source) => source.id === item.id)),
             ...sources.map((source) => {
               const file = new File([], source.name, { type: source.mimeType });
               const isAudio = source.mimeType.startsWith("audio/") || /\.(mp3|m4a|aac|wav|ogg|opus)$/i.test(source.name);
               return {
+                id: source.id,
                 file,
                 role: isAudio ? "Lecture audio" : "OneNote export",
                 caption: isAudio
@@ -1889,7 +1908,8 @@ export default function LectureVaultApp() {
     if (loadedDraftVersionRef.current === version) return;
     loadedDraftVersionRef.current = version;
     // Hydrating a draft from cloud state must never immediately save an empty local source list back over it.
-    const draftFiles = activeDraft.sources.map((source) => ({
+    const draftFiles = dedupeDraftSources(activeDraft.sources).map((source) => ({
+      id: source.id,
       file: new File([], source.name, { type: source.mimeType }),
       role: source.role,
       caption: source.caption,
@@ -1897,14 +1917,21 @@ export default function LectureVaultApp() {
       storageBucket: source.storageBucket,
       storagePath: source.storagePath
     }));
-    const hasPendingSource = captureFiles.some(
-      (source) => source.storagePath && !activeDraft.sources.some((saved) => saved.storagePath === source.storagePath)
+    const hasPendingSource = captureFiles.some((source) =>
+      !activeDraft.sources.some((saved) => saved.id === source.id)
     );
     suppressDraftSaveRef.current = !hasPendingSource;
     setCaptureForm({ courseId: activeDraft.courseId, title: activeDraft.title, date: activeDraft.date, transcript: activeDraft.transcript, objective: activeDraft.objective, emphasis: activeDraft.emphasis, questions: activeDraft.questions });
     setCaptureFiles((current) => {
-      const existingPaths = new Set(draftFiles.map((source) => source.storagePath).filter(Boolean));
-      return [...draftFiles, ...current.filter((source) => !source.storagePath || !existingPaths.has(source.storagePath))];
+      const currentById = new Map(current.map((source) => [source.id, source]));
+      const savedIds = new Set(draftFiles.map((source) => source.id));
+      return [
+        ...draftFiles.map((source) => {
+          const localSource = currentById.get(source.id);
+          return localSource?.file.size ? { ...source, ...localSource } : source;
+        }),
+        ...current.filter((source) => !savedIds.has(source.id))
+      ];
     });
   }, [activeDraft]);
 
@@ -1915,7 +1942,7 @@ export default function LectureVaultApp() {
       return;
     }
     const sources = captureFiles.map((source) => ({
-      id: fileKey(source.file), name: source.file.name, mimeType: source.file.type || "application/octet-stream",
+      id: source.id, name: source.file.name, mimeType: source.file.type || "application/octet-stream",
       size: source.size ?? source.file.size, role: source.role, caption: source.caption,
       storageBucket: source.storageBucket, storagePath: source.storagePath
     }));
@@ -1926,15 +1953,11 @@ export default function LectureVaultApp() {
       // another device has not yet pulled it, then layer this device's edits on top.
       const mergedSources = [...existing.sources];
       for (const source of sources) {
-        const index = mergedSources.findIndex((saved) =>
-          source.storagePath
-            ? saved.storagePath === source.storagePath
-            : !saved.storagePath && saved.id === source.id
-        );
+        const index = mergedSources.findIndex((saved) => saved.id === source.id);
         if (index >= 0) mergedSources[index] = { ...mergedSources[index], ...source };
         else mergedSources.push(source);
       }
-      const nextDraft = { ...existing, ...captureForm, sources: mergedSources, updatedAt: "" };
+      const nextDraft = { ...existing, ...captureForm, sources: dedupeDraftSources(mergedSources), updatedAt: "" };
       if (JSON.stringify({ ...existing, updatedAt: "" }) === JSON.stringify(nextDraft)) return current;
       return { ...current, reconstructionDrafts: current.reconstructionDrafts.map((draft) =>
         draft.id === activeDraftId ? { ...nextDraft, updatedAt: new Date().toISOString() } : draft
@@ -1945,12 +1968,12 @@ export default function LectureVaultApp() {
   useEffect(() => {
     if (!activeDraftId) return;
     for (const source of captureFiles) {
-      const key = fileKey(source.file);
+      const key = source.id;
       if (source.storagePath || !source.file.size || draftUploadsRef.current.has(key)) continue;
       draftUploadsRef.current.add(key);
       void uploadMediaFile({ file: source.file, lectureId: `draft-${activeDraftId}`, mediaId: uid("media") })
         .then((storage) => setCaptureFiles((current) => current.map((item) =>
-          fileKey(item.file) === key ? { ...item, ...storage } : item
+          item.id === key ? { ...item, ...storage } : item
         )))
         .catch((error) => setStatus(error instanceof Error ? error.message : `Could not upload ${source.file.name}.`))
         .finally(() => draftUploadsRef.current.delete(key));
@@ -3940,7 +3963,7 @@ export default function LectureVaultApp() {
         const key = fileKey(file);
 
         if (!existingKeys.has(key)) {
-          next.push({ file, role: defaultSourceRole(file), caption: "" });
+          next.push({ id: uid("source"), file, role: defaultSourceRole(file), caption: "" });
           existingKeys.add(key);
         }
       }
@@ -4018,8 +4041,8 @@ export default function LectureVaultApp() {
   function openClassDayDraft(id: string) {
     const draft = state.reconstructionDrafts.find((item) => item.id === id);
     if (!draft) return;
-    const hasPendingSource = captureFiles.some(
-      (source) => source.storagePath && !draft.sources.some((saved) => saved.storagePath === source.storagePath)
+    const hasPendingSource = captureFiles.some((source) =>
+      !draft.sources.some((saved) => saved.id === source.id)
     );
     suppressDraftSaveRef.current = !hasPendingSource;
     setActiveDraftId(id);
@@ -4032,7 +4055,8 @@ export default function LectureVaultApp() {
       emphasis: draft.emphasis,
       questions: draft.questions
     });
-    const draftFiles = draft.sources.map((source) => ({
+    const draftFiles = dedupeDraftSources(draft.sources).map((source) => ({
+      id: source.id,
       file: new File([], source.name, { type: source.mimeType }),
       role: source.role,
       caption: source.caption,
@@ -4041,21 +4065,28 @@ export default function LectureVaultApp() {
       storagePath: source.storagePath
     }));
     setCaptureFiles((current) => {
-      const existingPaths = new Set(draftFiles.map((source) => source.storagePath).filter(Boolean));
-      return [...draftFiles, ...current.filter((source) => !source.storagePath || !existingPaths.has(source.storagePath))];
+      const currentById = new Map(current.map((source) => [source.id, source]));
+      const savedIds = new Set(draftFiles.map((source) => source.id));
+      return [
+        ...draftFiles.map((source) => {
+          const localSource = currentById.get(source.id);
+          return localSource?.file.size ? { ...source, ...localSource } : source;
+        }),
+        ...current.filter((source) => !savedIds.has(source.id))
+      ];
     });
     setScreen("capture");
   }
 
   function removeCaptureFile(sourceToRemove: CaptureSource) {
-    const sourceKey = fileKey(sourceToRemove.file);
+    const sourceSignature = [
+      sourceToRemove.file.name,
+      sourceToRemove.size ?? sourceToRemove.file.size,
+      sourceToRemove.file.type || "application/octet-stream"
+    ].join("-");
 
     setCaptureFiles((current) =>
-      current.filter((source) =>
-        sourceToRemove.storagePath
-          ? source.storagePath !== sourceToRemove.storagePath
-          : fileKey(source.file) !== sourceKey
-      )
+      current.filter((source) => source.id !== sourceToRemove.id)
     );
 
     if (!activeDraftId) return;
@@ -4070,10 +4101,8 @@ export default function LectureVaultApp() {
           ? draft
           : {
               ...draft,
-              sources: draft.sources.filter((source) =>
-                sourceToRemove.storagePath
-                  ? source.storagePath !== sourceToRemove.storagePath
-                  : source.id !== sourceKey
+              sources: draft.sources.filter(
+                (source) => [source.name, source.size, source.mimeType].join("-") !== sourceSignature
               ),
               updatedAt: new Date().toISOString()
             }
@@ -4082,10 +4111,24 @@ export default function LectureVaultApp() {
     setStatus(`${sourceToRemove.file.name} removed from this class record. The original file remains in Media Library.`);
   }
 
-  function updateCaptureSource(key: string, updates: Partial<Omit<CaptureSource, "file">>) {
+  function clearCaptureFiles() {
+    setCaptureFiles([]);
+    if (!activeDraftId) return;
+    setState((current) => ({
+      ...current,
+      reconstructionDrafts: current.reconstructionDrafts.map((draft) =>
+        draft.id === activeDraftId
+          ? { ...draft, sources: [], updatedAt: new Date().toISOString() }
+          : draft
+      )
+    }));
+    setStatus("Attached files cleared from this class record. Original files remain in Media Library.");
+  }
+
+  function updateCaptureSource(id: string, updates: Partial<Omit<CaptureSource, "file" | "id">>) {
     setCaptureFiles((current) =>
       current.map((source) =>
-        fileKey(source.file) === key ? { ...source, ...updates } : source
+        source.id === id ? { ...source, ...updates } : source
       )
     );
   }
@@ -5450,7 +5493,7 @@ export default function LectureVaultApp() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setCaptureFiles([])}
+                    onClick={clearCaptureFiles}
                   >
                     Clear Files
                   </button>
@@ -5458,7 +5501,7 @@ export default function LectureVaultApp() {
                 <div className="capture-media-list">
                   {captureFiles.map((source) => {
                     const { file } = source;
-                    const key = fileKey(file);
+                    const key = source.id;
                     const kind = fileKind(file);
 
                     return (
