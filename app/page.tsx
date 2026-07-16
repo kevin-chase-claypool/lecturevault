@@ -4047,10 +4047,39 @@ export default function LectureVaultApp() {
     setScreen("capture");
   }
 
-  function removeCaptureFile(key: string) {
+  function removeCaptureFile(sourceToRemove: CaptureSource) {
+    const sourceKey = fileKey(sourceToRemove.file);
+
     setCaptureFiles((current) =>
-      current.filter((source) => fileKey(source.file) !== key)
+      current.filter((source) =>
+        sourceToRemove.storagePath
+          ? source.storagePath !== sourceToRemove.storagePath
+          : fileKey(source.file) !== sourceKey
+      )
     );
+
+    if (!activeDraftId) return;
+
+    // Persist the deletion immediately. The normal draft sync intentionally merges
+    // additions from other devices, so it cannot infer that a missing local source
+    // was deliberately removed.
+    setState((current) => ({
+      ...current,
+      reconstructionDrafts: current.reconstructionDrafts.map((draft) =>
+        draft.id !== activeDraftId
+          ? draft
+          : {
+              ...draft,
+              sources: draft.sources.filter((source) =>
+                sourceToRemove.storagePath
+                  ? source.storagePath !== sourceToRemove.storagePath
+                  : source.id !== sourceKey
+              ),
+              updatedAt: new Date().toISOString()
+            }
+      )
+    }));
+    setStatus(`${sourceToRemove.file.name} removed from this class record. The original file remains in Media Library.`);
   }
 
   function updateCaptureSource(key: string, updates: Partial<Omit<CaptureSource, "file">>) {
@@ -5473,7 +5502,7 @@ export default function LectureVaultApp() {
                         </label>
                         <button
                           type="button"
-                          onClick={() => removeCaptureFile(key)}
+                          onClick={() => removeCaptureFile(source)}
                         >
                           Remove
                         </button>

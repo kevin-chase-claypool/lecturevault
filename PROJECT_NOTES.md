@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-16 - Reliable Class Record File Removal
+
+- Fixed removal of attached reconstruction files so it deletes the source reference from the shared class record as well as the local form.
+- Prevents cloud draft hydration from restoring files that were intentionally removed; original Supabase media remains intact in Media Library.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-15 - Persistent Detail Archive Tree
 
 - Removed the redundant nested disclosure from Reconstruction Detail's Study Navigation so its Archive Tree stays expanded whenever the surrounding navigator is open.
