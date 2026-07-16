@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-16 - Structured Reconstruction KaTeX Preview
+
+- Replaced the flat reconstruction KaTeX preview with a structured Markdown-and-math reader that separates generated headings, labelled details, bullets, and numbered steps.
+- Display equations remain isolated, while study sections receive readable spacing and hierarchy rather than becoming one continuous paragraph.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-16 - Reliable Class Record File Removal
 
 - Replaced temporary browser `File` metadata as the class-record source identity with stable persistent source IDs.

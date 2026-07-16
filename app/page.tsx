@@ -670,16 +670,30 @@ function stripInlineMarkdown(text: string) {
   return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1");
 }
 
+function normalizeStructuredMarkdown(text: string) {
+  return normalizeLatexEscapes(text)
+    .trim()
+    // AI output occasionally places a Markdown heading after a sentence instead of on its own line.
+    .replace(/([.!?])\s+(#{1,4}\s+)/g, "$1\n\n$2")
+    // Make a heading followed by explanatory content into a heading plus a readable body.
+    .replace(/(^|\n)(#{1,4}\s+[^\n-]+?)\s+-\s+/g, "$1$2\n")
+    // Preserve common labelled study details as individually scannable list items.
+    .replace(/\s+-\s+(?=[A-Z][A-Za-z /]{1,42}:)/g, "\n- ");
+}
+
 function ReviewMarkdownPreview({
   compact = false,
+  className = "",
   text
 }: {
   compact?: boolean;
+  className?: string;
   text: string;
 }) {
-  const lines = normalizeLatexEscapes(text).trim().split(/\r?\n/);
+  const lines = normalizeStructuredMarkdown(text).split(/\r?\n/);
   const nodes: ReactNode[] = [];
   let bullets: string[] = [];
+  let numberedItems: string[] = [];
   let mathLines: string[] = [];
   let inDisplayMath = false;
 
@@ -700,11 +714,29 @@ function ReviewMarkdownPreview({
     bullets = [];
   }
 
+  function flushNumberedItems() {
+    if (!numberedItems.length) {
+      return;
+    }
+
+    nodes.push(
+      <ol key={`ordered-list-${nodes.length}`}>
+        {numberedItems.map((item, index) => (
+          <li key={`${item}-${index}`}>
+            <MathPreview text={stripInlineMarkdown(item)} />
+          </li>
+        ))}
+      </ol>
+    );
+    numberedItems = [];
+  }
+
   for (const rawLine of lines) {
     const line = rawLine.trim();
 
     if (line === "\\[") {
       flushBullets();
+      flushNumberedItems();
       inDisplayMath = true;
       mathLines = ["\\["];
       continue;
@@ -729,12 +761,14 @@ function ReviewMarkdownPreview({
 
     if (!line) {
       flushBullets();
+      flushNumberedItems();
       continue;
     }
 
     const heading = line.match(/^(#{1,4})\s+(.+)$/);
     if (heading) {
       flushBullets();
+      flushNumberedItems();
       const HeadingTag = `h${Math.min(heading[1].length + 2, 5)}` as
         | "h3"
         | "h4"
@@ -749,11 +783,20 @@ function ReviewMarkdownPreview({
 
     const bullet = line.match(/^[-*]\s+(.+)$/);
     if (bullet) {
+      flushNumberedItems();
       bullets.push(bullet[1]);
       continue;
     }
 
+    const numberedItem = line.match(/^\d+[.)]\s+(.+)$/);
+    if (numberedItem) {
+      flushBullets();
+      numberedItems.push(numberedItem[1]);
+      continue;
+    }
+
     flushBullets();
+    flushNumberedItems();
     nodes.push(
       <p key={`paragraph-${nodes.length}`}>
         <MathPreview text={stripInlineMarkdown(line)} />
@@ -762,9 +805,10 @@ function ReviewMarkdownPreview({
   }
 
   flushBullets();
+  flushNumberedItems();
 
   return (
-    <div className={compact ? "guide-rendered compact" : "guide-rendered"}>
+    <div className={`guide-rendered${compact ? " compact" : ""}${className ? ` ${className}` : ""}`}>
       {nodes.length ? nodes : <p>No generated review content yet.</p>}
     </div>
   );
@@ -7613,7 +7657,8 @@ function LectureDetail({
         </div>
         <h4>KaTeX Preview</h4>
         <div className="math-preview-panel">
-          <MathPreview
+          <ReviewMarkdownPreview
+            className="math-document-preview"
             text={
               transcript?.text ||
               lecture.summary ||
