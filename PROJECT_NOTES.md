@@ -44,7 +44,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 ### 2026-07-18 - Responsive Header Scroll Boundary
 
 - Returned tablet/phone layouts to native browser document scrolling after the internal application scroll container prevented scrolling in mobile Chrome.
-- The compact header remains in normal flow on responsive layouts, preventing it from overlaying explorer controls or study content.
+- Restored sticky responsive navigation while retaining native document scrolling, so the Menu remains available without trapping page scroll.
 - Verification: run `npm run build`, then run `npm run typecheck`.
 
 ### 2026-07-18 - Product-Wide Workbench Refinement

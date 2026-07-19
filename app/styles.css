@@ -7301,7 +7301,7 @@ body {
   }
 }
 
-/* Preserve native browser scrolling on responsive devices; the compact header stays in flow. */
+/* Preserve native browser scrolling while keeping the compact navigation available. */
 @media (max-width: 1120px) {
   html,
   body {
@@ -7318,8 +7318,9 @@ body {
   }
 
   .sidebar {
-    position: static;
-    top: auto;
+    position: sticky;
+    top: 0;
+    z-index: 40;
   }
 
   .workspace {
