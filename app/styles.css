@@ -7303,6 +7303,10 @@ body {
 
 /* Preserve native browser scrolling while keeping the compact navigation available. */
 @media (max-width: 1120px) {
+  :root {
+    --responsive-header-height: 92px;
+  }
+
   html,
   body {
     height: auto;
@@ -7319,14 +7323,16 @@ body {
 
   .sidebar {
     align-self: start;
-    position: -webkit-sticky;
-    position: sticky;
-    top: 0;
-    z-index: 40;
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 60;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .workspace {
     min-height: auto;
     overflow: visible;
+    padding-top: calc(var(--responsive-header-height) + 16px);
   }
 }
