@@ -34,6 +34,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 - Corrected compact-header vertical alignment so the vault mark, LectureVault text, owner label, and Menu control share a centerline on phones.
 - Restored the responsive sidebar padding after the desktop visual overrides, removing the unused lower strip that made the compact header appear vertically off-center.
+- Applied the final phone-toolbar visual offset to the brand icon, copy, and Menu control so the visible header content is centered within Android's rendered toolbar.
 - Tightened the responsive dashboard rhythm with clearer title alignment, consistent metric heights, and more deliberate action-panel spacing.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 
