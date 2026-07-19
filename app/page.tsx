@@ -20,10 +20,12 @@ import {
   FolderOpen,
   GraduationCap,
   LayoutDashboard,
+  Moon,
   Pause,
   Play,
   Plus,
   Sparkles,
+  Sun,
   Trash2
 } from "lucide-react";
 import {
@@ -1505,6 +1507,12 @@ function stateHasUserData(state: VaultState) {
 
 export default function LectureVaultApp() {
   const [state, setState] = useState<VaultState>(() => loadState());
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "light";
+    return window.localStorage.getItem("lecturevault-theme") === "dark"
+      ? "dark"
+      : "light";
+  });
   const [authStatus, setAuthStatus] = useState<"checking" | "ready" | "locked" | "setup">("checking");
   const [cloudStateLoaded, setCloudStateLoaded] = useState(false);
   const [cloudSyncEnabled, setCloudSyncEnabled] = useState(false);
@@ -1597,6 +1605,14 @@ export default function LectureVaultApp() {
 
     return () => window.clearTimeout(timeoutId);
   }, [status]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("lecturevault-theme", theme);
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", theme === "dark" ? "#0d1722" : "#f1f5f8");
+  }, [theme]);
 
   useEffect(() => {
     const currentRecordId = state.reconstructionDrafts[0]?.id || "";
@@ -4680,7 +4696,25 @@ export default function LectureVaultApp() {
             <strong>{cloudSyncLabel}</strong>
           </div>
           <CompactUsageSummary state={state} className="mobile-usage-summary" />
+          <button
+            className="theme-toggle mobile-theme-toggle"
+            type="button"
+            aria-pressed={theme === "dark"}
+            onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+          >
+            {theme === "dark" ? <Sun aria-hidden="true" size={16} /> : <Moon aria-hidden="true" size={16} />}
+            {theme === "dark" ? "Use light mode" : "Use dark mode"}
+          </button>
         </nav>
+        <button
+          className="theme-toggle desktop-theme-toggle"
+          type="button"
+          aria-pressed={theme === "dark"}
+          onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+        >
+          {theme === "dark" ? <Sun aria-hidden="true" size={16} /> : <Moon aria-hidden="true" size={16} />}
+          {theme === "dark" ? "Use light mode" : "Use dark mode"}
+        </button>
         <div className="sidebar-note">
           <div className="sidebar-library-summary">
             <span>Archived items</span>

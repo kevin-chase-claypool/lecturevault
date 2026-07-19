@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-18 - Persistent Dark Mode
+
+- Added a persisted light/dark theme preference with accessible toggle controls in the desktop navigation rail and opened tablet/phone Menu.
+- Dark mode updates the browser/PWA theme color and preserves explorer selection, review, status, capture, and KaTeX contrast instead of applying a simple color inversion.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-18 - Product-Wide Workbench Refinement
 
 - Rebalanced the shared visual system around a cleaner workbench canvas, stronger surface hierarchy, and more deliberate spacing while retaining every existing workflow.
