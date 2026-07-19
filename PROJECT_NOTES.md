@@ -30,6 +30,13 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-18 - Product-Wide Workbench Refinement
+
+- Rebalanced the shared visual system around a cleaner workbench canvas, stronger surface hierarchy, and more deliberate spacing while retaining every existing workflow.
+- Refined Dashboard metrics, headers, workflow cues, action panels, course rows, forms, capture disclosures, explorer lists, media/vault inspectors, review-draft surfaces, and pipeline states as one consistent system.
+- Added responsive density rules so phones and tablets keep readable controls and compact study surfaces rather than inheriting desktop spacing.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-18 - Responsive Header and Dashboard Polish
 
 - Corrected compact-header vertical alignment so the vault mark, LectureVault text, owner label, and Menu control share a centerline on phones.
