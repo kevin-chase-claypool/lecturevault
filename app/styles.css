@@ -6471,6 +6471,13 @@ summary:focus-visible {
   .panel > .section-heading:first-child {
     padding-bottom: 8px;
   }
+
+  /* Optical centering: the compact header's visible content sits lower than its line boxes. */
+  .brand-button > div,
+  .brand-button > .mark,
+  .brand-button > .mobile-menu-cue {
+    transform: translateY(5px);
+  }
 }
 
 @media (max-width: 760px) {
