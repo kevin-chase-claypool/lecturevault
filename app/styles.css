@@ -1332,6 +1332,23 @@ label {
   -webkit-line-clamp: 3;
 }
 
+/* The review-source preview uses the same KaTeX treatment as Vault and study detail. */
+.builder-source-summary .math-inline {
+  color: #183d59;
+}
+
+.builder-source-summary .math-block {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.builder-source-summary .katex-display {
+  display: inline;
+  margin: 0;
+}
+
 .builder-source-preview > button {
   justify-self: start;
 }

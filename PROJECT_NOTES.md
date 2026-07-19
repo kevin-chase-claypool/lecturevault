@@ -37,6 +37,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Added responsive density rules so phones and tablets keep readable controls and compact study surfaces rather than inheriting desktop spacing.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 
+### 2026-07-18 - Review Source KaTeX Preview
+
+- Routed the selected reconstruction summary in Reviews through the existing KaTeX renderer used by Vault and Reconstruction Detail.
+- Kept rendered source-preview equations compact and inline-safe so review selection remains a short, scannable work surface.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-18 - Responsive Header and Dashboard Polish
 
 - Corrected compact-header vertical alignment so the vault mark, LectureVault text, owner label, and Menu control share a centerline on phones.

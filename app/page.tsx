@@ -5860,7 +5860,9 @@ export default function LectureVaultApp() {
                     <span>{state.mediaItems.filter((item) => item.lectureId === selectedBuilderLecture.id).length} media</span>
                     <span>{state.concepts.filter((concept) => concept.lectureId === selectedBuilderLecture.id).length} concepts</span>
                   </div>
-                  <p>{selectedBuilderLecture.summary}</p>
+                  <p className="builder-source-summary">
+                    <MathPreview text={selectedBuilderLecture.summary} />
+                  </p>
                   <button
                     className={builderSelectedLectureIds.includes(selectedBuilderLecture.id) ? "review-draft-button" : "primary"}
                     type="button"
