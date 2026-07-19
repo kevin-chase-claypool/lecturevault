@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-18 - Responsive Header and Dashboard Polish
+
+- Corrected compact-header vertical alignment so the vault mark, LectureVault text, owner label, and Menu control share a centerline on phones.
+- Tightened the responsive dashboard rhythm with clearer title alignment, consistent metric heights, and more deliberate action-panel spacing.
+- Verification: run `npm run typecheck`, then run `npm run build`.
+
 ### 2026-07-16 - Structured Reconstruction KaTeX Preview
 
 - Replaced the flat reconstruction KaTeX preview with a structured Markdown-and-math reader that separates generated headings, labelled details, bullets, and numbered steps.

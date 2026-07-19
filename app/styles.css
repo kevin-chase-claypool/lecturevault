@@ -6471,8 +6471,68 @@ summary:focus-visible {
     padding-bottom: 30px;
   }
 
+  /* Keep the compact header's icon, brand copy, and menu on one visual centerline. */
+  .brand {
+    min-height: 0;
+    padding: 0;
+  }
+
+  .brand-button {
+    min-height: 54px;
+    align-items: center;
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+
+  .brand-button > div {
+    align-self: center;
+    display: grid;
+    gap: 2px;
+  }
+
+  .brand h1 {
+    line-height: 1.05;
+  }
+
+  .brand p {
+    margin: 0;
+    line-height: 1.1;
+  }
+
+  .mobile-menu-cue {
+    align-self: center;
+  }
+
   .topbar {
     box-shadow: 0 3px 10px rgba(19, 44, 68, 0.05);
+  }
+
+  .topbar > div:first-child {
+    display: flex;
+    min-height: 34px;
+    align-items: center;
+  }
+
+  .dashboard {
+    gap: 12px;
+  }
+
+  .dashboard .metric {
+    min-height: 72px;
+  }
+
+  .dashboard .action-panel {
+    gap: 9px;
+    padding: 16px;
+  }
+
+  .dashboard .action-panel h3 {
+    font-size: 1.04rem;
+    line-height: 1.25;
+  }
+
+  .dashboard .action-panel p {
+    line-height: 1.46;
   }
 
   .topbar::after {
