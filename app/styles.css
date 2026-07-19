@@ -7300,3 +7300,33 @@ body {
     grid-column: 1 / -1;
   }
 }
+
+/* Keep the compact navigation visible without letting document content travel beneath it. */
+@media (max-width: 1120px) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .app-shell {
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .sidebar {
+    position: relative;
+    top: auto;
+    z-index: 2;
+  }
+
+  .workspace {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}

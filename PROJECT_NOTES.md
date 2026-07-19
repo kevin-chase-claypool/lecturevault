@@ -41,6 +41,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Replaced the archive tree's default light gradient with dedicated dark explorer surfaces so folder labels, counts, and selection states remain readable in dark mode.
 - Verification: run `npm run build`, then run `npm run typecheck`.
 
+### 2026-07-18 - Responsive Header Scroll Boundary
+
+- Changed the tablet/phone shell to keep navigation in its own grid row and scroll the workspace independently, preventing explorer controls and study content from passing underneath the persistent header.
+- The opened Menu changes the available workspace height rather than overlaying the page.
+- Verification: run `npm run build`, then run `npm run typecheck`.
+
 ### 2026-07-18 - Product-Wide Workbench Refinement
 
 - Rebalanced the shared visual system around a cleaner workbench canvas, stronger surface hierarchy, and more deliberate spacing while retaining every existing workflow.
