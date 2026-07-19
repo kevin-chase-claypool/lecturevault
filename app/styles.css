@@ -6459,7 +6459,8 @@ summary:focus-visible {
   /* These responsive values must follow the desktop visual pass. */
   .sidebar {
     gap: 0;
-    padding: 12px 16px;
+    /* Both tablet and phone use the compact header: center its single visible row. */
+    padding: 16px 16px 4px;
   }
 
   .topbar::after {
