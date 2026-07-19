@@ -44,7 +44,7 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 ### 2026-07-18 - Responsive Header Scroll Boundary
 
 - Returned tablet/phone layouts to native browser document scrolling after the internal application scroll container prevented scrolling in mobile Chrome.
-- Restored sticky responsive navigation while retaining native document scrolling, so the Menu remains available without trapping page scroll.
+- Restored sticky responsive navigation while retaining native document scrolling, including explicit grid alignment and a WebKit sticky fallback for mobile browsers.
 - Verification: run `npm run build`, then run `npm run typecheck`.
 
 ### 2026-07-18 - Product-Wide Workbench Refinement
