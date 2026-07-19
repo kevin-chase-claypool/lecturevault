@@ -7328,6 +7328,14 @@ body {
     z-index: 60;
     width: 100%;
     box-sizing: border-box;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .brand-button > div,
+  .brand-button > .mark,
+  .brand-button > .mobile-menu-cue {
+    transform: none;
   }
 
   .workspace {
