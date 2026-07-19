@@ -7112,6 +7112,27 @@ body {
   box-shadow: var(--shadow-card);
 }
 
+/* The archive tree has a dedicated light gradient in the default explorer. */
+:root[data-theme="dark"] .archive-folder-tree {
+  border-color: var(--line-strong);
+  background: linear-gradient(180deg, #152331 0%, #101c27 100%);
+  box-shadow: var(--shadow-hairline), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+:root[data-theme="dark"] .course-folder-group + .course-folder-group {
+  border-color: var(--line-soft);
+}
+
+:root[data-theme="dark"] .archive-folder-tree .course-node {
+  background: linear-gradient(180deg, #1b3040 0%, #172938 100%);
+  color: #edf5fa;
+}
+
+:root[data-theme="dark"] .archive-folder-tree summary:hover {
+  border-color: #45677e;
+  background: #1c3140;
+}
+
 :root[data-theme="dark"] .topbar h2,
 :root[data-theme="dark"] .section-heading h3,
 :root[data-theme="dark"] .panel h3,

@@ -36,6 +36,11 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Dark mode updates the browser/PWA theme color and preserves explorer selection, review, status, capture, and KaTeX contrast instead of applying a simple color inversion.
 - Verification: run `npm run typecheck`, then run `npm run build`.
 
+### 2026-07-18 - Dark Archive Explorer Contrast
+
+- Replaced the archive tree's default light gradient with dedicated dark explorer surfaces so folder labels, counts, and selection states remain readable in dark mode.
+- Verification: run `npm run build`, then run `npm run typecheck`.
+
 ### 2026-07-18 - Product-Wide Workbench Refinement
 
 - Rebalanced the shared visual system around a cleaner workbench canvas, stronger surface hierarchy, and more deliberate spacing while retaining every existing workflow.
