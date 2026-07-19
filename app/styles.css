@@ -7301,32 +7301,29 @@ body {
   }
 }
 
-/* Keep the compact navigation visible without letting document content travel beneath it. */
+/* Preserve native browser scrolling on responsive devices; the compact header stays in flow. */
 @media (max-width: 1120px) {
   html,
   body {
-    height: 100%;
-    overflow: hidden;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .app-shell {
-    grid-template-rows: auto minmax(0, 1fr);
-    height: 100dvh;
-    min-height: 0;
-    overflow: hidden;
+    grid-template-rows: none;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
   }
 
   .sidebar {
-    position: relative;
+    position: static;
     top: auto;
-    z-index: 2;
   }
 
   .workspace {
-    min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
+    min-height: auto;
+    overflow: visible;
   }
 }
