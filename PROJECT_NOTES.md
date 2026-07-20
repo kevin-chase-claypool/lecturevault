@@ -30,6 +30,15 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-20 - Cohesive Interface Audit
+
+- Added a final shared visual layer for control radii, keyboard focus, compact metadata, overflow-safe explorer rows, and consistent scrollbar treatment.
+- Refined the review draft into neutral blue-gray workflow surfaces rather than competing teal cards, while retaining its visual priority.
+- Completed dark-mode coverage for status toasts, review-draft internals, and course reference cards; removed remaining light-surface fallthroughs.
+- Tightened the responsive header offset and mobile toast placement so fixed navigation leaves less empty space without covering content.
+- Kept one theme control per context: desktop sidebar summary on desktop, and the bottom of the opened compact Menu after its data on tablet and phone.
+- Verification: run `npm run build`, then run `npm run typecheck`; review desktop, tablet, and phone layouts in both themes.
+
 ### 2026-07-20 - Theme Control Placement
 
 - Removed the duplicate visible desktop theme button and moved the desktop toggle into the bottom sidebar archive/usage summary.
