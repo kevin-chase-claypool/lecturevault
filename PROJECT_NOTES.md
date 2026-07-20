@@ -1166,6 +1166,7 @@ For archive organization changes, manually verify:
 - Moved the start action below all of the values it captures, avoiding the previous misleading layout where the action appeared to precede the topic and date.
 - Added responsive details-flow styling so the setup remains ordered and compact on desktop, tablet, and phone widths. The start command now retains a compact desktop/tablet footprint and expands only where it improves phone ergonomics.
 - Labeled the setup fields `A` (Course) and `B` (Reconstruction topic), reserving numeric labels for the primary reconstruction workflow stages.
+- Consolidated the responsive theme switch into the bottom archive-storage and AI-usage summary so it is not presented as a navigation item; desktop retains the equivalent control only in the bottom sidebar summary.
 
 ### 2026-07-13 - Inspector Tooltip Refinement
 

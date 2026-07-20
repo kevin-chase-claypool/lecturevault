@@ -522,6 +522,10 @@ label {
   display: none;
 }
 
+.mobile-app-summary {
+  display: none;
+}
+
 .compact-usage-label {
   color: #8295a7;
   font-size: 0.63rem;
@@ -4563,10 +4567,18 @@ button.review-draft-button:disabled {
     padding: 10px 0 0;
   }
 
+  .mobile-app-summary,
   .mobile-sync-status,
   .mobile-usage-summary {
     display: grid;
     grid-column: 1 / -1;
+  }
+
+  .mobile-app-summary {
+    gap: 8px;
+    margin-top: 2px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 10px;
   }
 
   .sidebar-note {
@@ -4714,6 +4726,7 @@ button.review-draft-button:disabled {
     display: inline-flex;
   }
 
+  .mobile-app-summary,
   .mobile-sync-status,
   .mobile-usage-summary {
     display: grid;
@@ -7100,10 +7113,6 @@ body {
   margin-top: 2px;
 }
 
-.mobile-theme-toggle {
-  display: none;
-}
-
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #101923;
@@ -7780,10 +7789,10 @@ summary:focus-visible {
     --responsive-header-height: 80px;
   }
 
-  .nav.mobile-open .mobile-theme-toggle {
+  .nav.mobile-open .mobile-app-summary .mobile-theme-toggle {
     display: inline-flex;
-    grid-column: 1 / -1;
-    margin-top: 2px;
+    width: 100%;
+    margin-top: 0;
   }
 
   .workspace {
