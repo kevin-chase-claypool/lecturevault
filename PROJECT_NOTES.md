@@ -52,6 +52,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Added dark-mode styling for the Vault batch-selection toolbar and review-draft status indicator, removing the remaining light panel above the reconstruction explorer.
 - Verification: run `npm run build`, then run `npm run typecheck`.
 
+### 2026-07-20 - Explorer Row Dark Defaults
+
+- Added dark defaults for unselected Vault and Media Library explorer rows, internal table dividers, sort headers, and the Media Library folder tree.
+- This removes fixed light row backgrounds while preserving stronger selected and hover states.
+- Verification: run `npm run build`, then run `npm run typecheck`.
+
 ### 2026-07-20 - Vault Full-Width Details Panel
 
 - Moved the Vault selected-reconstruction inspector from its narrow right column to a full-width panel beneath the archive tree and reconstruction explorer.

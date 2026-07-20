@@ -7233,6 +7233,36 @@ body {
   background: #1c3040;
 }
 
+:root[data-theme="dark"] .lecture-list-row.explorer-row,
+:root[data-theme="dark"] .storage-row.explorer-row {
+  border-color: #2d4354;
+  background: #172635;
+}
+
+:root[data-theme="dark"] .lecture-list-row.explorer-row > *,
+:root[data-theme="dark"] .storage-row.explorer-row > * {
+  border-color: #2a3e4e;
+  color: #a9bfce;
+}
+
+:root[data-theme="dark"] .sort-header {
+  border-color: #2a3e4e;
+  color: #b9cad7;
+}
+
+:root[data-theme="dark"] .sort-header span {
+  color: #91a6b6;
+}
+
+:root[data-theme="dark"] .storage-folder-tree {
+  border-color: #3b5366;
+  background: #172635;
+}
+
+:root[data-theme="dark"] .storage-folder-children {
+  border-color: #2d4354;
+}
+
 :root[data-theme="dark"] .lecture-list-row.explorer-row.selected,
 :root[data-theme="dark"] .storage-row.explorer-row.selected,
 :root[data-theme="dark"] .archive-folder-tree summary.active,
