@@ -7244,6 +7244,24 @@ body {
   box-shadow: inset 3px 0 0 #65b4e1;
 }
 
+:root[data-theme="dark"] .vault-review-selection-bar {
+  border-color: #3b5366;
+  background: #182a38;
+}
+
+:root[data-theme="dark"] .draft-status,
+:root[data-theme="dark"] .draft-status.active {
+  border-color: #3d566a;
+  background: #1b2a38;
+  color: #b9cad7;
+}
+
+:root[data-theme="dark"] .draft-status.active {
+  border-color: #3d657d;
+  background: #1b3446;
+  color: #aee0fa;
+}
+
 :root[data-theme="dark"] .review-draft-panel .review-draft-source-list,
 :root[data-theme="dark"] .review-draft-panel input,
 :root[data-theme="dark"] .review-draft-panel .review-draft-next-step,
