@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-20 - Dark Course Status Accent
+
+- Restyled the course reconstruction, textbook, and syllabus status badges in dark mode with the same gold text, warm highlight, and inset accent used by the active navigation state.
+- This differentiates course status at a glance without introducing a separate visual language.
+- Verification: run `npm run build`, then run `npm run typecheck`.
+
 ### 2026-07-20 - Complete Dark Explorer and Study Cards
 
 - Added final-cascade dark-mode surfaces for unselected Vault and Media Library rows, study-page archive/list surfaces, source-media entries, and extracted-concept cards.

@@ -7225,6 +7225,15 @@ body {
   color: #164966;
 }
 
+/* Course totals are status markers. Match the selected navigation accent rather
+   than the neutral metadata treatment so they read as intentional highlights. */
+:root[data-theme="dark"] .course-stats span {
+  border-color: rgba(243, 201, 91, 0.42);
+  background: linear-gradient(180deg, rgba(243, 201, 91, 0.15), rgba(243, 201, 91, 0.08));
+  color: #f3ca54;
+  box-shadow: inset 2px 0 0 #e7be49;
+}
+
 :root[data-theme="dark"] .lecture-list-row.explorer-row:hover,
 :root[data-theme="dark"] .storage-row.explorer-row:hover,
 :root[data-theme="dark"] .review-draft-source-row:hover,
