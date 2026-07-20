@@ -5421,7 +5421,7 @@ export default function LectureVaultApp() {
               </div>
               <div className="capture-details-flow">
                 <label className="capture-course-field">
-                  <span className="capture-field-step">1</span>
+                  <span className="capture-field-step">A</span>
                   Course
                   <select
                     value={captureForm.courseId}
@@ -5442,7 +5442,7 @@ export default function LectureVaultApp() {
                 </label>
                 <div className="capture-meeting-fields">
                   <label>
-                    <span className="capture-field-step">2</span>
+                    <span className="capture-field-step">B</span>
                     Reconstruction topic
                     <input
                       value={captureForm.title}
