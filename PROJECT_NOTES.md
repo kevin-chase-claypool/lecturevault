@@ -1182,6 +1182,7 @@ For archive organization changes, manually verify:
 
 - Replaced the legacy blue/brown left rules on Dashboard workflow action panels with the shared gold emphasis edge used for active workspace navigation.
 - Retained blue selection states for file-explorer rows and neutral data interactions, where blue communicates selection rather than a primary workflow destination.
+- Added a final dark-theme Dashboard override with an inset gold edge so shared panel styling cannot visually replace the workflow emphasis with a blue border.
 
 ### 2026-07-13 - Inspector Tooltip Refinement
 

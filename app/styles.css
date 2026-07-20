@@ -7784,6 +7784,16 @@ summary:focus-visible {
   color: #b2c3d0;
 }
 
+/* Dashboard actions are workflow destinations, not explorer selections. */
+:root[data-theme="dark"] .dashboard .action-panel.capture-action,
+:root[data-theme="dark"] .dashboard .action-panel.basket-action {
+  border-color: #3b5366;
+  border-left-color: #e7be49;
+  box-shadow:
+    inset 4px 0 0 #e7be49,
+    0 5px 16px rgba(0, 0, 0, 0.16);
+}
+
 :root[data-theme="dark"] .archive-folder-tree,
 :root[data-theme="dark"] .storage-folder-tree,
 :root[data-theme="dark"] .lecture-list.explorer-list,
