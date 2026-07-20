@@ -7261,6 +7261,52 @@ body {
   background: #1b2a38;
 }
 
+/* Reconstruction workflow surfaces use light-specific gradients in the default theme. */
+:root[data-theme="dark"] .form-grid,
+:root[data-theme="dark"] .capture-actions,
+:root[data-theme="dark"] .dropzone,
+:root[data-theme="dark"] .lecture-dropzone,
+:root[data-theme="dark"] .capture-record-status,
+:root[data-theme="dark"] .capture-next-step {
+  border-color: #3b5366;
+  background: linear-gradient(180deg, #1b2d3c 0%, #172635 100%);
+  color: #c8d8e5;
+}
+
+:root[data-theme="dark"] .capture-record-status strong,
+:root[data-theme="dark"] .capture-next-step strong {
+  color: #9ed4f4;
+}
+
+:root[data-theme="dark"] .capture-record-status small {
+  color: #a7b8c7;
+}
+
+:root[data-theme="dark"] .capture-stage-heading > span,
+:root[data-theme="dark"] .capture-steps span {
+  border-color: #3d657d;
+  background: #1b3446;
+  color: #aee0fa;
+}
+
+:root[data-theme="dark"] .capture-steps span.complete {
+  border-color: #3d566a;
+  background: #1d2c3a;
+  color: #c8d8e5;
+}
+
+:root[data-theme="dark"] .readiness-badge {
+  border-color: #70573a;
+  background: #2d251c;
+  color: #f2c878;
+}
+
+:root[data-theme="dark"] .readiness-badge.ready {
+  border-color: #366d70;
+  background: #173538;
+  color: #9fded4;
+}
+
 :root[data-theme="dark"] .math-inline,
 :root[data-theme="dark"] .math-block,
 :root[data-theme="dark"] .katex,

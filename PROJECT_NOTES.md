@@ -41,6 +41,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Replaced the archive tree's default light gradient with dedicated dark explorer surfaces so folder labels, counts, and selection states remain readable in dark mode.
 - Verification: run `npm run build`, then run `npm run typecheck`.
 
+### 2026-07-20 - Complete Reconstruction Dark Surfaces
+
+- Added dedicated dark-mode surfaces for the reconstruction details grid, class-record guidance, workflow steps, readiness badges, source drop zones, and action panels.
+- Replaced their fixed light gradients with accessible dark equivalents while preserving source-state hierarchy and primary-action emphasis.
+- Verification: run `npm run build`, then run `npm run typecheck`.
+
 ### 2026-07-18 - Responsive Header Scroll Boundary
 
 - Returned tablet/phone layouts to native browser document scrolling after the internal application scroll container prevented scrolling in mobile Chrome.
