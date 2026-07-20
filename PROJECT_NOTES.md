@@ -1160,6 +1160,12 @@ For archive organization changes, manually verify:
 
 ## Next Priorities
 
+### 2026-07-20 - Reconstruction Details Sequence
+
+- Reordered the first reconstruction step into an explicit setup sequence: choose the course, set the meeting topic and date, then start the shared class record.
+- Moved the start action below all of the values it captures, avoiding the previous misleading layout where the action appeared to precede the topic and date.
+- Added responsive details-flow styling so the setup remains ordered and compact on desktop, tablet, and phone widths.
+
 ### 2026-07-13 - Inspector Tooltip Refinement
 
 - Constrained desktop metadata tooltips to the available details-pane width and made long source names, paths, and concept details wrap safely instead of creating horizontal overflow.

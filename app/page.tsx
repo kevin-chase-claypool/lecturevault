@@ -5416,76 +5416,78 @@ export default function LectureVaultApp() {
                 <span>1</span>
                 <div>
                   <h2 id="reconstruction-details-heading">Details</h2>
-                  <p>Choose the course first, then start its shared class record.</p>
+                  <p>Set the course, meeting topic, and date before opening the shared class record.</p>
                 </div>
               </div>
-              <div className="form-grid">
-                <div className="capture-course-start">
+              <div className="capture-details-flow">
+                <label className="capture-course-field">
+                  <span className="capture-field-step">1</span>
+                  Course
+                  <select
+                    value={captureForm.courseId}
+                    disabled={Boolean(activeDraft)}
+                    onChange={(event) =>
+                      setCaptureForm((current) => ({
+                        ...current,
+                        courseId: event.target.value
+                      }))
+                    }
+                  >
+                    {state.courses.map((course) => (
+                      <option key={course.id} value={course.id}>
+                        {course.code} {course.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="capture-meeting-fields">
                   <label>
-                    Course
-                    <select
-                      value={captureForm.courseId}
-                      disabled={Boolean(activeDraft)}
+                    <span className="capture-field-step">2</span>
+                    Reconstruction topic
+                    <input
+                      value={captureForm.title}
                       onChange={(event) =>
                         setCaptureForm((current) => ({
                           ...current,
-                          courseId: event.target.value
+                          title: event.target.value
                         }))
                       }
-                    >
-                      {state.courses.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.code} {course.name}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Laplace transform examples"
+                    />
                   </label>
-                  {activeDraft ? (
-                    <div className="capture-record-status">
-                      <strong>Class record active</strong>
-                      <span>{courseLabel(activeDraft.courseId)} · {activeDraft.date}</span>
-                      <small>{activeRecordSourceLabel} · shared across devices</small>
-                      <button type="button" onClick={discardClassDayRecord}>
-                        Discard class record
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      className="primary"
-                      type="button"
-                      onClick={startClassDayRecord}
-                      disabled={!captureForm.courseId}
-                    >
-                      Start class record
-                    </button>
-                  )}
+                  <label className="capture-date-field">
+                    Date
+                    <input
+                      type="date"
+                      value={captureForm.date}
+                      onChange={(event) =>
+                        setCaptureForm((current) => ({
+                          ...current,
+                          date: event.target.value
+                        }))
+                      }
+                    />
+                  </label>
                 </div>
-                <label>
-                  Reconstruction topic
-                  <input
-                    value={captureForm.title}
-                    onChange={(event) =>
-                      setCaptureForm((current) => ({
-                        ...current,
-                        title: event.target.value
-                      }))
-                    }
-                    placeholder="Laplace transform examples"
-                  />
-                </label>
-                <label>
-                  Date
-                  <input
-                    type="date"
-                    value={captureForm.date}
-                    onChange={(event) =>
-                      setCaptureForm((current) => ({
-                        ...current,
-                        date: event.target.value
-                      }))
-                    }
-                  />
-                </label>
+                {activeDraft ? (
+                  <div className="capture-record-status">
+                    <strong>Class record active</strong>
+                    <span>{courseLabel(activeDraft.courseId)} · {activeDraft.date}</span>
+                    <small>{activeRecordSourceLabel} · shared across devices</small>
+                    <button type="button" onClick={discardClassDayRecord}>
+                      Discard class record
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className="primary capture-record-action"
+                    type="button"
+                    onClick={startClassDayRecord}
+                    disabled={!captureForm.courseId}
+                  >
+                    Start class record
+                  </button>
+                )}
               </div>
             </section>
 

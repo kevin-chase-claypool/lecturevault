@@ -2721,6 +2721,56 @@ button.review-draft-button:disabled {
   width: 100%;
 }
 
+.capture-details-flow {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.78fr) minmax(0, 1.55fr);
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.capture-details-flow label {
+  min-width: 0;
+}
+
+.capture-course-field,
+.capture-meeting-fields > label {
+  display: grid;
+  gap: 6px;
+}
+
+.capture-field-step {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  margin-right: 5px;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--primary-dark);
+  font-size: 0.68rem;
+  font-weight: 900;
+  vertical-align: 1px;
+}
+
+.capture-meeting-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  gap: 12px;
+}
+
+.capture-record-action,
+.capture-details-flow > .capture-record-status {
+  grid-column: 1 / -1;
+}
+
+.capture-record-action {
+  min-height: 42px;
+}
+
 .capture-record-status,
 .capture-next-step {
   display: grid;
@@ -4562,6 +4612,11 @@ button.review-draft-button:disabled {
   .capture-hero,
   .capture-actions,
   .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .capture-details-flow,
+  .capture-meeting-fields {
     grid-template-columns: 1fr;
   }
 
@@ -7391,6 +7446,11 @@ body {
 
 :root[data-theme="dark"] .capture-record-status small {
   color: #a7b8c7;
+}
+
+:root[data-theme="dark"] .capture-details-flow {
+  border-color: #3b5366;
+  background: #1b2a38;
 }
 
 :root[data-theme="dark"] .capture-stage-heading > span,
