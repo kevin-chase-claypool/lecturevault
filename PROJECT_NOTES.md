@@ -1168,6 +1168,12 @@ For archive organization changes, manually verify:
 - Labeled the setup fields `A` (Course) and `B` (Reconstruction topic), reserving numeric labels for the primary reconstruction workflow stages.
 - Consolidated the responsive theme switch into the bottom archive-storage and AI-usage summary so it is not presented as a navigation item; desktop retains the equivalent control only in the bottom sidebar summary.
 
+### 2026-07-20 - Selective Textbook References
+
+- Added an explicit textbook-reference policy to reconstruction generation and the visible AI context preview.
+- AI now treats lecture media as the primary record, uses retrieved textbook excerpts only when they directly clarify a lecture-supported explanation, and places a nearby page citation only for those relevant paragraphs or formula explanations.
+- The generated `Textbook Context Used` section now contains only references that were actually used, with a brief statement of what each one clarified.
+
 ### 2026-07-13 - Inspector Tooltip Refinement
 
 - Constrained desktop metadata tooltips to the available details-pane width and made long source names, paths, and concept details wrap safely instead of creating horizontal overflow.

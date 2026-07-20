@@ -3,7 +3,8 @@ import type { ResponseInputMessageContentList } from "openai/resources/responses
 import { requireAuthenticatedRequest } from "../../../lib/auth";
 import {
   LECTURE_AI_INSTRUCTIONS,
-  LECTURE_AI_OUTPUT_CONTRACT
+  LECTURE_AI_OUTPUT_CONTRACT,
+  TEXTBOOK_REFERENCE_POLICY
 } from "../../../lib/lecture-ai-context";
 import {
   storageObjectToDataUrl,
@@ -382,6 +383,7 @@ export async function POST(request: Request) {
 
         return [
           `Textbook excerpt ${index + 1}: ${cleanString(chunk.textbookName) || "Course textbook"} (${pageLabel})`,
+          `Use this exact citation when this excerpt directly supports a nearby explanation: Textbook reference: ${cleanString(chunk.textbookName) || "Course textbook"}, ${pageLabel}.`,
           cleanString(chunk.text)
         ]
           .filter(Boolean)
@@ -407,6 +409,7 @@ export async function POST(request: Request) {
           textbookContextText
             ? `Relevant course textbook excerpts:\n${textbookContextText}`
             : "No course textbook excerpts were selected for this lecture.",
+          TEXTBOOK_REFERENCE_POLICY,
           audioTranscripts.length
             ? `Audio transcription text:\n${audioTranscripts.join("\n\n---\n\n")}`
             : "No audio transcription text was available. Use the notes and visible images.",

@@ -30,7 +30,8 @@ import {
 } from "lucide-react";
 import {
   LECTURE_AI_INSTRUCTIONS,
-  LECTURE_AI_OUTPUT_CONTRACT
+  LECTURE_AI_OUTPUT_CONTRACT,
+  TEXTBOOK_REFERENCE_POLICY
 } from "../lib/lecture-ai-context";
 
 type Screen =
@@ -4559,6 +4560,7 @@ export default function LectureVaultApp() {
     LECTURE_AI_INSTRUCTIONS,
     "REQUIRED OUTPUT STRUCTURE:",
     LECTURE_AI_OUTPUT_CONTRACT,
+    TEXTBOOK_REFERENCE_POLICY,
     "CURRENT RECONSTRUCTION CONTEXT:",
     `Course: ${courseLabel(captureForm.courseId)}`,
     `Topic: ${captureForm.title.trim() || "Untitled reconstruction"}`,
@@ -4586,7 +4588,7 @@ export default function LectureVaultApp() {
         ].join("\n")
       : "Source media manifest: none",
     reconstructionTextbookCount
-      ? `Textbook context: relevant excerpts will be retrieved from ${reconstructionTextbookCount} indexed course textbook${reconstructionTextbookCount === 1 ? "" : "s"}.`
+      ? `Textbook context: relevant excerpts will be retrieved from ${reconstructionTextbookCount} indexed course textbook${reconstructionTextbookCount === 1 ? "" : "s"}. Only excerpts that directly clarify a lecture paragraph or formula will be cited.`
       : "Textbook context: no indexed course textbooks."
   ].join("\n\n");
   const reconstructionHasSource = Boolean(
