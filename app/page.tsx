@@ -4696,15 +4696,6 @@ export default function LectureVaultApp() {
             <strong>{cloudSyncLabel}</strong>
           </div>
           <CompactUsageSummary state={state} className="mobile-usage-summary" />
-          <button
-            className="theme-toggle mobile-theme-toggle"
-            type="button"
-            aria-pressed={theme === "dark"}
-            onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
-          >
-            {theme === "dark" ? <Sun aria-hidden="true" size={16} /> : <Moon aria-hidden="true" size={16} />}
-            {theme === "dark" ? "Use light mode" : "Use dark mode"}
-          </button>
         </nav>
         <div className="sidebar-note">
           <div className="sidebar-library-summary">

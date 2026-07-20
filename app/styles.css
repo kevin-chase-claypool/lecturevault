@@ -7037,10 +7037,6 @@ body {
   margin-top: 2px;
 }
 
-.mobile-theme-toggle {
-  display: none;
-}
-
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #101923;
@@ -7449,12 +7445,7 @@ body {
 
 @media (max-width: 1120px) {
   .desktop-theme-toggle {
-    display: none;
-  }
-
-  .mobile-theme-toggle {
     display: inline-flex;
-    grid-column: 1 / -1;
   }
 }
 
