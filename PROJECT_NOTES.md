@@ -1178,6 +1178,11 @@ For archive organization changes, manually verify:
 
 - Added dark-theme auth page, card, and error treatments so the signed-out screen uses the same contrast and surface system as the authenticated workspace.
 
+### 2026-07-20 - Workflow Accent Consistency
+
+- Replaced the legacy blue/brown left rules on Dashboard workflow action panels with the shared gold emphasis edge used for active workspace navigation.
+- Retained blue selection states for file-explorer rows and neutral data interactions, where blue communicates selection rather than a primary workflow destination.
+
 ### 2026-07-13 - Inspector Tooltip Refinement
 
 - Constrained desktop metadata tooltips to the available details-pane width and made long source names, paths, and concept details wrap safely instead of creating horizontal overflow.
