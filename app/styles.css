@@ -7150,6 +7150,24 @@ body {
   background: linear-gradient(180deg, #111c28 0%, #0b141e 100%);
 }
 
+:root[data-theme="dark"] .auth-page {
+  background:
+    radial-gradient(circle at 50% 20%, rgba(48, 117, 158, 0.16), transparent 360px),
+    #101923;
+}
+
+:root[data-theme="dark"] .auth-card {
+  border-color: #3b566b;
+  background: #172330;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.32);
+}
+
+:root[data-theme="dark"] .auth-error {
+  border-color: #794543;
+  background: #311e22;
+  color: #ffb8b0;
+}
+
 :root[data-theme="dark"] .brand-button,
 :root[data-theme="dark"] .nav button,
 :root[data-theme="dark"] .theme-toggle {
