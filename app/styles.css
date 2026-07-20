@@ -2768,6 +2768,9 @@ button.review-draft-button:disabled {
 }
 
 .capture-record-action {
+  justify-self: start;
+  width: auto;
+  min-width: 190px;
   min-height: 42px;
 }
 
@@ -4618,6 +4621,11 @@ button.review-draft-button:disabled {
   .capture-details-flow,
   .capture-meeting-fields {
     grid-template-columns: 1fr;
+  }
+
+  .capture-record-action {
+    justify-self: stretch;
+    width: 100%;
   }
 
   .capture-steps,
