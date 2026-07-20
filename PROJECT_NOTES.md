@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-20 - Complete Dark Explorer and Study Cards
+
+- Added final-cascade dark-mode surfaces for unselected Vault and Media Library rows, study-page archive/list surfaces, source-media entries, and extracted-concept cards.
+- Used explicit dark precedence for components with fixed white defaults so both selected and unselected data remain readable without light flashes or white panels.
+- Verification: run `npm run build`, then run `npm run typecheck`.
+
 ### 2026-07-18 - Persistent Dark Mode
 
 - Added a persisted light/dark theme preference with accessible toggle controls in the desktop navigation rail and opened tablet/phone Menu.

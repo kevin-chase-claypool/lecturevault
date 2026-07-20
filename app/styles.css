@@ -7263,6 +7263,58 @@ body {
   border-color: #2d4354;
 }
 
+/* Keep every explorer and study-data surface in the same dark material family.
+   These rules intentionally sit after the light workbench pass, whose fixed white
+   defaults otherwise win for nested cards and virtualized-looking table rows. */
+:root[data-theme="dark"] .lecture-list.explorer-list,
+:root[data-theme="dark"] .storage-explorer-list,
+:root[data-theme="dark"] .lecture-list-row.explorer-row,
+:root[data-theme="dark"] .storage-row.explorer-row,
+:root[data-theme="dark"] .storage-folder-tree,
+:root[data-theme="dark"] .lecture-study-tree,
+:root[data-theme="dark"] .lecture-study-list,
+:root[data-theme="dark"] .study-selection-list,
+:root[data-theme="dark"] .study-selection-list details,
+:root[data-theme="dark"] .media-item,
+:root[data-theme="dark"] .concept-list > div,
+:root[data-theme="dark"] .usage-source-list span {
+  border-color: #334b5e !important;
+  background: #172635 !important;
+  color: #c7d7e3;
+}
+
+:root[data-theme="dark"] .lecture-list-row.explorer-row > *,
+:root[data-theme="dark"] .storage-row.explorer-row > *,
+:root[data-theme="dark"] .lecture-study-tree-summary,
+:root[data-theme="dark"] .lecture-study-list > button,
+:root[data-theme="dark"] .study-selection-list details[open] summary {
+  border-color: #2b4254 !important;
+  background: #172635 !important;
+  color: #c7d7e3;
+}
+
+:root[data-theme="dark"] .lecture-study-list > button:hover,
+:root[data-theme="dark"] .study-selection-list details[open] summary:hover,
+:root[data-theme="dark"] .storage-folder-button:hover {
+  background: #1c3040 !important;
+}
+
+:root[data-theme="dark"] .lecture-list-row.explorer-row.selected,
+:root[data-theme="dark"] .storage-row.explorer-row.selected,
+:root[data-theme="dark"] .lecture-study-list > button.selected,
+:root[data-theme="dark"] .storage-folder-button.active {
+  border-color: #4c83a6 !important;
+  background: #1a3a50 !important;
+  box-shadow: inset 3px 0 0 #65b4e1;
+}
+
+:root[data-theme="dark"] .media-item strong,
+:root[data-theme="dark"] .concept-list > div strong,
+:root[data-theme="dark"] .lecture-study-list strong,
+:root[data-theme="dark"] .study-selection-list summary span {
+  color: #edf5fa;
+}
+
 :root[data-theme="dark"] .lecture-list-row.explorer-row.selected,
 :root[data-theme="dark"] .storage-row.explorer-row.selected,
 :root[data-theme="dark"] .archive-folder-tree summary.active,
