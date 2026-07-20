@@ -47,6 +47,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Replaced their fixed light gradients with accessible dark equivalents while preserving source-state hierarchy and primary-action emphasis.
 - Verification: run `npm run build`, then run `npm run typecheck`.
 
+### 2026-07-20 - Vault Full-Width Details Panel
+
+- Moved the Vault selected-reconstruction inspector from its narrow right column to a full-width panel beneath the archive tree and reconstruction explorer.
+- Removed the inspector's constrained sticky viewport so summaries and KaTeX equations have natural reading width and are not cut off.
+- Verification: run `npm run build`, then run `npm run typecheck`.
+
 ### 2026-07-18 - Responsive Header Scroll Boundary
 
 - Returned tablet/phone layouts to native browser document scrolling after the internal application scroll container prevented scrolling in mobile Chrome.

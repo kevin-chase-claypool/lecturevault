@@ -1138,7 +1138,7 @@ label {
 
 .archive-organizer {
   display: grid;
-  grid-template-columns: minmax(240px, 0.32fr) minmax(360px, 1fr) 300px;
+  grid-template-columns: minmax(240px, 0.32fr) minmax(0, 1fr);
   gap: 14px;
   align-items: flex-start;
 }
@@ -1592,11 +1592,10 @@ button.review-draft-button:disabled {
 }
 
 .archive-organizer > .side-panel {
-  position: sticky;
-  top: 18px;
-  max-height: calc(100dvh - 44px);
-  overflow-x: hidden;
-  overflow-y: auto;
+  grid-column: 1 / -1;
+  position: static;
+  max-height: none;
+  overflow: visible;
 }
 
 .selected-lecture-kicker {
