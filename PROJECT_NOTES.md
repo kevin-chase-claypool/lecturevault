@@ -30,6 +30,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## Latest Changes
 
+### 2026-07-20 - Theme Control Placement
+
+- Removed the duplicate visible desktop theme button and moved the desktop toggle into the bottom sidebar archive/usage summary.
+- The compact Menu retains its own breakpoint-specific control beside its mobile sync and usage data, so only one theme action is visible at a time.
+- Verification: run `npm run build`, then run `npm run typecheck`.
+
 ### 2026-07-20 - Dark Course Status Accent
 
 - Restyled the course reconstruction, textbook, and syllabus status badges in dark mode with the same gold text, warm highlight, and inset accent used by the active navigation state.

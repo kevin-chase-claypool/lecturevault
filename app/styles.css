@@ -7033,6 +7033,10 @@ body {
   box-shadow: none;
 }
 
+.sidebar-note .theme-toggle {
+  margin-top: 2px;
+}
+
 .mobile-theme-toggle {
   display: none;
 }

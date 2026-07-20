@@ -4706,15 +4706,6 @@ export default function LectureVaultApp() {
             {theme === "dark" ? "Use light mode" : "Use dark mode"}
           </button>
         </nav>
-        <button
-          className="theme-toggle desktop-theme-toggle"
-          type="button"
-          aria-pressed={theme === "dark"}
-          onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
-        >
-          {theme === "dark" ? <Sun aria-hidden="true" size={16} /> : <Moon aria-hidden="true" size={16} />}
-          {theme === "dark" ? "Use light mode" : "Use dark mode"}
-        </button>
         <div className="sidebar-note">
           <div className="sidebar-library-summary">
             <span>Archived items</span>
@@ -4724,6 +4715,15 @@ export default function LectureVaultApp() {
           </div>
           <span className="sidebar-sync-status">{cloudSyncLabel}</span>
           <CompactUsageSummary state={state} className="sidebar-usage-summary" />
+          <button
+            className="theme-toggle desktop-theme-toggle"
+            type="button"
+            aria-pressed={theme === "dark"}
+            onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+          >
+            {theme === "dark" ? <Sun aria-hidden="true" size={16} /> : <Moon aria-hidden="true" size={16} />}
+            {theme === "dark" ? "Use light mode" : "Use dark mode"}
+          </button>
         </div>
       </aside>
 
