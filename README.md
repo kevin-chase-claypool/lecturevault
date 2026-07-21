@@ -1,66 +1,62 @@
 # LectureVault
 
-LectureVault is a transcription-first lecture vault and exam review builder. It keeps courses, lecture/media records, transcripts, extracted concepts, review sets, selected sources, and study guides in Supabase when configured, with browser local storage as a fallback/cache.
+LectureVault turns a daily class source bundle into a searchable, source-grounded reconstruction, then turns selected reconstructions into an exam review.
 
-## MVP Screens
+## User Workflow
 
-- Dashboard
-- Course list
-- Vault
-- Lecture detail page
-- New Lecture page
-- Exam basket list
-- Exam review builder
-- Exam basket detail page
-- Study guide preview page
+1. Create a course and optionally attach its syllabus and textbooks.
+2. Start one class record for that course and date.
+3. Share or upload the original lecture MP3, handwritten OneNote PDF, board images, and any relevant notes into that record from any device.
+4. Build the reconstruction. AI transcribes audio, interprets selected visual/PDF material, retrieves only relevant textbook excerpts, and produces a structured KaTeX-backed study artifact.
+5. Organize and study saved reconstructions in the Vault.
+6. Select multiple reconstructions to create an exam review. Review AI uses saved reconstruction artifacts; it does not transcribe the original audio again.
 
-## Core Behavior
+Original source media remains in Supabase Storage. Reconstruction and review outputs cite figures, timestamped audio clips, and textbook pages selectively rather than duplicating media throughout the document.
 
-- Capture lecture audio such as MP3, video, whiteboard images, PDFs, or rough transcript text.
-- Save every capture to the permanent vault first.
-- Build exam baskets such as Exam 1, Quiz 1, or Final.
-- Add vault lectures into exam baskets by button or drag/drop.
-- Generate a study guide from only the lectures selected in that exam basket.
-- Delete an exam basket without deleting original vault media or transcripts.
-- Link generated study material back to lecture titles, transcript timestamp segments, and media records.
-
-## Run Locally
+## Local Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open the local URL printed by Next.js.
+Open the local URL printed by Next.js. Before committing a change, run:
 
-## Supabase Sync
-
-Create the shared state table with:
-
-```sql
--- supabase/lecturevault_state.sql
-create table if not exists public.lecturevault_state (
-  id text primary key,
-  data jsonb not null,
-  updated_at timestamptz not null default now()
-);
+```bash
+npm run typecheck
+npm run build
 ```
 
-Set these Vercel environment variables:
+## Required Services
+
+LectureVault is a password-protected, single-owner workspace backed by Supabase.
 
 ```text
+LECTUREVAULT_APP_PASSWORD
 SUPABASE_URL
 SUPABASE_SERVICE_ROLE_KEY
+OPENAI_API_KEY
 ```
 
-Optional:
+Additional capabilities require their own configuration:
 
-```text
-LECTUREVAULT_STATE_ID=default
-OPENAI_LECTURE_MODEL=gpt-4.1-mini
-OPENAI_TRANSCRIPTION_MODEL=gpt-4o-transcribe
-```
+- Browserless: review PDF export.
+- Microsoft Graph / OneNote: readable OneNote page picker.
+- Supabase Storage: direct signed uploads and original-media preservation.
 
-## Notes
+See [PROJECT_NOTES.md](PROJECT_NOTES.md) for the complete environment-variable list, current architecture, limitations, and deployment conventions. Never commit secret values.
 
-Small selected media files are stored as data URLs inside the shared state for preview and lecture-level AI analysis. Larger files are represented by metadata so the UI remains responsive and cannot be transcribed/analyzed until durable file storage is added. Current capture can save manually pasted transcript text or generate an AI lecture artifact from supported source media.
+## Long Lecture Audio
+
+Upload one original MP3. When an MP3 is larger than 20 MB, the reconstruction API internally splits only its temporary transcription inputs at MP3 frame boundaries, preserves a short overlap, and merges diarized segments into one source-timestamped transcript. The original Supabase object remains unchanged.
+
+## Project Conventions
+
+- Main UI and state orchestration: `app/page.tsx`
+- Global visual system: `app/styles.css`
+- Reconstruction AI: `app/api/lecture-ai/route.ts`
+- Review AI: `app/api/exam-review/route.ts`
+- Review PDF: `app/api/exam-review/pdf/route.ts`
+- Update `PROJECT_NOTES.md` after every code change.
+- Use `apply_patch` for manual edits.
+- Push verified changes to both configured `main` remotes. Vercel production is served at [l3cturevault.vercel.app](https://l3cturevault.vercel.app).

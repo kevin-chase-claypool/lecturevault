@@ -28,7 +28,35 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 - Main UI: `app/page.tsx`.
 - Styles: `app/styles.css`.
 
+## New Thread Handoff
+
+Read this section before changing the project.
+
+- Workspace: `C:\Users\jacks\Documents\Fix spacemouse\LectureVault`.
+- Production app: `https://l3cturevault.vercel.app`. The repository has `origin` (`lecturevault`) and `l3cturevault` remotes; verified changes are pushed to `main` on both.
+- User workflow is one class record per class meeting. The user uploads one original lecture MP3 and optional handwritten OneNote PDF, board images, notes, and course-textbook context. These sources create one reconstruction; selected reconstructions later create one exam review.
+- Direct browser-to-Supabase uploads preserve original source files. Do not replace, rename, or move a Supabase object merely to reorganize a UI folder; saved reconstruction and review references depend on stable source paths.
+- Reconstruction audio is transcribed once using `gpt-4o-transcribe-diarize` by default. MP3s above 20 MB are split only as temporary frame-aligned transcription inputs, then merged into one chronological, original-time transcript. Reviews reuse saved reconstructions and must not re-transcribe raw audio.
+- AI source rules: media is the primary class record; textbook excerpts only clarify directly supported material; figures render once and are cited as `Fig. N`; audio citations use real timestamps; cited Supabase links are signed for authenticated access.
+- Primary modules: `app/page.tsx` (UI/state), `app/styles.css` (visual system), `app/api/lecture-ai/route.ts` (reconstruction), `app/api/exam-review/route.ts` (review), and `app/api/exam-review/pdf/route.ts` (PDF). Read the relevant route and adjacent UI before changing behavior.
+- Supabase setup scripts checked into the repository are `supabase/lecturevault_state.sql` and `supabase/onenote_tokens.sql`. Textbook retrieval also depends on `pgvector`, `public.textbook_chunks`, and the `match_textbook_chunks` RPC in the active Supabase project; a migration for that existing production schema has not yet been checked in.
+- Do not commit secrets, modify user records, or revert unrelated dirty worktree changes. Use `apply_patch` for manual edits.
+
+### Required Change Protocol
+
+1. Read the relevant architecture and latest-change sections in this file, then inspect the implementation before making assumptions.
+2. Keep the user-visible workflow simple: one source bundle in, one reconstruction out; selected reconstructions in, one review out.
+3. Preserve responsive light and dark themes. Verify desktop, tablet, and phone surfaces when touching shared UI or CSS.
+4. Update this file after every code change with behavior, rationale, and verification.
+5. Run `npm run typecheck` and `npm run build` before committing. Run focused manual workflow checks when behavior changes.
+6. Commit only the intended files, push `main` to both configured remotes, and confirm the Vercel deployment before telling the user the update is live.
+
 ## Latest Changes
+
+### 2026-07-21 - New Thread Documentation Handoff
+
+- Rewrote `README.md` to describe the current reconstruction-and-review product instead of retired lecture/exam-basket screens and obsolete local-media constraints.
+- Added a concise new-thread handoff and required change protocol, including the active data workflow, source-link invariants, primary modules, verification, deployment, and documentation rules.
 
 ### 2026-07-21 - Reliable Long-Lecture Audio Transcription
 
@@ -1180,7 +1208,7 @@ For archive organization changes, manually verify:
 
 ## Next Priorities
 
-- Add direct browser-to-Supabase signed uploads if deployment body limits block large MP3 uploads.
+- Add a checked-in migration for the existing `textbook_chunks` vector table and `match_textbook_chunks` RPC so a fresh Supabase project can enable textbook retrieval without manual reconstruction.
 - Replace single-row Supabase JSON state with relational tables and conflict-aware sync if multi-user editing becomes important.
 - Add explicit image upload/re-upload controls for archive items.
 - Add formula audit or uncertainty section for advanced engineering/math courses.
