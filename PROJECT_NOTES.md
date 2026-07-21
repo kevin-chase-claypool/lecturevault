@@ -6,12 +6,12 @@ Update this file after every code change. Keep it current with what changed, why
 
 ## Product Goal
 
-LectureVault is a transcription-first lecture archive with exam baskets. The intended workflow is:
+LectureVault is a source-grounded class reconstruction archive with exam reviews. The intended workflow is:
 
 1. Capture or upload lecture material.
-2. Archive the lecture, transcript, concepts, and media permanently.
-3. Add selected archived lectures/media into an exam basket.
-4. Use the basket as the active review preparation surface.
+2. Build and archive one reconstruction per class meeting, including its transcript, concepts, citations, and source media.
+3. Select archived reconstructions for an exam review.
+4. Use the review set as the active exam-preparation surface.
 5. Run a distinct AI aggregation pass over only the selected exam materials.
 6. Preview a focused exam review.
 7. Download a KaTeX-rendered PDF with formulas, source references, and board figures.
@@ -21,14 +21,34 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 ## Current Architecture
 
 - App: Next.js app in `LectureVault/`.
-- Storage: Supabase shared JSON state in `lecturevault_state` when configured, with browser `localStorage` under `lecturevault-state-v1` as fallback/cache. Lecture source media is stored in Supabase Storage when configured.
-- Archive data model: courses, lectures, media items, transcripts, extracted concepts, exam baskets, basket source references, and generated study guides.
+- Storage: Supabase shared JSON state in `lecturevault_state`, with browser `localStorage` under `lecturevault-state-v1` as a fallback/cache. Original source media is stored in Supabase Storage through direct signed browser uploads.
+- Archive data model: courses, class records, reconstructions, media items, transcripts, extracted concepts, review sets, source references, and generated study guides.
 - Exam review route: `app/api/exam-review/route.ts`.
 - PDF route: `app/api/exam-review/pdf/route.ts`.
 - Main UI: `app/page.tsx`.
 - Styles: `app/styles.css`.
 
 ## Latest Changes
+
+### 2026-07-21 - Reliable Long-Lecture Audio Transcription
+
+- Added internal MP3 transcription chunking for files larger than 20 MB. LectureVault splits only temporary transcription inputs at MP3 frame boundaries while leaving the single original MP3 untouched in Supabase.
+- Chunks target 16 MB, retain a two-second boundary overlap to protect spoken context, and merge diarized segments into one ordered transcript with source-relative timestamps.
+- Reconstruction AI receives one continuous transcript and retains accurate `Audio M:SS` citations against the original stored MP3. The user still uploads one lecture recording and never manages chunks.
+- Verified with `npm run typecheck` and `npm run build`.
+
+### 2026-07-21 - Reconstruction Evidence and Review Context
+
+- Added selective source-linked reconstruction evidence: stable `Fig. N` board visuals, source-grounded timestamped audio clips, and nearby textbook page citations only where they clarify lecture-supported material.
+- Added signed Supabase source links for authenticated, direct access from reconstructions and PDF exports without an additional LectureVault sign-in.
+- Review outputs render each selected figure once in a dedicated `Figure references` section and preserve clickable source links in their PDF appendix.
+- Removed the fixed combined-character review cutoff. Every selected reconstruction's saved text is now included; the safeguards are 25 selected reconstructions and 100 review figures, with visible failure rather than silent omission if provider capacity is exceeded.
+
+### 2026-07-20 - Reconstruction Flow and Theme Consistency
+
+- Ordered class-record setup as Course, Reconstruction topic, Date, then Start class record. Course and topic use `A` and `B` labels, leaving numbers for the main workflow stages.
+- Added selective textbook-reference instructions: retrieved excerpts clarify lecture-supported explanations only and use nearby page citations.
+- Completed dark authentication, dark explorer/card coverage, gold workflow emphasis, and consolidated theme controls into the bottom workspace summary.
 
 ### 2026-07-20 - Cohesive Interface Audit
 
@@ -532,12 +552,12 @@ The exam review must be a new synthesis artifact, not a raw transcript export.
 
 ## AI Boundaries
 
-Lecture-level AI and exam-level AI should remain separate.
+Lecture reconstruction AI and exam-review AI remain separate.
 
-- Lecture-level AI: transcribes/cleans/extracts concepts for one archived lecture. This is still mostly MVP/local behavior.
-- Exam-level AI: aggregates selected exam basket materials into a review. This is implemented through `/api/exam-review`.
+- Reconstruction AI: transcribes selected source audio, interprets selected visual/PDF/text context, retrieves relevant textbook excerpts, and creates one source-grounded class reconstruction.
+- Review AI: aggregates selected saved reconstructions into a focused exam review through `/api/exam-review`.
 
-The exam review route should not re-transcribe media. It should use saved transcripts, concepts, media references, and user exam instructions.
+The review route must not re-transcribe raw media. It uses saved reconstruction text, concepts, figures, citations, and user review instructions.
 
 ## Environment Variables
 
@@ -609,7 +629,7 @@ Default Browserless endpoint fallback:
 https://production-sfo.browserless.io/pdf
 ```
 
-## Recent Changes
+## Historical Change Log
 
 ### 2026-07-08 - Separate Review Action Workflows
 
@@ -1118,13 +1138,13 @@ https://production-sfo.browserless.io/pdf
 
 ## Known Limitations
 
-- Lecture media storage now uses Supabase Storage when configured, but server-routed uploads can still be constrained by deployment request body limits. Direct browser-to-Supabase signed uploads may be needed if large MP3 uploads are rejected by Vercel.
+- Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.
 - Supabase sync currently stores the whole app state as one JSON row with last-write-wins semantics.
 - Browser `localStorage` remains a fallback/cache and can diverge if Supabase is unavailable.
 - Existing media records that only contain metadata cannot recover original image pixels. Users must re-upload those images after the image embedding fix.
 - PDF image embedding uses stored image data returned by review generation when available; existing metadata-only image records still cannot render pixels.
 - Browserless is required for PDF output in deployed environments.
-- The app has no user accounts or cloud database yet.
+- The app is currently a single-owner password-protected workspace, not a multi-user product with separate user accounts and authorization policies.
 - The AI output should be source-audited for senior-level engineering/math accuracy.
 
 ## Verification Checklist
@@ -1159,86 +1179,6 @@ For archive organization changes, manually verify:
 7. Delete a folder and confirm lectures remain archived.
 
 ## Next Priorities
-
-### 2026-07-21 - Reliable Long-Lecture Audio Transcription
-
-- Added internal MP3 transcription chunking for files larger than 20 MB. LectureVault now splits only the temporary transcription inputs at MP3 frame boundaries while leaving the single original MP3 untouched in Supabase.
-- Chunks target 16 MB, retain a two-second boundary overlap to protect spoken context, and merge diarized segments back into one ordered transcript with source-relative timestamps.
-- Reconstruction AI therefore receives one continuous lecture transcript and can keep generating accurate `Audio M:SS` citations against the original stored MP3. The user still uploads one lecture recording and does not manage chunks.
-- Verified with:
-  - `npm run typecheck`
-  - `npm run build`
-
-### 2026-07-20 - Reconstruction Details Sequence
-
-- Reordered the first reconstruction step into an explicit setup sequence: choose the course, set the meeting topic and date, then start the shared class record.
-- Moved the start action below all of the values it captures, avoiding the previous misleading layout where the action appeared to precede the topic and date.
-- Added responsive details-flow styling so the setup remains ordered and compact on desktop, tablet, and phone widths. The start command now retains a compact desktop/tablet footprint and expands only where it improves phone ergonomics.
-- Added a final phone-specific stack for Course, Reconstruction topic, Date, and class-record status so narrow screens cannot retain desktop columns or clip the topic/date fields.
-- Labeled the setup fields `A` (Course) and `B` (Reconstruction topic), reserving numeric labels for the primary reconstruction workflow stages.
-- Consolidated the responsive theme switch into the bottom archive-storage and AI-usage summary so it is not presented as a navigation item; desktop retains the equivalent control only in the bottom sidebar summary.
-
-### 2026-07-20 - Selective Textbook References
-
-- Added an explicit textbook-reference policy to reconstruction generation and the visible AI context preview.
-- AI now treats lecture media as the primary record, uses retrieved textbook excerpts only when they directly clarify a lecture-supported explanation, and places a nearby page citation only for those relevant paragraphs or formula explanations.
-- The generated `Textbook Context Used` section now contains only references that were actually used, with a brief statement of what each one clarified.
-
-### 2026-07-21 - Source-Linked Reconstruction Evidence
-
-- Added a selective evidence model for reconstruction output: cited board visuals appear as stable `Fig. N` references, source-grounded audio clips use real transcription segment ranges, and relevant textbook support retains the cited page or page range.
-- New audio reconstructions default to `gpt-4o-transcribe-diarize`, which provides true timestamps. The app no longer invents audio cue points from synthetic transcript rows; when timestamped transcription is unavailable, audio clip citations are omitted.
-- Added a compact, collapsed `Source references` panel beneath each reconstruction with figure previews, clip players that start and stop at the cited range, and textbook-page links. It stays out of the reading flow until opened.
-- Added inline source links to the KaTeX/structured reconstruction preview for `Fig. N`, `Audio M:SS`, and exact textbook citations.
-- Added an authenticated signed-link service for Supabase objects. LectureVault creates private, direct Supabase URLs valid for seven days while the user is signed in, so opening a source from the reconstruction or its PDF does not require another LectureVault sign-in.
-- Exam review PDFs now receive a compact clickable Source Links appendix containing only the cited figures, audio cues, and textbook pages from selected reconstructions.
-- Verified with:
-  - `npm run typecheck`
-  - `npm run build`
-
-### 2026-07-21 - Canonical Review Figures
-
-- Generated reviews now render selected board and note images in one dedicated `Figure references` section beneath the KaTeX/structured study guide.
-- Each image is shown exactly once under its stable `Fig. N` label. Review prose refers back to that label rather than duplicating the same image beside every related explanation.
-- Figure cards link to the original private Supabase source through the existing signed-source flow, and the review PDF uses the same single-placement `Figure References` appendix.
-
-### 2026-07-21 - Expanded Review Context
-
-- Removed the fixed combined-character cutoff from review generation. Every selected reconstruction's saved text is now included, rather than silently omitting later lecture material after an internal character budget is exhausted.
-- The independent safeguards of 25 selected reconstructions and 100 review figures remain in place. If an unusually large selection exceeds the configured AI model or provider request capacity, generation will fail visibly rather than producing an incomplete review.
-
-### 2026-07-20 - Dark Authentication Surface
-
-- Added dark-theme auth page, card, and error treatments so the signed-out screen uses the same contrast and surface system as the authenticated workspace.
-
-### 2026-07-20 - Workflow Accent Consistency
-
-- Replaced the legacy blue/brown left rules on Dashboard workflow action panels with the shared gold emphasis edge used for active workspace navigation.
-- Retained blue selection states for file-explorer rows and neutral data interactions, where blue communicates selection rather than a primary workflow destination.
-- Added a final dark-theme Dashboard override with an inset gold edge so shared panel styling cannot visually replace the workflow emphasis with a blue border.
-
-### 2026-07-13 - Inspector Tooltip Refinement
-
-- Constrained desktop metadata tooltips to the available details-pane width and made long source names, paths, and concept details wrap safely instead of creating horizontal overflow.
-- Added hover and keyboard-focus metadata inspectors to Media Library file-size and reconstruction-reference bubbles, while retaining the visible reference list for touch devices.
-- Removed horizontal scrolling from the Vault Details inspector while preserving vertical scrolling for long records.
-- Removed course-term labels from workspace page headers to keep navigation context compact and consistent.
-
-### 2026-07-13 - Interface Refinement Pass
-
-- Tightened the shared control and surface system with calmer secondary actions, tactile button feedback, centered desktop composition, and more legible dashboard rows.
-- Reworked phone header actions so the primary reconstruction action has a full row, with the review draft and log-out controls placed beneath it.
-- Matched the Vault course selector width to the Details inspector for clearer alignment in the archive workspace.
-- Replaced Review source cards with a compact, sortable file-explorer list and a focused selected-reconstruction preview.
-- Added explicit Review Draft progression guidance so disabled creation and generation actions explain the next required step.
-- Moved global token-usage totals and reconstruction/textbook/review breakdowns from the dashboard into the desktop sidebar and mobile navigation drawer.
-- Reduced sidebar and mobile usage labels to total-token counts, with full input/output breakdowns retained in native hover tooltips.
-- Aligned desktop sidebar library counts into the same compact label/value row pattern as AI usage.
-- Hide the New Reconstruction shortcut while the user is already on the New Reconstruction workspace.
-- Limit the mobile Media Library explorer to five visible file rows, with a sticky header and vertical scrolling for larger libraries.
-- Limit the Vault Archive Tree to half the viewport height with internal vertical scrolling for large course/folder structures.
-- Remove the redundant Dashboard top-bar reconstruction shortcut; the dashboard action card remains the primary route into a new reconstruction.
-- Removed all duplicate New Reconstruction buttons. Navigation is intentionally available only through the sidebar and mobile Menu.
 
 - Add direct browser-to-Supabase signed uploads if deployment body limits block large MP3 uploads.
 - Replace single-row Supabase JSON state with relational tables and conflict-aware sync if multi-user editing becomes important.
