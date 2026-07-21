@@ -7750,6 +7750,75 @@ function EvidenceReferencePanel({
   );
 }
 
+function ReviewFigureReferences({ figures }: { figures: ReviewFigure[] }) {
+  const storageReferences = useMemo(
+    () =>
+      figures
+        .filter((figure) => figure.storagePath)
+        .map((figure) => ({
+          bucket: figure.storageBucket,
+          path: figure.storagePath
+        })),
+    [figures]
+  );
+  const signedUrls = useSignedStorageUrls(storageReferences);
+
+  if (!figures.length) {
+    return null;
+  }
+
+  return (
+    <section className="review-figure-references" aria-label="Figure references used in this review">
+      <div className="review-figure-references-heading">
+        <div>
+          <span className="pill">Figures</span>
+          <h4>Figure references</h4>
+          <p>Each source image appears once. Use its figure label throughout the review.</p>
+        </div>
+        <span>{figures.length} source{figures.length === 1 ? "" : "s"}</span>
+      </div>
+      <div className="review-figure-grid">
+        {figures.map((figure) => {
+          const directUrl = figure.storagePath
+            ? signedUrls.get(
+                storageReferenceKey({
+                  bucket: figure.storageBucket,
+                  path: figure.storagePath
+                })
+              )
+            : "";
+          const sourceUrl =
+            figure.dataUrl ||
+            directUrl ||
+            (figure.storagePath
+              ? storageObjectUrl(figure.storagePath, figure.storageBucket)
+              : "");
+          const caption = `${figure.label}: ${figure.name}${
+            figure.lectureTitle ? ` from ${figure.lectureTitle}` : ""
+          }`;
+
+          return (
+            <figure className="review-figure" key={`${figure.lectureId}-${figure.label}-${figure.name}`}>
+              <div className="review-figure-label">
+                <strong>{figure.label}</strong>
+                <span>{figure.lectureTitle}</span>
+              </div>
+              {sourceUrl ? (
+                <a href={sourceUrl} target="_blank" rel="noreferrer" title="Open original source image">
+                  <img src={sourceUrl} alt={caption} />
+                </a>
+              ) : (
+                <div className="review-figure-missing">Source image is unavailable.</div>
+              )}
+              <figcaption>{figure.name}</figcaption>
+            </figure>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function OneNoteExplorer({
   childrenById,
   depth = 0,
@@ -8768,6 +8837,7 @@ function ExamDetail({
               <span>{new Date(selectedGuide.createdAt).toLocaleString()}</span>
             </div>
             <ReviewMarkdownPreview compact text={selectedGuide.content} />
+            <ReviewFigureReferences figures={selectedGuide.figures || []} />
           </section>
         ) : null}
 

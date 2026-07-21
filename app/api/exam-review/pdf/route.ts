@@ -161,7 +161,7 @@ function figureHtml(figures: ReviewFigure[]) {
   }
 
   return `<section class="figures">
-    <h2>Board Figure Appendix</h2>
+    <h2>Figure References</h2>
     ${figures
       .map((figure) => {
         const caption = `${cleanString(figure.label) || "Fig."}: ${

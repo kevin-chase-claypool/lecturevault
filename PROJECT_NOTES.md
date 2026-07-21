@@ -1187,6 +1187,12 @@ For archive organization changes, manually verify:
   - `npm run typecheck`
   - `npm run build`
 
+### 2026-07-21 - Canonical Review Figures
+
+- Generated reviews now render selected board and note images in one dedicated `Figure references` section beneath the KaTeX/structured study guide.
+- Each image is shown exactly once under its stable `Fig. N` label. Review prose refers back to that label rather than duplicating the same image beside every related explanation.
+- Figure cards link to the original private Supabase source through the existing signed-source flow, and the review PDF uses the same single-placement `Figure References` appendix.
+
 ### 2026-07-20 - Dark Authentication Surface
 
 - Added dark-theme auth page, card, and error treatments so the signed-out screen uses the same contrast and surface system as the authenticated workspace.
