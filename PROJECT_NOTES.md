@@ -39,7 +39,7 @@ Read this section before changing the project.
 - Reconstruction audio is transcribed once using `gpt-4o-transcribe-diarize` by default. MP3s above 20 MB are split only as temporary frame-aligned transcription inputs, then merged into one chronological, original-time transcript. Reviews reuse saved reconstructions and must not re-transcribe raw audio.
 - AI source rules: media is the primary class record; textbook excerpts only clarify directly supported material; figures render once and are cited as `Fig. N`; audio citations use real timestamps; cited Supabase links are signed for authenticated access.
 - Primary modules: `app/page.tsx` (UI/state), `app/styles.css` (visual system), `app/api/lecture-ai/route.ts` (reconstruction), `app/api/exam-review/route.ts` (review), and `app/api/exam-review/pdf/route.ts` (PDF). Read the relevant route and adjacent UI before changing behavior.
-- Supabase setup scripts checked into the repository are `supabase/lecturevault_state.sql` and `supabase/onenote_tokens.sql`. Textbook retrieval also depends on `pgvector`, `public.textbook_chunks`, and the `match_textbook_chunks` RPC in the active Supabase project; a migration for that existing production schema has not yet been checked in.
+- Supabase setup scripts checked into the repository are `supabase/lecturevault_state.sql`, `supabase/onenote_tokens.sql`, and `supabase/textbook_retrieval.sql`. Textbook retrieval depends on `pgvector`, `public.textbook_chunks`, and the `match_textbook_chunks` RPC; apply `textbook_retrieval.sql` to a fresh Supabase project before its first textbook upload.
 - Do not commit secrets, modify user records, or revert unrelated dirty worktree changes. Use `apply_patch` for manual edits.
 
 ### Required Change Protocol
@@ -52,6 +52,17 @@ Read this section before changing the project.
 6. Commit only the intended files, push `main` to both configured remotes, and confirm the Vercel deployment before telling the user the update is live.
 
 ## Latest Changes
+
+### 2026-07-21 - Textbook Evidence Retrieval and Citation Verification
+
+- Added `supabase/textbook_retrieval.sql`, which creates the checked-in `pgvector` table, indexes, and bounded semantic-search RPC required for textbook retrieval in a fresh project.
+- Removed the previous silent 180-chunk indexing cap. A textbook upload now embeds every readable extracted section, so later chapters remain searchable instead of being omitted without warning.
+- Textbook upload indexes native PDF text across every readable page. For sparse scanned/image-only pages, it automatically creates a faithful visual search record before embedding; the source PDF remains the permanent authority in Supabase Storage.
+- Textbook indexing usage now includes both native-embedding tokens and any visual-page analysis tokens, so the stored usage summary reflects the complete one-time indexing cost.
+- Reconstruction AI now receives up to eight semantically retrieved excerpts together with isolated original PDF pages from those exact locations. The original page is used to verify equations, diagrams, tables, units, and notation before a citation is emitted.
+- Review AI receives the original pages for textbook citations already selected by its reconstructions, so review citations are also visually grounded rather than relying only on saved text.
+- Citation behavior remains selective: only material that clarifies lecture-supported content is cited, and figures/textbook pages are linked rather than repeatedly duplicated.
+- Verification required: run `npm run typecheck`, then `npm run build`; upload a textbook, reconstruct a lecture with a textbook-supported formula, generate a review, and confirm a concise citation links to the expected PDF page.
 
 ### 2026-07-21 - New Thread Documentation Handoff
 
@@ -708,7 +719,7 @@ https://production-sfo.browserless.io/pdf
 - Added `textbooks` and `textbookChunks` to the shared Vault state.
 - Textbook extraction now generates OpenAI embeddings and upserts chunk vectors into Supabase `public.textbook_chunks`.
 - New textbook uploads keep full chunk text in Supabase vector rows rather than bloating the shared JSON app state.
-- Lecture AI generation now uses the Supabase `match_textbook_chunks` RPC for semantic textbook retrieval when a course id is available.
+- Lecture AI generation now uses the Supabase `match_textbook_chunks` RPC for semantic textbook retrieval when a course id is available. This was later strengthened with original-page visual verification in the 2026-07-21 entry above.
 - Lecture AI instructions now require a `Textbook Context Used` section and page citations when textbook excerpts are used.
 - Removing a textbook deletes its vector rows from Supabase before removing local metadata.
 - Verified with:
@@ -1208,7 +1219,7 @@ For archive organization changes, manually verify:
 
 ## Next Priorities
 
-- Add a checked-in migration for the existing `textbook_chunks` vector table and `match_textbook_chunks` RPC so a fresh Supabase project can enable textbook retrieval without manual reconstruction.
+- Add resilient background or resumable indexing for exceptionally large scanned textbooks if production uploads approach the hosting runtime limit; retain the current single-upload, no-manual-step workflow.
 - Replace single-row Supabase JSON state with relational tables and conflict-aware sync if multi-user editing becomes important.
 - Add explicit image upload/re-upload controls for archive items.
 - Add formula audit or uncertainty section for advanced engineering/math courses.

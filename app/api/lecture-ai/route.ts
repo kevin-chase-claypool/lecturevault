@@ -10,6 +10,10 @@ import {
   storageObjectToDataUrl,
   supabaseServerClient
 } from "../../../lib/supabase-server";
+import {
+  textbookPageEvidence,
+  type TextbookPageSource
+} from "../../../lib/textbook-page-evidence";
 
 export const runtime = "nodejs";
 
@@ -19,7 +23,9 @@ const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
 const MAX_IMAGE_INPUTS = 30;
 const MAX_AUDIO_INPUTS = 3;
 const MAX_DOCUMENT_INPUTS = 5;
-const MAX_TEXTBOOK_CONTEXT = 10;
+// Keep retrieval and original-page verification aligned: every retrieved context
+// candidate can be backed by its actual textbook page in the same model request.
+const MAX_TEXTBOOK_CONTEXT = 8;
 // Leave reliable headroom below the Audio API's 25 MB request limit. These chunks
 // are created only for transcription; the original source remains in Supabase.
 const MAX_TRANSCRIPTION_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -47,6 +53,8 @@ type TextbookContextChunk = {
   textbookId?: string;
   textbookName?: string;
 };
+
+type TextbookSource = TextbookPageSource;
 
 type OneNoteSource = {
   notebookName?: string;
@@ -518,11 +526,13 @@ export async function POST(request: Request) {
       mediaItems?: LectureMediaItem[];
       oneNoteSources?: OneNoteSource[];
       textbookContext?: TextbookContextChunk[];
+      textbookSources?: TextbookSource[];
     };
     const mediaItems = Array.isArray(body.mediaItems) ? body.mediaItems : [];
     const oneNoteSources = Array.isArray(body.oneNoteSources) ? body.oneNoteSources : [];
+    const textbookSources = Array.isArray(body.textbookSources) ? body.textbookSources : [];
     let textbookContext = Array.isArray(body.textbookContext)
-      ? body.textbookContext.slice(0, 10)
+      ? body.textbookContext.slice(0, 8)
       : [];
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     let totalUsage: TokenUsage = {};
@@ -752,6 +762,21 @@ export async function POST(request: Request) {
       })
       .filter(Boolean)
       .join("\n\n---\n\n");
+    const textbookVisualPages = await textbookPageEvidence({
+      requests: textbookContext.map((chunk) => ({
+        pageEnd: chunk.pageEnd,
+        pageStart: chunk.pageStart,
+        textbookId: chunk.textbookId,
+        textbookName: chunk.textbookName
+      })),
+      sources: textbookSources
+    });
+    const textbookVisualPageManifest = textbookVisualPages
+      .map(
+        (page) =>
+          `Visual textbook page: ${page.textbookName}, p. ${page.pageNumber}. This is the original PDF page for the retrieved excerpt; inspect its equations, diagrams, units, and layout before relying on or citing it.`
+      )
+      .join("\n");
     const content: ResponseInputMessageContentList = [
       {
         type: "input_text",
@@ -773,6 +798,9 @@ export async function POST(request: Request) {
           textbookContextText
             ? `Relevant course textbook excerpts:\n${textbookContextText}`
             : "No course textbook excerpts were selected for this lecture.",
+          textbookVisualPageManifest
+            ? `Original textbook pages attached for visual verification:\n${textbookVisualPageManifest}`
+            : "No original textbook page could be attached for visual verification.",
           TEXTBOOK_REFERENCE_POLICY,
           audioTranscripts.length
             ? `Audio transcription text:\n${audioTranscripts.join("\n\n---\n\n")}`
@@ -798,6 +826,12 @@ export async function POST(request: Request) {
         detail: "high" as const,
         file_data: dataUrl,
         filename: cleanString(item.name) || "onenote-page.pdf"
+      })),
+      ...textbookVisualPages.map((page) => ({
+        type: "input_file" as const,
+        detail: "high" as const,
+        file_data: page.dataUrl,
+        filename: page.filename
       }))
     ];
     const response = await client.responses.create({

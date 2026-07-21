@@ -309,6 +309,9 @@ type CourseTextbook = {
   storageBucket?: string;
   storagePath?: string;
   pageCount?: number;
+  nativeTextPageCount?: number;
+  visuallyIndexedPageCount?: number;
+  visuallyDependentPageCount?: number;
   chunkCount: number;
   indexedChunkCount?: number;
   embeddingUsage?: TokenUsage | null;
@@ -2764,14 +2767,21 @@ export default function LectureVaultApp() {
           embeddingUsage?: TokenUsage | null;
           error?: string;
           indexedChunkCount?: number;
+          nativeTextPageCount?: number;
           pageCount?: number;
+          visuallyIndexedPageCount?: number;
+          visuallyDependentPageCount?: number;
         };
 
         if (!response.ok) {
           throw new Error(data.error || `Could not extract ${file.name}.`);
         }
 
-        updatePipelineStep("extract", "done", `${data.pageCount || 0} pages read`);
+        updatePipelineStep(
+          "extract",
+          "done",
+          `${data.pageCount || 0} pages read; ${data.visuallyIndexedPageCount || 0} visual-first pages indexed`
+        );
         updatePipelineStep(
           "index",
           "done",
@@ -2789,9 +2799,12 @@ export default function LectureVaultApp() {
           size: file.size,
           storageBucket: storage.storageBucket,
           storagePath: storage.storagePath,
+          nativeTextPageCount: data.nativeTextPageCount,
           pageCount: data.pageCount,
           chunkCount,
           indexedChunkCount: data.indexedChunkCount || 0,
+          visuallyIndexedPageCount: data.visuallyIndexedPageCount,
+          visuallyDependentPageCount: data.visuallyDependentPageCount,
           embeddingUsage: data.embeddingUsage || null,
           createdAt: new Date().toISOString()
         };
@@ -2802,7 +2815,7 @@ export default function LectureVaultApp() {
           textbookChunks: current.textbookChunks
         }));
         setStatus(
-          `Added ${file.name} to ${course.code}. Indexed ${data.indexedChunkCount || 0} textbook chunk${data.indexedChunkCount === 1 ? "" : "s"} for AI search.`
+          `Added ${file.name} to ${course.code}. Indexed ${data.indexedChunkCount || 0} textbook sections for AI search and original-page verification.`
         );
         updatePipelineStep("save", "done", `${file.name} ready for AI search`);
       }
@@ -3308,6 +3321,12 @@ export default function LectureVaultApp() {
               .join("\n\n"),
             oneNoteSources,
             textbookContext,
+            textbookSources: courseTextbooks.map((textbook) => ({
+              textbookId: textbook.id,
+              name: textbook.name,
+              storageBucket: textbook.storageBucket,
+              storagePath: textbook.storagePath
+            })),
             title
           }),
           credentials: "include",
@@ -3838,6 +3857,21 @@ export default function LectureVaultApp() {
     const courseStudyProfile = state.courses.find(
       (course) => course.id === selectedExam.courseId
     )?.studyProfile;
+    const courseTextbooks = state.textbooks.filter(
+      (textbook) => textbook.courseId === selectedExam.courseId
+    );
+    const textbookCitations = selectedTranscripts.flatMap((transcript) =>
+      evidenceForTranscript(transcript, selectedMediaItems).textbookCitations.map((citation) => {
+        const textbook = courseTextbooks.find(
+          (item) => item.name.trim().toLowerCase() === citation.textbookName.trim().toLowerCase()
+        );
+
+        return {
+          ...citation,
+          textbookId: textbook?.id
+        };
+      })
+    );
     const reviewMediaItems = selectedMediaItems.map((item) =>
       item.kind === "image" && embeddedDataUrlForMedia(item)
         ? { ...item, dataUrl: embeddedDataUrlForMedia(item) }
@@ -3866,7 +3900,14 @@ export default function LectureVaultApp() {
           lectures: selectedExamLectures,
           transcripts: selectedTranscripts,
           concepts: selectedConcepts,
-          mediaItems: reviewMediaItems
+          mediaItems: reviewMediaItems,
+          textbookCitations,
+          textbookSources: courseTextbooks.map((textbook) => ({
+            textbookId: textbook.id,
+            name: textbook.name,
+            storageBucket: textbook.storageBucket,
+            storagePath: textbook.storagePath
+          }))
         })
       });
       const data = (await response.json()) as {
@@ -5308,9 +5349,12 @@ export default function LectureVaultApp() {
                             <div>
                               <strong>{textbook.name}</strong>
                               <small>
-                                {formatFileSize(textbook.size)} -{" "}
-                                {textbook.pageCount || 0} pages -{" "}
-                                {textbook.indexedChunkCount || 0} indexed AI chunks
+                                {formatFileSize(textbook.size)} - {textbook.pageCount || 0} pages -{" "}
+                                {textbook.indexedChunkCount || 0} indexed sections
+                                {typeof textbook.visuallyIndexedPageCount === "number" &&
+                                textbook.visuallyIndexedPageCount > 0
+                                  ? ` - ${textbook.visuallyIndexedPageCount} visual pages analyzed`
+                                  : ""}
                                 {textbook.embeddingUsage
                                   ? ` - ${formatTokenUsage(textbook.embeddingUsage)} embedding usage`
                                   : ""}

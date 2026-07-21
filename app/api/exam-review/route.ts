@@ -2,8 +2,14 @@ import OpenAI from "openai";
 import type { ResponseInputMessageContentList } from "openai/resources/responses/responses";
 import { requireAuthenticatedRequest } from "../../../lib/auth";
 import { storageObjectToDataUrl } from "../../../lib/supabase-server";
+import {
+  textbookPageEvidence,
+  type TextbookPageRequest,
+  type TextbookPageSource
+} from "../../../lib/textbook-page-evidence";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const DEFAULT_MODEL = "gpt-4.1-mini";
 const MAX_LECTURES = 25;
@@ -58,6 +64,9 @@ type ExamReviewFigure = {
   storagePath?: string;
   sourceCaption?: string;
 };
+
+type ExamReviewTextbookCitation = TextbookPageRequest;
+type ExamReviewTextbookSource = TextbookPageSource;
 
 function jsonError(message: string, status: number) {
   return Response.json({ error: message }, { status });
@@ -301,6 +310,8 @@ export async function POST(request: Request) {
       transcripts?: ExamReviewTranscript[];
       concepts?: ExamReviewConcept[];
       mediaItems?: ExamReviewMediaItem[];
+      textbookCitations?: ExamReviewTextbookCitation[];
+      textbookSources?: ExamReviewTextbookSource[];
     };
     const lectures = Array.isArray(body.lectures) ? body.lectures : [];
 
@@ -317,6 +328,10 @@ export async function POST(request: Request) {
     );
     const concepts = Array.isArray(body.concepts) ? body.concepts : [];
     const mediaItems = Array.isArray(body.mediaItems) ? body.mediaItems : [];
+    const textbookCitations = Array.isArray(body.textbookCitations)
+      ? body.textbookCitations
+      : [];
+    const textbookSources = Array.isArray(body.textbookSources) ? body.textbookSources : [];
     const figures = await buildFigures(lectures, mediaItems);
     const examName = cleanString(body.examName) || "Exam";
     const courseName = cleanString(body.courseName);
@@ -343,6 +358,16 @@ export async function POST(request: Request) {
     const imageInputs = figures
       .filter((figure) => cleanString(figure.dataUrl).startsWith("data:image/"))
       .slice(0, MAX_IMAGE_INPUTS);
+    const textbookVisualPages = await textbookPageEvidence({
+      requests: textbookCitations,
+      sources: textbookSources
+    });
+    const textbookPageManifest = textbookVisualPages
+      .map(
+        (page) =>
+          `- ${page.textbookName}, p. ${page.pageNumber}: original textbook page attached for visual verification.`
+      )
+      .join("\n");
     const content: ResponseInputMessageContentList = [
       {
         type: "input_text",
@@ -351,6 +376,9 @@ export async function POST(request: Request) {
           `Exam: ${examName}`,
           `Course: ${courseName || "Unfiled"}`,
           courseStudyProfile ? `Saved course study profile:\n${courseStudyProfile}` : "",
+          textbookPageManifest
+            ? `Original textbook reference pages:\n${textbookPageManifest}`
+            : "No original textbook reference pages were needed for this review.",
           "Selected archive materials:",
           buildLectureBundle({ lectures, transcripts, concepts, figures })
         ]
@@ -361,6 +389,12 @@ export async function POST(request: Request) {
         type: "input_image" as const,
         image_url: figure.dataUrl,
         detail: "auto" as const
+      })),
+      ...textbookVisualPages.map((page) => ({
+        type: "input_file" as const,
+        detail: "high" as const,
+        file_data: page.dataUrl,
+        filename: page.filename
       }))
     ];
 
@@ -373,6 +407,7 @@ export async function POST(request: Request) {
         "Prioritize high-yield concepts, formulas, assumptions, worked problem patterns, common mistakes, and practice steps.",
         "Use LaTeX math with \\(...\\) for inline math and complete \\[ equation \\] blocks for display math.",
         "Reference useful images by the provided labels such as Fig. 1 and Fig. 2.",
+        "When original textbook pages are attached, use them to verify equations, diagrams, tables, notation, units, and page references before relying on them. Cite textbook support compactly as [Textbook Name, p. N] only where it materially clarifies the lecture content; do not invent textbook citations or repeat the same citation excessively.",
         "The Figure-Guided Review section must list every provided figure label, explain what it appears to support if visible, and say when an image is available only as archive metadata.",
         "The Source Map must include figure labels next to the lecture that provided them.",
         "Include these top-level Markdown headings in order: ## Study Guide Overview, ## High-Yield Concepts, ## Formula Sheet, ## Worked Problems and Patterns, ## Figure-Guided Review, ## Common Mistakes, ## Practice Checklist, ## Source Map."
