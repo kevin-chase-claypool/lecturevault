@@ -23,10 +23,6 @@ export type TextbookPageEvidence = {
   textbookName: string;
 };
 
-// A reconstruction only needs the pages selected by retrieval. Keeping this bounded
-// makes the original rendered math/figures available without re-sending a whole book.
-const MAX_TEXTBOOK_PAGE_EVIDENCE = 8;
-
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -54,15 +50,10 @@ function requestedPages(requests: TextbookPageRequest[]) {
       continue;
     }
 
-    // Retrieved chunks should be a page or a small range. Do not let malformed
-    // metadata turn one citation into an entire-book visual upload.
-    for (let pageNumber = start; pageNumber <= Math.min(end, start + 2); pageNumber += 1) {
+    for (let pageNumber = start; pageNumber <= end; pageNumber += 1) {
       const key = `${textbookId}:${pageNumber}`;
       if (!pages.has(key)) {
         pages.set(key, { pageNumber, textbookId, textbookName });
-      }
-      if (pages.size >= MAX_TEXTBOOK_PAGE_EVIDENCE) {
-        return [...pages.values()];
       }
     }
   }

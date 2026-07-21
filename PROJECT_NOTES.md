@@ -39,7 +39,7 @@ Read this section before changing the project.
 - Reconstruction audio is transcribed once using `gpt-4o-transcribe-diarize` by default. MP3s above 20 MB are split only as temporary frame-aligned transcription inputs, then merged into one chronological, original-time transcript. Reviews reuse saved reconstructions and must not re-transcribe raw audio.
 - AI source rules: media is the primary class record; textbook excerpts only clarify directly supported material; figures render once and are cited as `Fig. N`; audio citations use real timestamps; cited Supabase links are signed for authenticated access.
 - Primary modules: `app/page.tsx` (UI/state), `app/styles.css` (visual system), `app/api/lecture-ai/route.ts` (reconstruction), `app/api/exam-review/route.ts` (review), and `app/api/exam-review/pdf/route.ts` (PDF). Read the relevant route and adjacent UI before changing behavior.
-- Supabase setup scripts checked into the repository are `supabase/lecturevault_state.sql`, `supabase/onenote_tokens.sql`, and `supabase/textbook_retrieval.sql`. Textbook retrieval depends on `pgvector`, `public.textbook_chunks`, and the `match_textbook_chunks` RPC; apply `textbook_retrieval.sql` to a fresh Supabase project before its first textbook upload.
+- Supabase setup scripts checked into the repository are `supabase/lecturevault_state.sql`, `supabase/onenote_tokens.sql`, and `supabase/textbook_retrieval.sql`. Textbook retrieval depends on `pgvector`, `public.textbook_chunks`, `public.textbook_page_evidence`, and the `match_textbook_chunks` RPC; apply `textbook_retrieval.sql` before its first textbook upload.
 - Do not commit secrets, modify user records, or revert unrelated dirty worktree changes. Use `apply_patch` for manual edits.
 
 ### Required Change Protocol
@@ -52,6 +52,16 @@ Read this section before changing the project.
 6. Commit only the intended files, push `main` to both configured remotes, and confirm the Vercel deployment before telling the user the update is live.
 
 ## Latest Changes
+
+### 2026-07-21 - One-Time Canonical Textbook Evidence
+
+- Added the durable `public.textbook_page_evidence` Supabase table. Textbook ingestion now saves a page-level canonical record for every readable page: native PDF text for text-backed pages and a faithful vision record for sparse/image-first pages.
+- Reconstructions and reviews now retrieve this stored page evidence alongside existing vector results. A normal cited textbook page is not reattached to the model, so later reconstructions and reviews do not pay repeated vision input cost for the same book page.
+- Original PDF pages stay in Supabase Storage and keep their page-specific signed links. They are attached to an AI request only when the first visual scan explicitly marked a page unclear, or while an older textbook has not yet been reindexed into the new page-evidence table.
+- Removed the old silent page-evidence cut-off from the original-page fallback. All selected citation pages are retained when a recheck is actually needed.
+- Course textbook metadata now reports canonical page-record and recheck counts after upload. Existing textbooks remain usable through the fallback path and show a one-time `Reindex once` action that builds their canonical page cache without uploading the PDF again.
+- Hardened the existing `match_textbook_chunks` database function with an explicit `public` search path while applying the page-evidence migration.
+- Verification required: apply `supabase/textbook_retrieval.sql`, run `npm run typecheck`, then `npm run build`; upload a textbook and confirm subsequent reconstruction/review calls use the canonical page record without attaching the normal source PDF page again.
 
 ### 2026-07-21 - Header Accent Seam Removal
 

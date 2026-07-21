@@ -73,6 +73,15 @@ function chunkPageText({
   return chunks;
 }
 
+function requiresVisualVerification(text: string) {
+  const normalized = normalizeText(text);
+
+  return (
+    normalized.length < 160 ||
+    /\b(?:unclear|illegible|cannot determine|not readable|unable to read)\b/i.test(normalized)
+  );
+}
+
 async function visuallyIndexPage({
   client,
   pageBytes,
@@ -172,6 +181,16 @@ export async function POST(request: Request) {
     const parser = new PDFParse({ data: buffer });
     const parsed = await parser.getText();
     const chunks = [];
+    const pageEvidence: Array<{
+      course_id: string;
+      evidence_text: string;
+      page_number: number;
+      requires_visual_verification: boolean;
+      source_kind: "native_text" | "visual_index";
+      textbook_id: string;
+      textbook_name: string;
+      updated_at: string;
+    }> = [];
     const pages = parsed.pages || [];
     const nativeTextPageCount = pages.filter(
       (page) => normalizeText(page.text || "").length >= 80
@@ -180,6 +199,20 @@ export async function POST(request: Request) {
     const wholeDocumentText = parsed.text;
 
     for (const page of pages) {
+      const nativePageText = normalizeText(page.text || "");
+
+      if (nativePageText.length >= 80) {
+        pageEvidence.push({
+          course_id: courseId,
+          evidence_text: nativePageText,
+          page_number: page.num,
+          requires_visual_verification: false,
+          source_kind: "native_text",
+          textbook_id: textbookId,
+          textbook_name: name || "Course textbook",
+          updated_at: new Date().toISOString()
+        });
+      }
       chunks.push(
         ...chunkPageText({
           pageNumber: page.num,
@@ -199,6 +232,19 @@ export async function POST(request: Request) {
             text: wholeDocumentText,
             textbookId
           });
+
+    if (!pageEvidence.length && normalizeText(wholeDocumentText || "").length >= 80) {
+      pageEvidence.push({
+        course_id: courseId,
+        evidence_text: normalizeText(wholeDocumentText),
+        page_number: 1,
+        requires_visual_verification: false,
+        source_kind: "native_text",
+        textbook_id: textbookId,
+        textbook_name: name || "Course textbook",
+        updated_at: new Date().toISOString()
+      });
+    }
     // Do not silently exclude later textbook pages. Every extracted chunk is embedded
     // so a late-semester chapter remains retrievable for a later reconstruction.
     const indexedChunks = [...fallbackChunks];
@@ -262,6 +308,19 @@ export async function POST(request: Request) {
             visuallyIndexedPageCount += 1;
           }
 
+          if (visualRecord.text) {
+            pageEvidence.push({
+              course_id: courseId,
+              evidence_text: visualRecord.text,
+              page_number: page.num,
+              requires_visual_verification: requiresVisualVerification(visualRecord.text),
+              source_kind: "visual_index",
+              textbook_id: textbookId,
+              textbook_name: name || "Course textbook",
+              updated_at: new Date().toISOString()
+            });
+          }
+
           embeddingUsage = {
             input_tokens:
               (embeddingUsage.input_tokens || 0) + (visualRecord.usage.input_tokens || 0) || undefined,
@@ -314,6 +373,14 @@ export async function POST(request: Request) {
 
         indexedChunkCount += rows.length;
       }
+
+      if (pageEvidence.length) {
+        const { error } = await supabase.from("textbook_page_evidence").upsert(pageEvidence);
+
+        if (error) {
+          return jsonError(error.message, 500);
+        }
+      }
     }
 
     return Response.json({
@@ -323,6 +390,10 @@ export async function POST(request: Request) {
       indexedChunkCount,
       nativeTextPageCount,
       pageCount: parsed.total || pages.length || 0,
+      pageEvidenceCount: pageEvidence.length,
+      pagesNeedingVisualVerification: pageEvidence.filter(
+        (page) => page.requires_visual_verification
+      ).length,
       visualAnalysisUsage,
       visuallyIndexedPageCount,
       visuallyDependentPageCount
@@ -357,13 +428,13 @@ export async function DELETE(request: Request) {
       return jsonError("Supabase is not configured.", 503);
     }
 
-    const { error } = await supabase
-      .from("textbook_chunks")
-      .delete()
-      .eq("textbook_id", textbookId);
+    const [{ error: chunkError }, { error: evidenceError }] = await Promise.all([
+      supabase.from("textbook_chunks").delete().eq("textbook_id", textbookId),
+      supabase.from("textbook_page_evidence").delete().eq("textbook_id", textbookId)
+    ]);
 
-    if (error) {
-      return jsonError(error.message, 500);
+    if (chunkError || evidenceError) {
+      return jsonError(chunkError?.message || evidenceError?.message || "Could not delete textbook index.", 500);
     }
 
     return Response.json({ deleted: true });

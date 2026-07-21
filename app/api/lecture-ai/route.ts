@@ -14,6 +14,10 @@ import {
   textbookPageEvidence,
   type TextbookPageSource
 } from "../../../lib/textbook-page-evidence";
+import {
+  canonicalTextbookEvidenceText,
+  canonicalTextbookPageEvidence
+} from "../../../lib/textbook-canonical-evidence";
 
 export const runtime = "nodejs";
 
@@ -741,7 +745,34 @@ export async function POST(request: Request) {
         }
       }
     }
-    const textbookContextText = textbookContext
+    const textbookPageRequests = textbookContext.map((chunk) => ({
+      pageEnd: chunk.pageEnd,
+      pageStart: chunk.pageStart,
+      textbookId: chunk.textbookId,
+      textbookName: chunk.textbookName
+    }));
+    const canonicalTextbookEvidence = await canonicalTextbookPageEvidence({
+      courseId: cleanString(body.courseId),
+      requests: textbookPageRequests
+    });
+    const canonicalTextbookKeys = new Set(
+      canonicalTextbookEvidence.evidence.map(
+        (page) => `${page.textbookId}:${page.pageNumber}`
+      )
+    );
+    const unmatchedTextbookContext = textbookContext.filter((chunk) => {
+      const pageStart = Math.max(1, Math.floor(Number(chunk.pageStart) || 0));
+      const pageEnd = Math.max(pageStart, Math.floor(Number(chunk.pageEnd) || pageStart));
+
+      for (let page = pageStart; page <= pageEnd; page += 1) {
+        if (!canonicalTextbookKeys.has(`${cleanString(chunk.textbookId)}:${page}`)) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+    const legacyTextbookContextText = unmatchedTextbookContext
       .map((chunk, index) => {
         const pageStart = Number.isFinite(chunk.pageStart) ? chunk.pageStart : undefined;
         const pageEnd = Number.isFinite(chunk.pageEnd) ? chunk.pageEnd : pageStart;
@@ -762,13 +793,14 @@ export async function POST(request: Request) {
       })
       .filter(Boolean)
       .join("\n\n---\n\n");
+    const textbookContextText = [
+      canonicalTextbookEvidenceText(canonicalTextbookEvidence.evidence),
+      legacyTextbookContextText
+    ]
+      .filter(Boolean)
+      .join("\n\n---\n\n");
     const textbookVisualPages = await textbookPageEvidence({
-      requests: textbookContext.map((chunk) => ({
-        pageEnd: chunk.pageEnd,
-        pageStart: chunk.pageStart,
-        textbookId: chunk.textbookId,
-        textbookName: chunk.textbookName
-      })),
+      requests: canonicalTextbookEvidence.pageRequestsNeedingSource,
       sources: textbookSources
     });
     const textbookVisualPageManifest = textbookVisualPages
@@ -799,8 +831,8 @@ export async function POST(request: Request) {
             ? `Relevant course textbook excerpts:\n${textbookContextText}`
             : "No course textbook excerpts were selected for this lecture.",
           textbookVisualPageManifest
-            ? `Original textbook pages attached for visual verification:\n${textbookVisualPageManifest}`
-            : "No original textbook page could be attached for visual verification.",
+            ? `Original textbook pages attached only because they need visual verification:\n${textbookVisualPageManifest}`
+            : "No original textbook pages require repeated visual verification.",
           TEXTBOOK_REFERENCE_POLICY,
           audioTranscripts.length
             ? `Audio transcription text:\n${audioTranscripts.join("\n\n---\n\n")}`

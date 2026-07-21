@@ -7,11 +7,11 @@ LectureVault turns a daily class source bundle into a searchable, source-grounde
 1. Create a course and optionally attach its syllabus and textbooks.
 2. Start one class record for that course and date.
 3. Share or upload the original lecture MP3, handwritten OneNote PDF, board images, and any relevant notes into that record from any device.
-4. Build the reconstruction. AI transcribes audio, interprets selected visual/PDF material, retrieves only relevant textbook sections, verifies cited textbook pages against their original PDF layout, and produces a structured KaTeX-backed study artifact.
+4. Build the reconstruction. AI transcribes audio, interprets selected visual/PDF material, retrieves relevant textbook sections from a one-time page index, and produces a structured KaTeX-backed study artifact.
 5. Organize and study saved reconstructions in the Vault.
 6. Select multiple reconstructions to create an exam review. Review AI uses saved reconstruction artifacts; it does not transcribe the original audio again.
 
-Original source media remains in Supabase Storage. Reconstruction and review outputs cite figures, timestamped audio clips, and textbook pages selectively rather than duplicating media throughout the document. Textbook upload is automatic: LectureVault indexes every readable page for semantic search, then supplies only the relevant original PDF pages to the AI when it needs to verify equations, diagrams, tables, units, or notation.
+Original source media remains in Supabase Storage. Reconstruction and review outputs cite figures, timestamped audio clips, and textbook pages selectively rather than duplicating media throughout the document. Textbook upload is automatic: LectureVault stores a canonical page record once for every readable page, using vision only for sparse/image-first pages. Later reconstructions and reviews reuse the stored page evidence and original Supabase page link rather than resending the same textbook page to vision. A page is reopened only when its initial scan was explicitly marked unclear.
 
 ## Local Development
 
@@ -57,7 +57,8 @@ Upload one original MP3. When an MP3 is larger than 20 MB, the reconstruction AP
 - Reconstruction AI: `app/api/lecture-ai/route.ts`
 - Review AI: `app/api/exam-review/route.ts`
 - Review PDF: `app/api/exam-review/pdf/route.ts`
-- Textbook visual evidence: `lib/textbook-page-evidence.ts`
+- Canonical textbook evidence: `lib/textbook-canonical-evidence.ts`
+- Original-page verification fallback: `lib/textbook-page-evidence.ts`
 - Fresh-project textbook schema: `supabase/textbook_retrieval.sql`
 - Update `PROJECT_NOTES.md` after every code change.
 - Use `apply_patch` for manual edits.

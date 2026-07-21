@@ -310,6 +310,8 @@ type CourseTextbook = {
   storagePath?: string;
   pageCount?: number;
   nativeTextPageCount?: number;
+  pageEvidenceCount?: number;
+  pagesNeedingVisualVerification?: number;
   visuallyIndexedPageCount?: number;
   visuallyDependentPageCount?: number;
   chunkCount: number;
@@ -317,6 +319,21 @@ type CourseTextbook = {
   embeddingUsage?: TokenUsage | null;
   visualAnalysisUsage?: TokenUsage | null;
   createdAt: string;
+};
+
+type TextbookIndexResponse = {
+  chunkCount?: number;
+  chunks?: TextbookChunk[];
+  embeddingUsage?: TokenUsage | null;
+  error?: string;
+  indexedChunkCount?: number;
+  nativeTextPageCount?: number;
+  pageCount?: number;
+  pageEvidenceCount?: number;
+  pagesNeedingVisualVerification?: number;
+  visualAnalysisUsage?: TokenUsage | null;
+  visuallyIndexedPageCount?: number;
+  visuallyDependentPageCount?: number;
 };
 
 type CourseSyllabus = {
@@ -2762,18 +2779,7 @@ export default function LectureVaultApp() {
           },
           method: "POST"
         });
-        const data = (await response.json()) as {
-          chunkCount?: number;
-          chunks?: TextbookChunk[];
-          embeddingUsage?: TokenUsage | null;
-          error?: string;
-          indexedChunkCount?: number;
-          nativeTextPageCount?: number;
-          pageCount?: number;
-          visualAnalysisUsage?: TokenUsage | null;
-          visuallyIndexedPageCount?: number;
-          visuallyDependentPageCount?: number;
-        };
+        const data = (await response.json()) as TextbookIndexResponse;
 
         if (!response.ok) {
           throw new Error(data.error || `Could not extract ${file.name}.`);
@@ -2803,6 +2809,8 @@ export default function LectureVaultApp() {
           storagePath: storage.storagePath,
           nativeTextPageCount: data.nativeTextPageCount,
           pageCount: data.pageCount,
+          pageEvidenceCount: data.pageEvidenceCount,
+          pagesNeedingVisualVerification: data.pagesNeedingVisualVerification,
           chunkCount,
           indexedChunkCount: data.indexedChunkCount || 0,
           visuallyIndexedPageCount: data.visuallyIndexedPageCount,
@@ -2818,7 +2826,7 @@ export default function LectureVaultApp() {
           textbookChunks: current.textbookChunks
         }));
         setStatus(
-          `Added ${file.name} to ${course.code}. Indexed ${data.indexedChunkCount || 0} textbook sections for AI search and original-page verification.`
+          `Added ${file.name} to ${course.code}. Saved ${data.pageEvidenceCount || 0} canonical textbook pages for AI search and citations.`
         );
         updatePipelineStep("save", "done", `${file.name} ready for AI search`);
       }
@@ -2826,6 +2834,102 @@ export default function LectureVaultApp() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Could not add textbook PDF.";
+      setStatus(message);
+      failPipeline("index", message);
+    } finally {
+      setTextbookProcessingCourseId("");
+    }
+  }
+
+  async function reindexCourseTextbook(textbookId: string) {
+    const textbook = state.textbooks.find((item) => item.id === textbookId);
+    const course = textbook
+      ? state.courses.find((item) => item.id === textbook.courseId)
+      : undefined;
+
+    if (!textbook || !course || !textbook.storagePath) {
+      setStatus("This textbook no longer has a stored PDF to index.");
+      return;
+    }
+
+    setTextbookProcessingCourseId(course.id);
+    startPipeline("Textbook indexing", [
+      {
+        id: "extract",
+        label: "Reading stored textbook",
+        detail: "Creating its one-time canonical page evidence"
+      },
+      {
+        id: "index",
+        label: "Refreshing textbook search",
+        detail: "Saving vectors and page citations in Supabase"
+      },
+      {
+        id: "save",
+        label: "Saving page evidence",
+        detail: "Keeping future AI calls from rescanning normal pages"
+      }
+    ]);
+
+    try {
+      activatePipelineStep("extract", `Reading ${textbook.name} from Supabase Storage`);
+      const response = await fetch("/api/textbook/extract", {
+        body: JSON.stringify({
+          bucket: textbook.storageBucket,
+          courseId: textbook.courseId,
+          mimeType: textbook.mimeType,
+          name: textbook.name,
+          path: textbook.storagePath,
+          textbookId: textbook.id
+        }),
+        credentials: "include",
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      });
+      const data = (await response.json()) as TextbookIndexResponse;
+
+      if (!response.ok) {
+        throw new Error(data.error || `Could not reindex ${textbook.name}.`);
+      }
+
+      updatePipelineStep(
+        "extract",
+        "done",
+        `${data.pageCount || 0} pages read; ${data.visuallyIndexedPageCount || 0} visual-first pages indexed`
+      );
+      updatePipelineStep(
+        "index",
+        "done",
+        `${data.indexedChunkCount || 0} sections indexed`
+      );
+      activatePipelineStep("save", "Saving canonical page records");
+      setState((current) => ({
+        ...current,
+        textbooks: current.textbooks.map((item) =>
+          item.id === textbook.id
+            ? {
+                ...item,
+                chunkCount: data.chunkCount || data.chunks?.length || item.chunkCount,
+                embeddingUsage: data.embeddingUsage || null,
+                indexedChunkCount: data.indexedChunkCount || 0,
+                nativeTextPageCount: data.nativeTextPageCount,
+                pageCount: data.pageCount,
+                pageEvidenceCount: data.pageEvidenceCount,
+                pagesNeedingVisualVerification: data.pagesNeedingVisualVerification,
+                visualAnalysisUsage: data.visualAnalysisUsage || null,
+                visuallyDependentPageCount: data.visuallyDependentPageCount,
+                visuallyIndexedPageCount: data.visuallyIndexedPageCount
+              }
+            : item
+        )
+      }));
+      updatePipelineStep("save", "done", `${data.pageEvidenceCount || 0} canonical pages saved`);
+      completePipeline("Textbook index refreshed. Future AI calls reuse its page evidence.");
+      setStatus(`Reindexed ${textbook.name}. Saved ${data.pageEvidenceCount || 0} canonical textbook pages.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not reindex textbook.";
       setStatus(message);
       failPipeline("index", message);
     } finally {
@@ -3896,6 +4000,7 @@ export default function LectureVaultApp() {
           "content-type": "application/json"
         },
         body: JSON.stringify({
+          courseId: selectedExam.courseId,
           examName: selectedExam.name,
           courseName: courseLabel(selectedExam.courseId),
           courseStudyProfile,
@@ -5353,16 +5458,30 @@ export default function LectureVaultApp() {
                               <strong>{textbook.name}</strong>
                               <small>
                                 {formatFileSize(textbook.size)} - {textbook.pageCount || 0} pages -{" "}
-                                {textbook.indexedChunkCount || 0} indexed sections
+                                {textbook.indexedChunkCount || 0} indexed sections - {textbook.pageEvidenceCount || 0} canonical page records
                                 {typeof textbook.visuallyIndexedPageCount === "number" &&
                                 textbook.visuallyIndexedPageCount > 0
                                   ? ` - ${textbook.visuallyIndexedPageCount} visual pages analyzed`
+                                  : ""}
+                                {typeof textbook.pagesNeedingVisualVerification === "number" &&
+                                textbook.pagesNeedingVisualVerification > 0
+                                  ? ` - ${textbook.pagesNeedingVisualVerification} page${textbook.pagesNeedingVisualVerification === 1 ? "" : "s"} flagged for recheck`
                                   : ""}
                                 {textbook.embeddingUsage
                                   ? ` - ${formatTokenUsage(textbook.embeddingUsage)} AI indexing usage`
                                   : ""}
                               </small>
                             </div>
+                            {!textbook.pageEvidenceCount ? (
+                              <button
+                                type="button"
+                                disabled={Boolean(textbookProcessingCourseId)}
+                                title="Create the one-time canonical page index without uploading the PDF again"
+                                onClick={() => void reindexCourseTextbook(textbook.id)}
+                              >
+                                Reindex once
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               onClick={() => void deleteTextbook(textbook.id)}

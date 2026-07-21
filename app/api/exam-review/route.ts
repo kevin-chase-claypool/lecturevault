@@ -7,6 +7,10 @@ import {
   type TextbookPageRequest,
   type TextbookPageSource
 } from "../../../lib/textbook-page-evidence";
+import {
+  canonicalTextbookEvidenceText,
+  canonicalTextbookPageEvidence
+} from "../../../lib/textbook-canonical-evidence";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -302,6 +306,7 @@ export async function POST(request: Request) {
 
   try {
     const body = (await request.json()) as {
+      courseId?: string;
       examName?: string;
       courseName?: string;
       courseStudyProfile?: string;
@@ -358,8 +363,12 @@ export async function POST(request: Request) {
     const imageInputs = figures
       .filter((figure) => cleanString(figure.dataUrl).startsWith("data:image/"))
       .slice(0, MAX_IMAGE_INPUTS);
+    const canonicalTextbookEvidence = await canonicalTextbookPageEvidence({
+      courseId: cleanString(body.courseId),
+      requests: textbookCitations
+    });
     const textbookVisualPages = await textbookPageEvidence({
-      requests: textbookCitations,
+      requests: canonicalTextbookEvidence.pageRequestsNeedingSource,
       sources: textbookSources
     });
     const textbookPageManifest = textbookVisualPages
@@ -376,9 +385,12 @@ export async function POST(request: Request) {
           `Exam: ${examName}`,
           `Course: ${courseName || "Unfiled"}`,
           courseStudyProfile ? `Saved course study profile:\n${courseStudyProfile}` : "",
+          canonicalTextbookEvidence.evidence.length
+            ? `Canonical textbook evidence already retrieved from the selected reconstructions:\n${canonicalTextbookEvidenceText(canonicalTextbookEvidence.evidence)}`
+            : "No canonical textbook evidence was available for the selected citations.",
           textbookPageManifest
-            ? `Original textbook reference pages:\n${textbookPageManifest}`
-            : "No original textbook reference pages were needed for this review.",
+            ? `Original textbook pages attached only because their initial scan needs visual verification:\n${textbookPageManifest}`
+            : "No original textbook page needs repeated visual verification for this review.",
           "Selected archive materials:",
           buildLectureBundle({ lectures, transcripts, concepts, figures })
         ]
@@ -407,7 +419,7 @@ export async function POST(request: Request) {
         "Prioritize high-yield concepts, formulas, assumptions, worked problem patterns, common mistakes, and practice steps.",
         "Use LaTeX math with \\(...\\) for inline math and complete \\[ equation \\] blocks for display math.",
         "Reference useful images by the provided labels such as Fig. 1 and Fig. 2.",
-        "When original textbook pages are attached, use them to verify equations, diagrams, tables, notation, units, and page references before relying on them. Cite textbook support compactly as [Textbook Name, p. N] only where it materially clarifies the lecture content; do not invent textbook citations or repeat the same citation excessively.",
+        "Use canonical textbook evidence only where it materially clarifies selected lecture content. When an original textbook page is attached because its initial scan was uncertain, use that page to recheck equations, diagrams, tables, notation, units, and page references before relying on it. Cite textbook support compactly as [Textbook Name, p. N]; do not invent textbook citations or repeat the same citation excessively.",
         "The Figure-Guided Review section must list every provided figure label, explain what it appears to support if visible, and say when an image is available only as archive metadata.",
         "The Source Map must include figure labels next to the lecture that provided them.",
         "Include these top-level Markdown headings in order: ## Study Guide Overview, ## High-Yield Concepts, ## Formula Sheet, ## Worked Problems and Patterns, ## Figure-Guided Review, ## Common Mistakes, ## Practice Checklist, ## Source Map."
