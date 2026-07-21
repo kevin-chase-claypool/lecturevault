@@ -20,6 +20,11 @@ const MAX_IMAGE_INPUTS = 30;
 const MAX_AUDIO_INPUTS = 3;
 const MAX_DOCUMENT_INPUTS = 5;
 const MAX_TEXTBOOK_CONTEXT = 10;
+// Leave reliable headroom below the Audio API's 25 MB request limit. These chunks
+// are created only for transcription; the original source remains in Supabase.
+const MAX_TRANSCRIPTION_CHUNK_BYTES = 20 * 1024 * 1024;
+const TARGET_TRANSCRIPTION_CHUNK_BYTES = 16 * 1024 * 1024;
+const TRANSCRIPTION_CHUNK_OVERLAP_SECONDS = 2;
 
 type LectureMediaItem = {
   id?: string;
@@ -73,6 +78,19 @@ type TimedAudioSegment = {
   startSeconds: number;
   endSeconds: number;
   text: string;
+};
+
+type AudioTranscriptionChunk = {
+  buffer: Buffer;
+  acceptAfterSeconds: number;
+  sourceStartSeconds: number;
+};
+
+type Mp3Frame = {
+  durationSeconds: number;
+  length: number;
+  offset: number;
+  startSeconds: number;
 };
 
 type ReconstructionEvidence = {
@@ -130,6 +148,144 @@ function audioFormat(media: LectureMediaItem) {
   }
 
   return null;
+}
+
+function id3v2Length(buffer: Buffer) {
+  if (buffer.length < 10 || buffer.toString("ascii", 0, 3) !== "ID3") {
+    return 0;
+  }
+
+  const flags = buffer[5] || 0;
+  const size =
+    ((buffer[6] || 0) & 0x7f) * 0x200000 +
+    ((buffer[7] || 0) & 0x7f) * 0x4000 +
+    ((buffer[8] || 0) & 0x7f) * 0x80 +
+    ((buffer[9] || 0) & 0x7f);
+
+  return Math.min(buffer.length, 10 + size + (flags & 0x10 ? 10 : 0));
+}
+
+function mp3FrameAt(buffer: Buffer, offset: number, startSeconds: number): Mp3Frame | null {
+  if (offset + 4 > buffer.length || buffer[offset] !== 0xff || (buffer[offset + 1] & 0xe0) !== 0xe0) {
+    return null;
+  }
+
+  const versionBits = (buffer[offset + 1] >> 3) & 0x03;
+  const layerBits = (buffer[offset + 1] >> 1) & 0x03;
+  const bitrateIndex = (buffer[offset + 2] >> 4) & 0x0f;
+  const sampleRateIndex = (buffer[offset + 2] >> 2) & 0x03;
+  const padding = (buffer[offset + 2] >> 1) & 0x01;
+
+  // LectureVault only needs Layer III MP3 parsing. Reject reserved/free-format frames.
+  if (versionBits === 1 || layerBits !== 1 || bitrateIndex === 0 || bitrateIndex === 15 || sampleRateIndex === 3) {
+    return null;
+  }
+
+  const sampleRates =
+    versionBits === 3
+      ? [44100, 48000, 32000]
+      : versionBits === 2
+        ? [22050, 24000, 16000]
+        : [11025, 12000, 8000];
+  const bitrates =
+    versionBits === 3
+      ? [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]
+      : [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
+  const sampleRate = sampleRates[sampleRateIndex];
+  const bitrate = bitrates[bitrateIndex];
+
+  if (!sampleRate || !bitrate) {
+    return null;
+  }
+
+  const isMpeg1 = versionBits === 3;
+  const length = Math.floor(((isMpeg1 ? 144000 : 72000) * bitrate) / sampleRate) + padding;
+
+  if (length < 4 || offset + length > buffer.length) {
+    return null;
+  }
+
+  return {
+    durationSeconds: (isMpeg1 ? 1152 : 576) / sampleRate,
+    length,
+    offset,
+    startSeconds
+  };
+}
+
+function mp3Frames(buffer: Buffer): Mp3Frame[] {
+  const frames: Mp3Frame[] = [];
+  let offset = id3v2Length(buffer);
+  let startSeconds = 0;
+
+  while (offset + 4 <= buffer.length) {
+    const frame = mp3FrameAt(buffer, offset, startSeconds);
+
+    if (!frame) {
+      offset += 1;
+      continue;
+    }
+
+    frames.push(frame);
+    offset += frame.length;
+    startSeconds += frame.durationSeconds;
+  }
+
+  return frames;
+}
+
+function prepareMp3TranscriptionChunks(buffer: Buffer): AudioTranscriptionChunk[] {
+  if (buffer.length <= MAX_TRANSCRIPTION_CHUNK_BYTES) {
+    return [{ buffer, acceptAfterSeconds: 0, sourceStartSeconds: 0 }];
+  }
+
+  const frames = mp3Frames(buffer);
+
+  // Do not risk corrupting a lecture transcript by slicing an unrecognized MP3 stream.
+  if (!frames.length) {
+    throw new Error("This MP3 could not be safely prepared for transcription. Please re-export it as a standard MP3.");
+  }
+
+  const chunks: AudioTranscriptionChunk[] = [];
+  let contentStartIndex = 0;
+
+  while (contentStartIndex < frames.length) {
+    let endIndex = contentStartIndex;
+    const contentStartOffset = frames[contentStartIndex].offset;
+
+    while (
+      endIndex < frames.length &&
+      frames[endIndex].offset + frames[endIndex].length - contentStartOffset <= TARGET_TRANSCRIPTION_CHUNK_BYTES
+    ) {
+      endIndex += 1;
+    }
+
+    if (endIndex === contentStartIndex) {
+      throw new Error("An MP3 frame is too large to prepare for transcription.");
+    }
+
+    const acceptAfterSeconds = frames[contentStartIndex].startSeconds;
+    let chunkStartIndex = contentStartIndex;
+
+    if (contentStartIndex > 0) {
+      const overlapStart = Math.max(0, acceptAfterSeconds - TRANSCRIPTION_CHUNK_OVERLAP_SECONDS);
+      while (chunkStartIndex > 0 && frames[chunkStartIndex - 1].startSeconds >= overlapStart) {
+        chunkStartIndex -= 1;
+      }
+    }
+
+    const chunkStart = frames[chunkStartIndex];
+    const chunkEnd = frames[endIndex - 1];
+    chunks.push({
+      buffer: buffer.subarray(chunkStart.offset, chunkEnd.offset + chunkEnd.length),
+      acceptAfterSeconds,
+      sourceStartSeconds: chunkStart.startSeconds
+    });
+
+    contentStartIndex = endIndex;
+  }
+
+  return chunks;
 }
 
 async function mediaDataUrl(media: LectureMediaItem) {
@@ -389,61 +545,93 @@ export async function POST(request: Request) {
       if (!parsed || !format) {
         continue;
       }
-
-      const file = await toFile(
-        parsed.buffer,
-        cleanString(item.name) || `lecture-audio.${format}`,
-        { type: parsed.mimeType }
-      );
       const transcriptionModel =
         process.env.OPENAI_TRANSCRIPTION_MODEL ||
         process.env.OPENAI_LECTURE_TRANSCRIPTION_MODEL ||
         DEFAULT_TRANSCRIPTION_MODEL;
-      const transcription = isTimedTranscriptionModel(transcriptionModel)
-        ? await client.audio.transcriptions.create({
-            chunking_strategy: "auto",
-            file,
-            model: transcriptionModel,
-            response_format: "diarized_json"
-          })
-        : await client.audio.transcriptions.create({
-            file,
-            model: transcriptionModel,
-            prompt: [
-              cleanString(body.courseName),
-              cleanString(body.title),
-              cleanString(body.courseStudyProfile).slice(0, 900)
-            ]
-              .filter(Boolean)
-              .join(". ") || undefined
-          });
-      const text = cleanString(transcription.text);
+      const chunks =
+        format === "mp3"
+          ? prepareMp3TranscriptionChunks(parsed.buffer)
+          : [{ buffer: parsed.buffer, acceptAfterSeconds: 0, sourceStartSeconds: 0 }];
+      const itemTimedSegments: TimedAudioSegment[] = [];
+      const unsegmentedChunkTexts: Array<{ startSeconds: number; text: string }> = [];
+      const sourceName = cleanString(item.name) || item.id || "audio";
 
-      if (item.id && "segments" in transcription) {
-        timedAudioSegments.push(...cleanTimedSegments(transcription.segments, item.id));
+      for (const [chunkIndex, chunk] of chunks.entries()) {
+        const chunkName =
+          chunks.length === 1
+            ? sourceName
+            : `${sourceName.replace(/\.[^.]+$/, "") || "lecture-audio"}-part-${String(chunkIndex + 1).padStart(2, "0")}.${format}`;
+        const file = await toFile(chunk.buffer, chunkName, { type: parsed.mimeType });
+        const transcription = isTimedTranscriptionModel(transcriptionModel)
+          ? await client.audio.transcriptions.create({
+              chunking_strategy: "auto",
+              file,
+              model: transcriptionModel,
+              response_format: "diarized_json"
+            })
+          : await client.audio.transcriptions.create({
+              file,
+              model: transcriptionModel,
+              prompt: [
+                cleanString(body.courseName),
+                cleanString(body.title),
+                cleanString(body.courseStudyProfile).slice(0, 900)
+              ]
+                .filter(Boolean)
+                .join(". ") || undefined
+            });
+        const text = cleanString(transcription.text);
+
+        if (item.id && "segments" in transcription) {
+          const segments = cleanTimedSegments(transcription.segments, item.id)
+            .map((segment) => ({
+              ...segment,
+              startSeconds: segment.startSeconds + chunk.sourceStartSeconds,
+              endSeconds: segment.endSeconds + chunk.sourceStartSeconds
+            }))
+            // The two-second overlap protects speech at a split boundary. Keep only
+            // new source time so reconstruction context and cited clips are not duplicated.
+            .filter((segment) => segment.endSeconds > chunk.acceptAfterSeconds + 0.05)
+            .map((segment) => ({
+              ...segment,
+              startSeconds: Math.max(segment.startSeconds, chunk.acceptAfterSeconds)
+            }));
+          itemTimedSegments.push(...segments);
+          if (!segments.length && text) {
+            unsegmentedChunkTexts.push({ startSeconds: chunk.acceptAfterSeconds, text });
+          }
+        } else if (text) {
+          unsegmentedChunkTexts.push({ startSeconds: chunk.acceptAfterSeconds, text });
+        }
+
+        totalUsage = addUsage(totalUsage, usageFromOpenAI(transcription.usage));
       }
 
-      if (text) {
-        const timestampedSegments = item.id
-          ? timedAudioSegments
-              .filter((segment) => segment.mediaItemId === item.id)
-              .map(
-                (segment) =>
-                  `[Audio cue | media id: ${item.id} | ${Math.floor(segment.startSeconds)}-${Math.ceil(segment.endSeconds)} seconds] ${segment.text}`
-              )
-          : [];
+      const orderedTimedSegments = itemTimedSegments.sort(
+        (first, second) => first.startSeconds - second.startSeconds || first.endSeconds - second.endSeconds
+      );
+      timedAudioSegments.push(...orderedTimedSegments);
+      const timestampedSegments = orderedTimedSegments.map(
+        (segment) =>
+          `[Audio cue | media id: ${segment.mediaItemId} | ${Math.floor(segment.startSeconds)}-${Math.ceil(segment.endSeconds)} seconds] ${segment.text}`
+      );
+      const unsegmentedTranscript = unsegmentedChunkTexts
+        .sort((first, second) => first.startSeconds - second.startSeconds)
+        .map(
+          (chunk) =>
+            `[Audio transcript | media id: ${item.id || "unlinked"} | beginning near ${Math.floor(chunk.startSeconds)} seconds] ${chunk.text}`
+        );
+
+      if (timestampedSegments.length || unsegmentedTranscript.length) {
         audioTranscripts.push(
-          timestampedSegments.length
-            ? `Audio source: ${cleanString(item.name) || item.id || "audio"}\n${timestampedSegments.join("\n")}`
-            : `Audio source: ${cleanString(item.name) || item.id || "audio"}\n${text}`
+          `Audio source: ${sourceName}\n${[...timestampedSegments, ...unsegmentedTranscript].join("\n")}`
         );
       }
 
       if (item.id) {
         transcribedMediaIds.push(item.id);
       }
-
-      totalUsage = addUsage(totalUsage, usageFromOpenAI(transcription.usage));
     }
 
     const imageInputs = (

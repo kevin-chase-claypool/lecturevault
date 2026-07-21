@@ -1160,6 +1160,15 @@ For archive organization changes, manually verify:
 
 ## Next Priorities
 
+### 2026-07-21 - Reliable Long-Lecture Audio Transcription
+
+- Added internal MP3 transcription chunking for files larger than 20 MB. LectureVault now splits only the temporary transcription inputs at MP3 frame boundaries while leaving the single original MP3 untouched in Supabase.
+- Chunks target 16 MB, retain a two-second boundary overlap to protect spoken context, and merge diarized segments back into one ordered transcript with source-relative timestamps.
+- Reconstruction AI therefore receives one continuous lecture transcript and can keep generating accurate `Audio M:SS` citations against the original stored MP3. The user still uploads one lecture recording and does not manage chunks.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-20 - Reconstruction Details Sequence
 
 - Reordered the first reconstruction step into an explicit setup sequence: choose the course, set the meeting topic and date, then start the shared class record.
