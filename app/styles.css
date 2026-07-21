@@ -6656,12 +6656,8 @@ body {
 }
 
 .topbar::after {
-  content: "";
-  position: absolute;
-  inset: auto 18px 0;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(27, 97, 141, 0.56), rgba(27, 97, 141, 0));
-  pointer-events: none;
+  /* The decorative underline produced a clipped fade at the lower-left corner. */
+  display: none;
 }
 
 .topbar h2,
@@ -6856,11 +6852,6 @@ summary:focus-visible {
     padding: 16px 16px 4px;
   }
 
-  .topbar::after {
-    inset-right: 14px;
-    inset-left: 14px;
-  }
-
   .panel > .section-heading:first-child {
     padding-bottom: 8px;
   }
@@ -6939,10 +6930,6 @@ summary:focus-visible {
 
   .dashboard .action-panel p {
     line-height: 1.46;
-  }
-
-  .topbar::after {
-    display: none;
   }
 
   .panel > .section-heading:first-child {

@@ -53,6 +53,11 @@ Read this section before changing the project.
 
 ## Latest Changes
 
+### 2026-07-21 - Header Accent Seam Removal
+
+- Removed the nonfunctional fading underline from shared desktop page headers. Its clipped gradient created a false broken-corner artifact under titles such as Dashboard, Courses, Reviews, and Media Library.
+- The header now relies on its contained border and surface hierarchy, which remains consistent in light and dark mode at every viewport.
+
 ### 2026-07-21 - Textbook Evidence Retrieval and Citation Verification
 
 - Added `supabase/textbook_retrieval.sql`, which creates the checked-in `pgvector` table, indexes, and bounded semantic-search RPC required for textbook retrieval in a fresh project.
