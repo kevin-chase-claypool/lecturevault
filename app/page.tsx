@@ -315,6 +315,7 @@ type CourseTextbook = {
   chunkCount: number;
   indexedChunkCount?: number;
   embeddingUsage?: TokenUsage | null;
+  visualAnalysisUsage?: TokenUsage | null;
   createdAt: string;
 };
 
@@ -2769,6 +2770,7 @@ export default function LectureVaultApp() {
           indexedChunkCount?: number;
           nativeTextPageCount?: number;
           pageCount?: number;
+          visualAnalysisUsage?: TokenUsage | null;
           visuallyIndexedPageCount?: number;
           visuallyDependentPageCount?: number;
         };
@@ -2806,6 +2808,7 @@ export default function LectureVaultApp() {
           visuallyIndexedPageCount: data.visuallyIndexedPageCount,
           visuallyDependentPageCount: data.visuallyDependentPageCount,
           embeddingUsage: data.embeddingUsage || null,
+          visualAnalysisUsage: data.visualAnalysisUsage || null,
           createdAt: new Date().toISOString()
         };
 
@@ -5356,7 +5359,7 @@ export default function LectureVaultApp() {
                                   ? ` - ${textbook.visuallyIndexedPageCount} visual pages analyzed`
                                   : ""}
                                 {textbook.embeddingUsage
-                                  ? ` - ${formatTokenUsage(textbook.embeddingUsage)} embedding usage`
+                                  ? ` - ${formatTokenUsage(textbook.embeddingUsage)} AI indexing usage`
                                   : ""}
                               </small>
                             </div>
@@ -6820,6 +6823,10 @@ function CompactUsageSummary({
     (total, textbook) => addTokenUsage(total, textbook.embeddingUsage),
     {} as TokenUsage
   );
+  const visualTextbookUsage = state.textbooks.reduce(
+    (total, textbook) => addTokenUsage(total, textbook.visualAnalysisUsage),
+    {} as TokenUsage
+  );
   const reviewUsage = state.studyGuides.reduce(
     (total, guide) => addTokenUsage(total, guide.usage),
     {} as TokenUsage
@@ -6838,6 +6845,11 @@ function CompactUsageSummary({
       <div className="compact-usage-breakdown">
         <span title={usageHasTokens(reconstructionUsage) ? formatTokenUsage(reconstructionUsage) : undefined}>Rebuild <b>{formatCompactTokenUsage(reconstructionUsage)}</b></span>
         <span title={usageHasTokens(textbookUsage) ? formatTokenUsage(textbookUsage) : undefined}>Textbooks <b>{formatCompactTokenUsage(textbookUsage)}</b></span>
+        {usageHasTokens(visualTextbookUsage) ? (
+          <span title={`${formatTokenUsage(visualTextbookUsage)}; included in Textbooks`}>
+            Visual pages <b>{formatCompactTokenUsage(visualTextbookUsage)}</b>
+          </span>
+        ) : null}
         <span title={usageHasTokens(reviewUsage) ? formatTokenUsage(reviewUsage) : undefined}>Reviews <b>{formatCompactTokenUsage(reviewUsage)}</b></span>
       </div>
     </div>

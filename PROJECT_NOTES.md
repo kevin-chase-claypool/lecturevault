@@ -59,6 +59,7 @@ Read this section before changing the project.
 - Removed the previous silent 180-chunk indexing cap. A textbook upload now embeds every readable extracted section, so later chapters remain searchable instead of being omitted without warning.
 - Textbook upload indexes native PDF text across every readable page. For sparse scanned/image-only pages, it automatically creates a faithful visual search record before embedding; the source PDF remains the permanent authority in Supabase Storage.
 - Textbook indexing usage now includes both native-embedding tokens and any visual-page analysis tokens, so the stored usage summary reflects the complete one-time indexing cost.
+- The compact sidebar/mobile usage summary now separates `Visual pages` from the complete `Textbooks` total when image-first textbook pages were analyzed. The visual amount is a subtotal, not an additional charge, and its hover detail explains that relationship.
 - Reconstruction AI now receives up to eight semantically retrieved excerpts together with isolated original PDF pages from those exact locations. The original page is used to verify equations, diagrams, tables, units, and notation before a citation is emitted.
 - Review AI receives the original pages for textbook citations already selected by its reconstructions, so review citations are also visually grounded rather than relying only on saved text.
 - Citation behavior remains selective: only material that clarifies lecture-supported content is cited, and figures/textbook pages are linked rather than repeatedly duplicated.

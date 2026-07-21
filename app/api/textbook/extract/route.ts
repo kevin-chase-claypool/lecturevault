@@ -209,6 +209,11 @@ export async function POST(request: Request) {
       output_tokens?: number;
       total_tokens?: number;
     } = {};
+    let visualAnalysisUsage: {
+      input_tokens?: number;
+      output_tokens?: number;
+      total_tokens?: number;
+    } = {};
 
     if (indexedChunks.length || visuallyDependentPageCount) {
       if (!process.env.OPENAI_API_KEY) {
@@ -265,6 +270,14 @@ export async function POST(request: Request) {
             total_tokens:
               (embeddingUsage.total_tokens || 0) + (visualRecord.usage.total_tokens || 0) || undefined
           };
+          visualAnalysisUsage = {
+            input_tokens:
+              (visualAnalysisUsage.input_tokens || 0) + (visualRecord.usage.input_tokens || 0) || undefined,
+            output_tokens:
+              (visualAnalysisUsage.output_tokens || 0) + (visualRecord.usage.output_tokens || 0) || undefined,
+            total_tokens:
+              (visualAnalysisUsage.total_tokens || 0) + (visualRecord.usage.total_tokens || 0) || undefined
+          };
         }
       }
 
@@ -310,6 +323,7 @@ export async function POST(request: Request) {
       indexedChunkCount,
       nativeTextPageCount,
       pageCount: parsed.total || pages.length || 0,
+      visualAnalysisUsage,
       visuallyIndexedPageCount,
       visuallyDependentPageCount
     });
