@@ -7,7 +7,6 @@ export const runtime = "nodejs";
 
 const DEFAULT_MODEL = "gpt-4.1-mini";
 const MAX_LECTURES = 25;
-const MAX_TOTAL_CHARS = 90000;
 const MAX_IMAGE_INPUTS = 100;
 
 type ExamReviewLecture = {
@@ -72,17 +71,15 @@ function cleanNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
-function trimTranscripts(transcripts: ExamReviewTranscript[]) {
-  let remaining = MAX_TOTAL_CHARS;
-
+function prepareTranscripts(transcripts: ExamReviewTranscript[]) {
   return transcripts.map((transcript) => {
     const text = cleanString(transcript.text);
-    const trimmedText = text.slice(0, Math.max(0, remaining));
-    remaining -= trimmedText.length;
 
     return {
       lectureId: cleanString(transcript.lectureId),
-      text: trimmedText,
+      // Keep every selected reconstruction intact. The review must never silently omit
+      // later lecture material because an internal character budget was exhausted.
+      text,
       segments: Array.isArray(transcript.segments) ? transcript.segments : []
     };
   });
@@ -144,7 +141,7 @@ function buildLectureBundle({
   figures
 }: {
   lectures: ExamReviewLecture[];
-  transcripts: ReturnType<typeof trimTranscripts>;
+  transcripts: ReturnType<typeof prepareTranscripts>;
   concepts: ExamReviewConcept[];
   figures: ExamReviewFigure[];
 }) {
@@ -226,7 +223,7 @@ function buildLocalFallback({
   courseName: string;
   instructions: string;
   lectures: ExamReviewLecture[];
-  transcripts: ReturnType<typeof trimTranscripts>;
+  transcripts: ReturnType<typeof prepareTranscripts>;
   concepts: ExamReviewConcept[];
   figures: ExamReviewFigure[];
 }) {
@@ -315,7 +312,7 @@ export async function POST(request: Request) {
       return jsonError(`Select ${MAX_LECTURES} or fewer lectures at a time.`, 400);
     }
 
-    const transcripts = trimTranscripts(
+    const transcripts = prepareTranscripts(
       Array.isArray(body.transcripts) ? body.transcripts : []
     );
     const concepts = Array.isArray(body.concepts) ? body.concepts : [];

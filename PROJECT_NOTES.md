@@ -1193,6 +1193,11 @@ For archive organization changes, manually verify:
 - Each image is shown exactly once under its stable `Fig. N` label. Review prose refers back to that label rather than duplicating the same image beside every related explanation.
 - Figure cards link to the original private Supabase source through the existing signed-source flow, and the review PDF uses the same single-placement `Figure References` appendix.
 
+### 2026-07-21 - Expanded Review Context
+
+- Removed the fixed combined-character cutoff from review generation. Every selected reconstruction's saved text is now included, rather than silently omitting later lecture material after an internal character budget is exhausted.
+- The independent safeguards of 25 selected reconstructions and 100 review figures remain in place. If an unusually large selection exceeds the configured AI model or provider request capacity, generation will fail visibly rather than producing an incomplete review.
+
 ### 2026-07-20 - Dark Authentication Surface
 
 - Added dark-theme auth page, card, and error treatments so the signed-out screen uses the same contrast and surface system as the authenticated workspace.
