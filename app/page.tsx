@@ -174,6 +174,7 @@ type Transcript = {
   generatedBy?: "manual" | "placeholder" | "openai";
   usage?: TokenUsage | null;
   oneNoteSources?: OneNoteSource[];
+  evidence?: ReconstructionEvidence;
   createdAt: string;
 };
 
@@ -182,6 +183,38 @@ type TranscriptSegment = {
   startSeconds: number;
   endSeconds: number;
   text: string;
+  mediaItemId?: string;
+};
+
+type ReconstructionEvidence = {
+  figures?: Array<{
+    label: string;
+    mediaItemId: string;
+    description?: string;
+  }>;
+  audioClips?: Array<{
+    mediaItemId: string;
+    startSeconds: number;
+    endSeconds: number;
+    description?: string;
+  }>;
+  textbookCitations?: Array<{
+    textbookName: string;
+    pageStart: number;
+    pageEnd?: number;
+    description?: string;
+  }>;
+};
+
+type FigureEvidence = NonNullable<ReconstructionEvidence["figures"]>[number];
+type AudioClipEvidence = NonNullable<ReconstructionEvidence["audioClips"]>[number];
+type TextbookCitationEvidence = NonNullable<
+  ReconstructionEvidence["textbookCitations"]
+>[number];
+
+type StorageObjectReference = {
+  bucket?: string;
+  path?: string;
 };
 
 type ExtractedConcept = {
@@ -673,6 +706,58 @@ function stripInlineMarkdown(text: string) {
   return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1");
 }
 
+type EvidenceTextLink = {
+  label: string;
+  href: string;
+  title: string;
+};
+
+function SourceLinkedMathPreview({
+  text,
+  sourceLinks = []
+}: {
+  text: string;
+  sourceLinks?: EvidenceTextLink[];
+}) {
+  const usableLinks = sourceLinks.filter((link) => link.label && link.href);
+
+  if (!usableLinks.length) {
+    return <MathPreview text={text} />;
+  }
+
+  const tokenPattern = new RegExp(
+    `(${usableLinks
+      .map((link) => link.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .sort((left, right) => right.length - left.length)
+      .join("|")})`,
+    "gi"
+  );
+  const linkByLabel = new Map(usableLinks.map((link) => [link.label.toLowerCase(), link]));
+
+  return (
+    <>
+      {text.split(tokenPattern).map((part, index) => {
+        const link = linkByLabel.get(part.toLowerCase());
+
+        return link ? (
+          <a
+            className="source-inline-link"
+            href={link.href}
+            key={`${link.label}-${index}`}
+            rel="noreferrer"
+            target="_blank"
+            title={link.title}
+          >
+            {part}
+          </a>
+        ) : (
+          <MathPreview key={`${part}-${index}`} text={part} />
+        );
+      })}
+    </>
+  );
+}
+
 function normalizeStructuredMarkdown(text: string) {
   return normalizeLatexEscapes(text)
     .trim()
@@ -687,11 +772,13 @@ function normalizeStructuredMarkdown(text: string) {
 function ReviewMarkdownPreview({
   compact = false,
   className = "",
-  text
+  text,
+  sourceLinks = []
 }: {
   compact?: boolean;
   className?: string;
   text: string;
+  sourceLinks?: EvidenceTextLink[];
 }) {
   const lines = normalizeStructuredMarkdown(text).split(/\r?\n/);
   const nodes: ReactNode[] = [];
@@ -709,7 +796,7 @@ function ReviewMarkdownPreview({
       <ul key={`list-${nodes.length}`}>
         {bullets.map((item, index) => (
           <li key={`${item}-${index}`}>
-            <MathPreview text={stripInlineMarkdown(item)} />
+            <SourceLinkedMathPreview sourceLinks={sourceLinks} text={stripInlineMarkdown(item)} />
           </li>
         ))}
       </ul>
@@ -726,7 +813,7 @@ function ReviewMarkdownPreview({
       <ol key={`ordered-list-${nodes.length}`}>
         {numberedItems.map((item, index) => (
           <li key={`${item}-${index}`}>
-            <MathPreview text={stripInlineMarkdown(item)} />
+            <SourceLinkedMathPreview sourceLinks={sourceLinks} text={stripInlineMarkdown(item)} />
           </li>
         ))}
       </ol>
@@ -749,7 +836,7 @@ function ReviewMarkdownPreview({
       mathLines.push("\\]");
       nodes.push(
         <div className="review-math-block" key={`math-${nodes.length}`}>
-          <MathPreview text={mathLines.join("\n")} />
+          <SourceLinkedMathPreview sourceLinks={sourceLinks} text={mathLines.join("\n")} />
         </div>
       );
       inDisplayMath = false;
@@ -778,7 +865,7 @@ function ReviewMarkdownPreview({
         | "h5";
       nodes.push(
         <HeadingTag key={`heading-${nodes.length}`}>
-          <MathPreview text={stripInlineMarkdown(heading[2])} />
+          <SourceLinkedMathPreview sourceLinks={sourceLinks} text={stripInlineMarkdown(heading[2])} />
         </HeadingTag>
       );
       continue;
@@ -802,7 +889,7 @@ function ReviewMarkdownPreview({
     flushNumberedItems();
     nodes.push(
       <p key={`paragraph-${nodes.length}`}>
-        <MathPreview text={stripInlineMarkdown(line)} />
+        <SourceLinkedMathPreview sourceLinks={sourceLinks} text={stripInlineMarkdown(line)} />
       </p>
     );
   }
@@ -855,6 +942,68 @@ function storageObjectUrl(path: string, bucket?: string) {
   }
 
   return `/api/media/read?${params.toString()}`;
+}
+
+function storageReferenceKey({ bucket, path }: StorageObjectReference) {
+  return `${bucket || "lecturevault-media"}:${path || ""}`;
+}
+
+async function resolveSignedStorageUrls(references: StorageObjectReference[]) {
+  const objects = Array.from(
+    new Map(
+      references
+        .filter((reference) => reference.path)
+        .map((reference) => [storageReferenceKey(reference), reference])
+    ).values()
+  );
+
+  if (!objects.length) {
+    return new Map<string, string>();
+  }
+
+  const response = await fetch("/api/media/signed-read", {
+    body: JSON.stringify({ objects }),
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    return new Map<string, string>();
+  }
+
+  const data = (await response.json()) as { urls?: Record<string, string> };
+  return new Map(Object.entries(data.urls || {}));
+}
+
+function useSignedStorageUrls(references: StorageObjectReference[]) {
+  const requestKey = references
+    .filter((reference) => reference.path)
+    .map(storageReferenceKey)
+    .sort()
+    .join("|");
+  const [urls, setUrls] = useState<Map<string, string>>(() => new Map());
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    void resolveSignedStorageUrls(references).then((nextUrls) => {
+      if (isCurrent) {
+        setUrls(nextUrls);
+      }
+    });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [requestKey]); // The serialized key represents the source set; the request is recomputed on source changes.
+
+  return urls;
+}
+
+function mediaUrlAtTime(item: MediaItem, seconds: number) {
+  const sourceUrl = mediaStorageUrl(item);
+  return sourceUrl ? `${sourceUrl}#t=${Math.max(0, Math.floor(seconds))}` : "";
 }
 
 function safePackageName(value: string, fallback = "lecturevault") {
@@ -1322,6 +1471,53 @@ function splitTranscript(text: string): TranscriptSegment[] {
       text: sentence
     })
   );
+}
+
+function timedTranscriptSegments(value: unknown): TranscriptSegment[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((segment): TranscriptSegment | null => {
+      const record = segment && typeof segment === "object" ? segment as Record<string, unknown> : {};
+      const startSeconds = Number(record.startSeconds);
+      const endSeconds = Number(record.endSeconds);
+      const text = typeof record.text === "string" ? record.text.trim() : "";
+      const mediaItemId = typeof record.mediaItemId === "string" ? record.mediaItemId : undefined;
+
+      if (!Number.isFinite(startSeconds) || !Number.isFinite(endSeconds) || endSeconds <= startSeconds || !text) {
+        return null;
+      }
+
+      return {
+        endSeconds,
+        id: uid("seg"),
+        startSeconds,
+        text,
+        ...(mediaItemId ? { mediaItemId } : {})
+      };
+    })
+    .filter((segment): segment is TranscriptSegment => segment !== null);
+}
+
+function evidenceForTranscript(transcript: Transcript | undefined, mediaItems: MediaItem[]) {
+  const explicitFigures = transcript?.evidence?.figures || [];
+  const figures = explicitFigures.length
+    ? explicitFigures
+    : mediaItems
+        .filter((item) => item.kind === "image")
+        .map((item, index) => ({
+          label: `Fig. ${index + 1}`,
+          mediaItemId: item.id,
+          description: item.sourceCaption || "Source visual"
+        }));
+
+  return {
+    audioClips: transcript?.evidence?.audioClips || [],
+    figures,
+    textbookCitations: transcript?.evidence?.textbookCitations || []
+  };
 }
 
 function extractConcepts(lectureId: string, transcript: Transcript) {
@@ -3065,6 +3261,8 @@ export default function LectureVaultApp() {
       pastedTranscript ||
       `Transcript placeholder for ${title}. Add audio transcription or paste notes here.`;
     let transcriptUsage: TokenUsage | null = null;
+    let reconstructionEvidence: ReconstructionEvidence | undefined;
+    let sourceTranscriptSegments: TranscriptSegment[] = [];
     let generatedBy: Transcript["generatedBy"] = pastedTranscript
       ? "manual"
       : "placeholder";
@@ -3132,6 +3330,13 @@ export default function LectureVaultApp() {
           transcribedMediaIds?: string[];
           transcriptText?: string;
           usage?: TokenUsage | null;
+          evidence?: ReconstructionEvidence;
+          timedAudioSegments?: Array<{
+            mediaItemId?: string;
+            startSeconds?: number;
+            endSeconds?: number;
+            text?: string;
+          }>;
         };
 
         if (!response.ok) {
@@ -3160,6 +3365,8 @@ export default function LectureVaultApp() {
         activatePipelineStep("save", "Saving generated reconstruction and concepts");
         transcriptText = data.transcriptText || transcriptText;
         transcriptUsage = data.usage || null;
+        reconstructionEvidence = data.evidence;
+        sourceTranscriptSegments = timedTranscriptSegments(data.timedAudioSegments);
         generatedBy = data.generatedBy || "openai";
         sourceMediaIds = data.sourceMediaIds?.length
           ? data.sourceMediaIds
@@ -3194,10 +3401,13 @@ export default function LectureVaultApp() {
       sourceMediaIds,
       transcribedMediaIds,
       text: transcriptText,
-      segments: splitTranscript(transcriptText),
+      segments: sourceTranscriptSegments.length
+        ? sourceTranscriptSegments
+        : splitTranscript(transcriptText),
       generatedBy,
       usage: transcriptUsage,
       oneNoteSources,
+      evidence: reconstructionEvidence,
       createdAt
     };
 
@@ -3742,6 +3952,93 @@ export default function LectureVaultApp() {
       const figures = stripLargeFigureDataUrls(
         currentFigures.length ? currentFigures : guide.figures || []
       );
+      const selectedTranscripts = state.transcripts.filter((transcript) =>
+        sourceLectureIds.includes(transcript.lectureId)
+      );
+      const courseTextbooks = state.textbooks.filter(
+        (textbook) => textbook.courseId === selectedExam.courseId
+      );
+      const sourceReferences: StorageObjectReference[] = [];
+      const sourceLinks: Array<{ label: string; href: string; description: string }> = [];
+      const addSourceLink = (
+        label: string,
+        reference: StorageObjectReference,
+        description: string,
+        fragment = ""
+      ) => {
+        if (reference.path) {
+          sourceReferences.push(reference);
+          sourceLinks.push({
+            description,
+            href: `${storageReferenceKey(reference)}${fragment}`,
+            label
+          });
+        }
+      };
+
+      for (const transcript of selectedTranscripts) {
+        const evidence = evidenceForTranscript(transcript, selectedMediaItems);
+
+        for (const figure of evidence.figures) {
+          const media = selectedMediaItems.find((item) => item.id === figure.mediaItemId);
+          if (media?.storagePath) {
+            addSourceLink(
+              figure.label,
+              { bucket: media.storageBucket, path: media.storagePath },
+              figure.description || media.name
+            );
+          }
+        }
+
+        for (const clip of evidence.audioClips) {
+          const media = selectedMediaItems.find((item) => item.id === clip.mediaItemId);
+          if (media?.storagePath) {
+            addSourceLink(
+              `Audio ${formatSeconds(clip.startSeconds)}`,
+              { bucket: media.storageBucket, path: media.storagePath },
+              clip.description || media.name,
+              `#t=${Math.max(0, Math.floor(clip.startSeconds))}`
+            );
+          }
+        }
+
+        for (const citation of evidence.textbookCitations) {
+          const textbook = courseTextbooks.find(
+            (item) =>
+              item.name.trim().toLowerCase() === citation.textbookName.trim().toLowerCase()
+          );
+          if (textbook?.storagePath) {
+            const pageLabel = citation.pageEnd && citation.pageEnd !== citation.pageStart
+              ? `pp. ${citation.pageStart}-${citation.pageEnd}`
+              : `p. ${citation.pageStart}`;
+            addSourceLink(
+              `${textbook.name}, ${pageLabel}`,
+              { bucket: textbook.storageBucket, path: textbook.storagePath },
+              citation.description || "Textbook support for the related explanation.",
+              `#page=${citation.pageStart}`
+            );
+          }
+        }
+      }
+
+      const signedSourceUrls = await resolveSignedStorageUrls(sourceReferences);
+      const resolvedSourceLinks = Array.from(
+        new Map(
+          sourceLinks
+            .map((link) => {
+              const [referenceKey, fragment = ""] = link.href.split("#", 2);
+              const signedUrl = signedSourceUrls.get(referenceKey);
+
+              return signedUrl
+                ? [
+                    `${link.label}:${signedUrl}#${fragment}`,
+                    { ...link, href: fragment ? `${signedUrl}#${fragment}` : signedUrl }
+                  ]
+                : null;
+            })
+            .filter((entry): entry is [string, { label: string; href: string; description: string }] => Boolean(entry))
+        ).values()
+      );
       const response = await fetch("/api/exam-review/pdf", {
         method: "POST",
         headers: {
@@ -3751,7 +4048,8 @@ export default function LectureVaultApp() {
           title: guide.title,
           courseName: courseLabel(selectedExam.courseId),
           review: guide.content,
-          figures
+          figures,
+          sourceLinks: resolvedSourceLinks
         })
       });
 
@@ -5337,6 +5635,9 @@ export default function LectureVaultApp() {
             )}
             mediaItems={state.mediaItems.filter(
               (item) => item.lectureId === selectedLecture.id
+            )}
+            textbooks={state.textbooks.filter(
+              (textbook) => textbook.courseId === selectedLecture.courseId
             )}
             transcript={state.transcripts.find(
               (item) => item.lectureId === selectedLecture.id
@@ -7143,7 +7444,19 @@ function MetadataBubble({ label, children }: { label: string; children: ReactNod
   );
 }
 
-function EmbeddedAudioPlayer({ src, title }: { src: string; title: string }) {
+function EmbeddedAudioPlayer({
+  src,
+  title,
+  startSeconds = 0,
+  endSeconds,
+  compact = false
+}: {
+  src: string;
+  title: string;
+  startSeconds?: number;
+  endSeconds?: number;
+  compact?: boolean;
+}) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -7155,11 +7468,11 @@ function EmbeddedAudioPlayer({ src, title }: { src: string; title: string }) {
     if (!audio) return;
 
     audio.pause();
-    audio.currentTime = 0;
+    audio.currentTime = startSeconds;
     setIsPlaying(false);
-    setCurrentTime(0);
+    setCurrentTime(startSeconds);
     setDuration(0);
-  }, [src]);
+  }, [endSeconds, src, startSeconds]);
 
   async function togglePlayback() {
     const audio = audioRef.current;
@@ -7168,6 +7481,11 @@ function EmbeddedAudioPlayer({ src, title }: { src: string; title: string }) {
 
     if (audio.paused) {
       try {
+        const requestedStart = Math.max(0, startSeconds);
+        if (Math.abs(audio.currentTime - requestedStart) > 0.75) {
+          audio.currentTime = requestedStart;
+          setCurrentTime(requestedStart);
+        }
         await audio.play();
       } catch {
         setIsPlaying(false);
@@ -7183,12 +7501,19 @@ function EmbeddedAudioPlayer({ src, title }: { src: string; title: string }) {
 
     if (!audio) return;
 
-    audio.currentTime = nextTime;
-    setCurrentTime(nextTime);
+    const constrainedTime = Math.min(
+      Math.max(nextTime, startSeconds),
+      endSeconds || duration || nextTime
+    );
+    audio.currentTime = constrainedTime;
+    setCurrentTime(constrainedTime);
   }
 
   return (
-    <div className="embedded-audio-player" aria-label={`Audio player for ${title}`}>
+    <div
+      className={`embedded-audio-player${compact ? " compact" : ""}`}
+      aria-label={`Audio player for ${title}`}
+    >
       <audio
         ref={audioRef}
         src={src}
@@ -7198,12 +7523,25 @@ function EmbeddedAudioPlayer({ src, title }: { src: string; title: string }) {
           const nextDuration = event.currentTarget.duration;
           setDuration(Number.isFinite(nextDuration) ? nextDuration : 0);
         }}
-        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+        onLoadedMetadata={(event) => {
+          event.currentTarget.currentTime = startSeconds;
+          setCurrentTime(startSeconds);
+        }}
+        onTimeUpdate={(event) => {
+          const nextTime = event.currentTarget.currentTime;
+          if (endSeconds && nextTime >= endSeconds) {
+            event.currentTarget.pause();
+            event.currentTarget.currentTime = startSeconds;
+            setCurrentTime(startSeconds);
+            return;
+          }
+          setCurrentTime(nextTime);
+        }}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onEnded={() => {
           setIsPlaying(false);
-          setCurrentTime(0);
+          setCurrentTime(startSeconds);
         }}
       />
       <button
@@ -7215,16 +7553,20 @@ function EmbeddedAudioPlayer({ src, title }: { src: string; title: string }) {
       >
         {isPlaying ? <Pause aria-hidden="true" size={15} /> : <Play aria-hidden="true" size={15} />}
       </button>
-      <span className="audio-time">{formatSeconds(currentTime)} / {formatSeconds(duration)}</span>
+      <span className="audio-time">
+        {endSeconds
+          ? `${formatSeconds(startSeconds)}-${formatSeconds(endSeconds)}`
+          : `${formatSeconds(currentTime)} / ${formatSeconds(duration)}`}
+      </span>
       <input
         aria-label="Audio progress"
         className="audio-progress"
         type="range"
-        min="0"
-        max={duration || 0}
+        min={startSeconds}
+        max={endSeconds || duration || startSeconds}
         step="0.1"
-        value={Math.min(currentTime, duration || 0)}
-        disabled={!duration}
+        value={Math.min(Math.max(currentTime, startSeconds), endSeconds || duration || startSeconds)}
+        disabled={!duration || Boolean(endSeconds && endSeconds <= startSeconds)}
         onChange={(event) => seek(Number(event.target.value))}
       />
     </div>
@@ -7281,6 +7623,130 @@ function LectureListRow({
       <time dateTime={lecture.date}>{lecture.date}</time>
       <span>{formatFileSize(sourceSize)}</span>
     </article>
+  );
+}
+
+function EvidenceReferencePanel({
+  evidence,
+  mediaItems,
+  textbooks,
+  sourceUrlForMedia,
+  sourceUrlForTextbook
+}: {
+  evidence: ReturnType<typeof evidenceForTranscript>;
+  mediaItems: MediaItem[];
+  textbooks: CourseTextbook[];
+  sourceUrlForMedia: (item: MediaItem) => string;
+  sourceUrlForTextbook: (textbook: CourseTextbook) => string;
+}) {
+  const figures = evidence.figures
+    .map((figure) => ({ figure, media: mediaItems.find((item) => item.id === figure.mediaItemId) }))
+    .filter((entry): entry is { figure: FigureEvidence; media: MediaItem } => Boolean(entry.media));
+  const audioClips = evidence.audioClips
+    .map((clip) => ({ clip, media: mediaItems.find((item) => item.id === clip.mediaItemId) }))
+    .filter((entry): entry is { clip: AudioClipEvidence; media: MediaItem } => Boolean(entry.media));
+  const textbookCitations = evidence.textbookCitations
+    .map((citation) => ({
+      citation,
+      textbook: textbooks.find(
+        (textbook) => textbook.name.trim().toLowerCase() === citation.textbookName.trim().toLowerCase()
+      )
+    }))
+    .filter((entry): entry is { citation: TextbookCitationEvidence; textbook: CourseTextbook } => Boolean(entry.textbook));
+
+  if (!figures.length && !audioClips.length && !textbookCitations.length) {
+    return null;
+  }
+
+  return (
+    <section className="evidence-panel" aria-label="Source references used in this reconstruction">
+      <div className="evidence-panel-heading">
+        <div>
+          <span className="pill">Evidence</span>
+          <h4>Source references</h4>
+        </div>
+        <span>{figures.length + audioClips.length + textbookCitations.length} cited</span>
+      </div>
+      <div className="evidence-groups">
+        {figures.length ? (
+          <details className="evidence-group">
+            <summary>Figures <span>{figures.length}</span></summary>
+            <div className="evidence-reference-list">
+              {figures.map(({ figure, media }) => {
+                const sourceUrl = sourceUrlForMedia(media);
+
+                return (
+                  <details className="evidence-reference" key={figure.mediaItemId}>
+                    <summary>
+                      <strong>{figure.label}</strong>
+                      <span>{figure.description || media.name}</span>
+                    </summary>
+                    <div>
+                      {sourceUrl ? (
+                        <a href={sourceUrl} target="_blank" rel="noreferrer">Open original figure</a>
+                      ) : null}
+                      {sourceUrl ? <img src={sourceUrl} alt={figure.description || figure.label} /> : null}
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          </details>
+        ) : null}
+        {audioClips.length ? (
+          <details className="evidence-group">
+            <summary>Audio clips <span>{audioClips.length}</span></summary>
+            <div className="evidence-reference-list">
+              {audioClips.map(({ clip, media }, index) => {
+                const sourceUrl = sourceUrlForMedia(media);
+                const clipUrl = sourceUrl ? `${sourceUrl}#t=${Math.max(0, Math.floor(clip.startSeconds))}` : "";
+
+                return (
+                  <div className="evidence-audio-reference" key={`${clip.mediaItemId}-${clip.startSeconds}-${index}`}>
+                    <div>
+                      <strong>Audio {formatSeconds(clip.startSeconds)}</strong>
+                      <span>{clip.description || media.name}</span>
+                    </div>
+                    {sourceUrl ? (
+                      <EmbeddedAudioPlayer
+                        compact
+                        endSeconds={clip.endSeconds}
+                        src={sourceUrl}
+                        startSeconds={clip.startSeconds}
+                        title={media.name}
+                      />
+                    ) : null}
+                    {clipUrl ? <a href={clipUrl} target="_blank" rel="noreferrer">Open source</a> : null}
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+        ) : null}
+        {textbookCitations.length ? (
+          <details className="evidence-group">
+            <summary>Textbook citations <span>{textbookCitations.length}</span></summary>
+            <div className="evidence-reference-list">
+              {textbookCitations.map(({ citation, textbook }, index) => {
+                const textbookUrl = sourceUrlForTextbook(textbook);
+                const sourceUrl = textbookUrl ? `${textbookUrl}#page=${citation.pageStart}` : "";
+                const pageLabel = citation.pageEnd && citation.pageEnd !== citation.pageStart
+                  ? `pp. ${citation.pageStart}-${citation.pageEnd}`
+                  : `p. ${citation.pageStart}`;
+
+                return (
+                  <div className="evidence-textbook-reference" key={`${textbook.id}-${citation.pageStart}-${index}`}>
+                    <strong>{textbook.name}, {pageLabel}</strong>
+                    <span>{citation.description || "Supports the nearby reconstruction explanation."}</span>
+                    {sourceUrl ? <a href={sourceUrl} target="_blank" rel="noreferrer">Open cited page</a> : null}
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
@@ -7366,6 +7832,7 @@ function LectureDetail({
   studyLectures,
   courseLectures,
   mediaItems,
+  textbooks,
   transcript,
   concepts,
   exams,
@@ -7380,6 +7847,7 @@ function LectureDetail({
   studyLectures: Lecture[];
   courseLectures: Lecture[];
   mediaItems: MediaItem[];
+  textbooks: CourseTextbook[];
   transcript?: Transcript;
   concepts: ExtractedConcept[];
   exams: ExamWorkspace[];
@@ -7495,6 +7963,97 @@ function LectureDetail({
     explorerFolderId === "all"
       ? "All reconstructions"
       : archiveFolders.find((folder) => folder.id === explorerFolderId)?.name || "Folder";
+  const reconstructionEvidence = useMemo(
+    () => evidenceForTranscript(transcript, mediaItems),
+    [mediaItems, transcript]
+  );
+  const evidenceStorageReferences = useMemo(() => {
+    const mediaReferences = [
+      ...reconstructionEvidence.figures.map((figure) =>
+        mediaItems.find((item) => item.id === figure.mediaItemId)
+      ),
+      ...reconstructionEvidence.audioClips.map((clip) =>
+        mediaItems.find((item) => item.id === clip.mediaItemId)
+      )
+    ]
+      .filter((item): item is MediaItem => Boolean(item?.storagePath))
+      .map((item) => ({ bucket: item.storageBucket, path: item.storagePath }));
+    const textbookReferences = reconstructionEvidence.textbookCitations
+      .map((citation) =>
+        textbooks.find(
+          (textbook) =>
+            textbook.name.trim().toLowerCase() === citation.textbookName.trim().toLowerCase()
+        )
+      )
+      .filter((textbook): textbook is CourseTextbook => Boolean(textbook?.storagePath))
+      .map((textbook) => ({ bucket: textbook.storageBucket, path: textbook.storagePath }));
+
+    return [...mediaReferences, ...textbookReferences];
+  }, [mediaItems, reconstructionEvidence, textbooks]);
+  const signedSourceUrls = useSignedStorageUrls(evidenceStorageReferences);
+  const sourceUrlForMedia = (item: MediaItem) =>
+    item.dataUrl ||
+    (item.storagePath
+      ? signedSourceUrls.get(
+          storageReferenceKey({ bucket: item.storageBucket, path: item.storagePath })
+        ) || mediaStorageUrl(item)
+      : "");
+  const sourceUrlForTextbook = (textbook: CourseTextbook) =>
+    textbook.storagePath
+      ? signedSourceUrls.get(
+          storageReferenceKey({ bucket: textbook.storageBucket, path: textbook.storagePath })
+        ) || storageObjectUrl(textbook.storagePath, textbook.storageBucket)
+      : "";
+  const evidenceTextLinks = useMemo(() => {
+    const figureLinks = reconstructionEvidence.figures.flatMap((figure) => {
+      const item = mediaItems.find((media) => media.id === figure.mediaItemId);
+      const href = item ? sourceUrlForMedia(item) : "";
+
+      return href
+        ? [{
+            href,
+            label: figure.label,
+            title: `${figure.label}: ${figure.description || item?.name || "source figure"}`
+          }]
+        : [];
+    });
+    const audioLinks = reconstructionEvidence.audioClips.flatMap((clip) => {
+      const item = mediaItems.find((media) => media.id === clip.mediaItemId);
+      const baseUrl = item ? sourceUrlForMedia(item) : "";
+      const href = baseUrl ? `${baseUrl}#t=${Math.max(0, Math.floor(clip.startSeconds))}` : "";
+
+      return href
+        ? [{
+            href,
+            label: `Audio ${formatSeconds(clip.startSeconds)}`,
+            title: clip.description || `Open lecture audio at ${formatSeconds(clip.startSeconds)}`
+          }]
+        : [];
+    });
+    const textbookLinks = reconstructionEvidence.textbookCitations.flatMap((citation) => {
+      const textbook = textbooks.find(
+        (entry) => entry.name.trim().toLowerCase() === citation.textbookName.trim().toLowerCase()
+      );
+      const textbookUrl = textbook ? sourceUrlForTextbook(textbook) : "";
+      const href = textbookUrl ? `${textbookUrl}#page=${citation.pageStart}` : "";
+      const pageLabel = citation.pageEnd && citation.pageEnd !== citation.pageStart
+        ? `pp. ${citation.pageStart}-${citation.pageEnd}`
+        : `p. ${citation.pageStart}`;
+
+      return href
+        ? [{
+            href,
+            label: `Textbook reference: ${citation.textbookName}, ${pageLabel}`,
+            title: citation.description || `Open ${citation.textbookName}, ${pageLabel}`
+          }]
+        : [];
+    });
+
+    return [...figureLinks, ...audioLinks, ...textbookLinks];
+  }, [mediaItems, reconstructionEvidence, signedSourceUrls, textbooks]);
+  const hasTimestampedTranscript = Boolean(
+    transcript?.segments.some((segment) => segment.mediaItemId)
+  );
 
   return (
     <section className="lecture-study-layout">
@@ -7686,21 +8245,39 @@ function LectureDetail({
           ) : null}
         </section>
 
-        <h4>Transcript</h4>
+        <h4>{hasTimestampedTranscript ? "Timestamped source transcript" : "Transcript"}</h4>
         <div className="transcript-box">
           {transcript?.segments.map((segment) => (
             <p key={segment.id}>
-              <a href={`#${segment.id}`}>
-                {formatSeconds(segment.startSeconds)}
-              </a>{" "}
+              {segment.mediaItemId && mediaItems.find((item) => item.id === segment.mediaItemId) ? (
+                <a
+                  href={`${sourceUrlForMedia(
+                    mediaItems.find((item) => item.id === segment.mediaItemId) as MediaItem
+                  )}#t=${Math.max(0, Math.floor(segment.startSeconds))}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {formatSeconds(segment.startSeconds)}
+                </a>
+              ) : (
+                <span className="transcript-time">{formatSeconds(segment.startSeconds)}</span>
+              )}{" "}
               <MathPreview text={segment.text} />
             </p>
           )) || "No transcript yet."}
         </div>
+        <EvidenceReferencePanel
+          evidence={reconstructionEvidence}
+          mediaItems={mediaItems}
+          sourceUrlForMedia={sourceUrlForMedia}
+          sourceUrlForTextbook={sourceUrlForTextbook}
+          textbooks={textbooks}
+        />
         <h4>KaTeX Preview</h4>
         <div className="math-preview-panel">
           <ReviewMarkdownPreview
             className="math-document-preview"
+            sourceLinks={evidenceTextLinks}
             text={
               transcript?.text ||
               lecture.summary ||

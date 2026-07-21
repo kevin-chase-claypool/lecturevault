@@ -2545,6 +2545,186 @@ button.review-draft-button:disabled {
   text-decoration: none;
 }
 
+.transcript-time {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.evidence-panel {
+  display: grid;
+  gap: 9px;
+  border: 1px solid #c8d8e4;
+  border-radius: var(--radius);
+  padding: 11px;
+  background: #f7fafc;
+}
+
+.evidence-panel-heading,
+.evidence-panel-heading > div,
+.evidence-group summary,
+.evidence-reference summary,
+.evidence-audio-reference > div,
+.evidence-textbook-reference {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.evidence-panel-heading {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.evidence-panel-heading > div {
+  gap: 8px;
+}
+
+.evidence-panel-heading h4 {
+  margin: 0;
+}
+
+.evidence-panel-heading > span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.evidence-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.evidence-group {
+  min-width: min(100%, 200px);
+  flex: 1 1 200px;
+  border: 1px solid #d6e2eb;
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+
+.evidence-group summary,
+.evidence-reference summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.evidence-group summary::-webkit-details-marker,
+.evidence-reference summary::-webkit-details-marker {
+  display: none;
+}
+
+.evidence-group > summary {
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 9px;
+  color: var(--text);
+  font-size: 0.79rem;
+  font-weight: 850;
+}
+
+.evidence-group > summary::before,
+.evidence-reference summary::before {
+  content: "+";
+  color: var(--primary);
+  font-weight: 900;
+}
+
+.evidence-group[open] > summary::before,
+.evidence-reference[open] summary::before {
+  content: "-";
+}
+
+.evidence-group > summary span {
+  display: inline-grid;
+  min-width: 20px;
+  min-height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  background: #edf4f8;
+  color: var(--primary-dark);
+  font-size: 0.7rem;
+}
+
+.evidence-reference-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid #e1e9ef;
+}
+
+.evidence-reference,
+.evidence-audio-reference,
+.evidence-textbook-reference {
+  display: grid;
+  gap: 7px;
+  padding: 8px 9px;
+  border-top: 1px solid #e7edf2;
+}
+
+.evidence-reference:first-child,
+.evidence-audio-reference:first-child,
+.evidence-textbook-reference:first-child {
+  border-top: 0;
+}
+
+.evidence-reference summary {
+  gap: 7px;
+}
+
+.evidence-reference summary strong,
+.evidence-audio-reference strong,
+.evidence-textbook-reference strong {
+  flex: 0 0 auto;
+  color: var(--primary-dark);
+  font-size: 0.76rem;
+}
+
+.evidence-reference summary span,
+.evidence-audio-reference span,
+.evidence-textbook-reference span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.evidence-reference > div {
+  display: grid;
+  gap: 7px;
+  padding-top: 3px;
+}
+
+.evidence-reference img {
+  width: 100%;
+  max-height: 230px;
+  object-fit: contain;
+  border: 1px solid #d8e3eb;
+  border-radius: 6px;
+  background: #eef3f7;
+}
+
+.evidence-reference a,
+.evidence-audio-reference > a,
+.evidence-textbook-reference > a {
+  width: fit-content;
+  color: var(--primary-dark);
+  font-size: 0.75rem;
+  font-weight: 850;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.evidence-audio-reference > div {
+  display: grid;
+  gap: 2px;
+  align-items: start;
+}
+
+.evidence-textbook-reference {
+  align-items: start;
+}
+
 .math-inline {
   display: inline;
 }
@@ -2610,6 +2790,19 @@ button.review-draft-button:disabled {
   border-radius: 7px;
   padding: 6px;
   background: #f7faff;
+}
+
+.embedded-audio-player.compact {
+  grid-template-columns: 30px auto minmax(0, 1fr);
+  gap: 6px;
+  margin: 0;
+  padding: 5px;
+}
+
+.embedded-audio-player.compact .audio-play-button {
+  width: 30px;
+  min-width: 30px;
+  min-height: 27px;
 }
 
 .embedded-audio-player audio {
@@ -4411,6 +4604,18 @@ button.review-draft-button:disabled {
 
 .math-document-preview p {
   max-width: 82ch;
+}
+
+.source-inline-link {
+  display: inline;
+  border-bottom: 1px solid currentColor;
+  color: var(--primary-dark);
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.source-inline-link:hover {
+  color: var(--primary);
 }
 
 .math-document-preview .math-block {
@@ -7460,6 +7665,25 @@ body {
 :root[data-theme="dark"] .embedded-audio-player {
   border-color: #3b5366;
   background: #1b2a38;
+}
+
+:root[data-theme="dark"] .evidence-panel,
+:root[data-theme="dark"] .evidence-group,
+:root[data-theme="dark"] .evidence-reference img {
+  border-color: #3b5366;
+  background: #1b2a38;
+}
+
+:root[data-theme="dark"] .evidence-group > summary span {
+  background: #20394a;
+  color: #aee0fa;
+}
+
+:root[data-theme="dark"] .evidence-reference-list,
+:root[data-theme="dark"] .evidence-reference,
+:root[data-theme="dark"] .evidence-audio-reference,
+:root[data-theme="dark"] .evidence-textbook-reference {
+  border-color: #30485a;
 }
 
 /* Reconstruction workflow surfaces use light-specific gradients in the default theme. */

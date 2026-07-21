@@ -14,6 +14,12 @@ type ReviewFigure = {
   storagePath?: string;
 };
 
+type ReviewSourceLink = {
+  label?: string;
+  href?: string;
+  description?: string;
+};
+
 function jsonError(message: string, status: number) {
   return Response.json({ error: message }, { status });
 }
@@ -179,6 +185,34 @@ function figureHtml(figures: ReviewFigure[]) {
   </section>`;
 }
 
+function sourceLinksHtml(sourceLinks: ReviewSourceLink[]) {
+  const links = sourceLinks.filter(
+    (link) => cleanString(link.label) && cleanString(link.href)
+  );
+
+  if (!links.length) {
+    return "";
+  }
+
+  return `<section class="source-links">
+    <h2>Source Links</h2>
+    <p>Open the linked original when you need to inspect a figure, replay a cited lecture moment, or check a textbook page.</p>
+    <ul>
+      ${links
+        .map(
+          (link) => `<li><a href="${escapeHtml(cleanString(link.href))}">${escapeHtml(
+            cleanString(link.label)
+          )}</a>${
+            cleanString(link.description)
+              ? ` <span>${escapeHtml(cleanString(link.description))}</span>`
+              : ""
+          }</li>`
+        )
+        .join("\n")}
+    </ul>
+  </section>`;
+}
+
 async function resolveFigureImages(figures: ReviewFigure[]) {
   const resolved: ReviewFigure[] = [];
 
@@ -212,12 +246,14 @@ function buildHtml({
   title,
   courseName,
   review,
-  figures
+  figures,
+  sourceLinks
 }: {
   title: string;
   courseName: string;
   review: string;
   figures: ReviewFigure[];
+  sourceLinks: ReviewSourceLink[];
 }) {
   return `<!doctype html>
 <html>
@@ -272,6 +308,11 @@ function buildHtml({
       padding: 0.16in;
     }
     figcaption { color: #526071; font-size: 6.7pt; margin-top: 0.06in; }
+    .source-links { break-inside: avoid; margin-top: 0.28in; page-break-inside: avoid; }
+    .source-links p { color: #526071; font-size: 7pt; margin-bottom: 0.06in; }
+    .source-links li { font-size: 7pt; }
+    .source-links a { color: #0b5f79; text-decoration: underline; }
+    .source-links span { color: #526071; }
   </style>
 </head>
 <body>
@@ -279,6 +320,7 @@ function buildHtml({
   <div class="meta">${escapeHtml(courseName)}</div>
   <main>${renderReviewMarkdown(review)}</main>
   ${figureHtml(figures)}
+  ${sourceLinksHtml(sourceLinks)}
 </body>
 </html>`;
 }
@@ -343,6 +385,7 @@ export async function POST(request: Request) {
       courseName?: string;
       review?: string;
       figures?: ReviewFigure[];
+      sourceLinks?: ReviewSourceLink[];
     };
     const review = cleanString(body.review);
 
@@ -354,7 +397,8 @@ export async function POST(request: Request) {
       title: cleanString(body.title) || "Exam Review",
       courseName: cleanString(body.courseName),
       review,
-      figures: await resolveFigureImages(Array.isArray(body.figures) ? body.figures : [])
+      figures: await resolveFigureImages(Array.isArray(body.figures) ? body.figures : []),
+      sourceLinks: Array.isArray(body.sourceLinks) ? body.sourceLinks : []
     });
     const response = await fetch(browserlessUrl, {
       method: "POST",

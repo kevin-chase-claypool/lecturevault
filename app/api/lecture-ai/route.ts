@@ -14,7 +14,7 @@ import {
 export const runtime = "nodejs";
 
 const DEFAULT_LECTURE_MODEL = "gpt-4.1-mini";
-const DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-transcribe";
+const DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-transcribe-diarize";
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
 const MAX_IMAGE_INPUTS = 30;
 const MAX_AUDIO_INPUTS = 3;
@@ -66,6 +66,29 @@ type TokenUsage = {
   input_tokens?: number;
   output_tokens?: number;
   total_tokens?: number;
+};
+
+type TimedAudioSegment = {
+  mediaItemId: string;
+  startSeconds: number;
+  endSeconds: number;
+  text: string;
+};
+
+type ReconstructionEvidence = {
+  figures?: Array<{ mediaItemId?: string; description?: string }>;
+  audioClips?: Array<{
+    mediaItemId?: string;
+    startSeconds?: number;
+    endSeconds?: number;
+    description?: string;
+  }>;
+  textbookCitations?: Array<{
+    textbookName?: string;
+    pageStart?: number;
+    pageEnd?: number;
+    description?: string;
+  }>;
 };
 
 function cleanString(value: unknown) {
@@ -197,6 +220,126 @@ function fallbackArtifact(transcriptText: string, media: LectureMediaItem[], tit
   };
 }
 
+function isTimedTranscriptionModel(model: string) {
+  return model === "gpt-4o-transcribe-diarize";
+}
+
+function cleanTimedSegments(value: unknown, mediaItemId: string): TimedAudioSegment[] {
+  if (!Array.isArray(value) || !mediaItemId) {
+    return [];
+  }
+
+  return value
+    .map((segment) => {
+      const record = segment && typeof segment === "object" ? segment as Record<string, unknown> : {};
+      const startSeconds = typeof record.start === "number" ? record.start : Number(record.start);
+      const endSeconds = typeof record.end === "number" ? record.end : Number(record.end);
+      const text = cleanString(record.text);
+
+      if (!Number.isFinite(startSeconds) || !Number.isFinite(endSeconds) || endSeconds <= startSeconds || !text) {
+        return null;
+      }
+
+      return {
+        mediaItemId,
+        startSeconds: Math.max(0, startSeconds),
+        endSeconds,
+        text
+      };
+    })
+    .filter((segment): segment is TimedAudioSegment => Boolean(segment));
+}
+
+function normalizeEvidence(
+  evidence: ReconstructionEvidence | undefined,
+  mediaItems: LectureMediaItem[],
+  timedAudioSegments: TimedAudioSegment[],
+  textbookContext: TextbookContextChunk[]
+) {
+  const figureSources = mediaItems
+    .filter((item) => item.kind === "image" && cleanString(item.id))
+    .map((item, index) => ({
+      label: `Fig. ${index + 1}`,
+      mediaItemId: cleanString(item.id),
+      description: cleanString(item.sourceCaption)
+    }));
+  const figureById = new Map(figureSources.map((figure) => [figure.mediaItemId, figure]));
+  const audioSourceIds = new Set(timedAudioSegments.map((segment) => segment.mediaItemId));
+  const textbookByName = new Map(
+    textbookContext
+      .filter((chunk) => cleanString(chunk.textbookName))
+      .map((chunk) => [cleanString(chunk.textbookName).toLowerCase(), chunk])
+  );
+
+  const figures = (Array.isArray(evidence?.figures) ? evidence.figures : [])
+    .map((figure) => {
+      const source = figureById.get(cleanString(figure.mediaItemId));
+      return source
+        ? {
+            ...source,
+            description: cleanString(figure.description) || source.description
+          }
+        : null;
+    })
+    .filter((figure): figure is NonNullable<typeof figure> => Boolean(figure));
+
+  const audioClips = (Array.isArray(evidence?.audioClips) ? evidence.audioClips : [])
+    .map((clip) => {
+      const mediaItemId = cleanString(clip.mediaItemId);
+      const startSeconds = Number(clip.startSeconds);
+      const endSeconds = Number(clip.endSeconds);
+
+      if (
+        !audioSourceIds.has(mediaItemId) ||
+        !Number.isFinite(startSeconds) ||
+        !Number.isFinite(endSeconds) ||
+        endSeconds <= startSeconds
+      ) {
+        return null;
+      }
+
+      const matchesSource = timedAudioSegments.some(
+        (segment) =>
+          segment.mediaItemId === mediaItemId &&
+          startSeconds >= segment.startSeconds - 0.5 &&
+          endSeconds <= segment.endSeconds + 0.5
+      );
+
+      return matchesSource
+        ? {
+            mediaItemId,
+            startSeconds: Math.max(0, startSeconds),
+            endSeconds,
+            description: cleanString(clip.description)
+          }
+        : null;
+    })
+    .filter((clip): clip is NonNullable<typeof clip> => Boolean(clip));
+
+  const textbookCitations = (Array.isArray(evidence?.textbookCitations)
+    ? evidence.textbookCitations
+    : [])
+    .map((citation) => {
+      const source = textbookByName.get(cleanString(citation.textbookName).toLowerCase());
+      const pageStart = Number(citation.pageStart);
+      const pageEnd = Number(citation.pageEnd || citation.pageStart);
+
+      if (!source || !Number.isFinite(pageStart) || !Number.isFinite(pageEnd)) {
+        return null;
+      }
+
+      return {
+        textbookName: cleanString(source.textbookName),
+        pageStart,
+        pageEnd: Math.max(pageStart, pageEnd),
+        description: cleanString(citation.description)
+      };
+    })
+    .filter((citation): citation is NonNullable<typeof citation> => Boolean(citation));
+
+  return { audioClips, figures, textbookCitations };
+}
+
 export async function POST(request: Request) {
   const authError = requireAuthenticatedRequest(request);
 
@@ -228,6 +371,7 @@ export async function POST(request: Request) {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     let totalUsage: TokenUsage = {};
     const audioTranscripts: string[] = [];
+    const timedAudioSegments: TimedAudioSegment[] = [];
     const transcribedMediaIds: string[] = [];
     const usableAudio = mediaItems
       .filter(
@@ -251,25 +395,47 @@ export async function POST(request: Request) {
         cleanString(item.name) || `lecture-audio.${format}`,
         { type: parsed.mimeType }
       );
-      const transcription = await client.audio.transcriptions.create({
-        file,
-        model:
-          process.env.OPENAI_TRANSCRIPTION_MODEL ||
-          process.env.OPENAI_LECTURE_TRANSCRIPTION_MODEL ||
-          DEFAULT_TRANSCRIPTION_MODEL,
-        prompt: [
-          cleanString(body.courseName),
-          cleanString(body.title),
-          cleanString(body.courseStudyProfile).slice(0, 900)
-        ]
-          .filter(Boolean)
-          .join(". ") || undefined
-      });
+      const transcriptionModel =
+        process.env.OPENAI_TRANSCRIPTION_MODEL ||
+        process.env.OPENAI_LECTURE_TRANSCRIPTION_MODEL ||
+        DEFAULT_TRANSCRIPTION_MODEL;
+      const transcription = isTimedTranscriptionModel(transcriptionModel)
+        ? await client.audio.transcriptions.create({
+            chunking_strategy: "auto",
+            file,
+            model: transcriptionModel,
+            response_format: "diarized_json"
+          })
+        : await client.audio.transcriptions.create({
+            file,
+            model: transcriptionModel,
+            prompt: [
+              cleanString(body.courseName),
+              cleanString(body.title),
+              cleanString(body.courseStudyProfile).slice(0, 900)
+            ]
+              .filter(Boolean)
+              .join(". ") || undefined
+          });
       const text = cleanString(transcription.text);
 
+      if (item.id && "segments" in transcription) {
+        timedAudioSegments.push(...cleanTimedSegments(transcription.segments, item.id));
+      }
+
       if (text) {
+        const timestampedSegments = item.id
+          ? timedAudioSegments
+              .filter((segment) => segment.mediaItemId === item.id)
+              .map(
+                (segment) =>
+                  `[Audio cue | media id: ${item.id} | ${Math.floor(segment.startSeconds)}-${Math.ceil(segment.endSeconds)} seconds] ${segment.text}`
+              )
+          : [];
         audioTranscripts.push(
-          `Audio source: ${cleanString(item.name) || item.id || "audio"}\n${text}`
+          timestampedSegments.length
+            ? `Audio source: ${cleanString(item.name) || item.id || "audio"}\n${timestampedSegments.join("\n")}`
+            : `Audio source: ${cleanString(item.name) || item.id || "audio"}\n${text}`
         );
       }
 
@@ -303,6 +469,13 @@ export async function POST(request: Request) {
           .map(async (item) => ({ dataUrl: await mediaDataUrl(item), item }))
       )
     ).filter(({ dataUrl }) => dataUrl.startsWith("data:application/pdf"));
+    const figureCatalog = mediaItems
+      .filter((item) => item.kind === "image" && cleanString(item.id))
+      .map(
+        (item, index) =>
+          `${`Fig. ${index + 1}`} | media id: ${cleanString(item.id)} | ${cleanString(item.name) || "Unnamed figure"}${cleanString(item.sourceCaption) ? ` | ${cleanString(item.sourceCaption)}` : ""}`
+      )
+      .join("\n");
     const mediaManifest = mediaItems
       .map(
         (item, index) =>
@@ -406,6 +579,9 @@ export async function POST(request: Request) {
             : "",
           oneNoteContext ? `Selected OneNote page snapshots:\n${oneNoteContext}` : "",
           mediaManifest ? `Source media manifest:\n${mediaManifest}` : "",
+          figureCatalog
+            ? `Figure catalog. Use these exact labels only when the nearby reconstruction text relies on the visual:\n${figureCatalog}`
+            : "No source figures were attached.",
           textbookContextText
             ? `Relevant course textbook excerpts:\n${textbookContextText}`
             : "No course textbook excerpts were selected for this lecture.",
@@ -413,6 +589,9 @@ export async function POST(request: Request) {
           audioTranscripts.length
             ? `Audio transcription text:\n${audioTranscripts.join("\n\n---\n\n")}`
             : "No audio transcription text was available. Use the notes and visible images.",
+          timedAudioSegments.length
+            ? "Timestamped audio cues are source evidence. Return an audio clip only when one of those exact cue ranges directly supports a nearby reconstruction claim."
+            : "No timestamped audio cues are available, so do not return audio clips.",
           documentInputs.length
             ? `${documentInputs.length} source PDF${documentInputs.length === 1 ? "" : "s"} is attached as visual study material. Inspect handwriting, formulas, diagrams, and page layout directly.`
             : "No source PDF was attached.",
@@ -445,6 +624,7 @@ export async function POST(request: Request) {
       summary?: string;
       transcriptText?: string;
       concepts?: Array<{ title?: string; detail?: string; sourceMediaId?: string }>;
+      evidence?: ReconstructionEvidence;
     };
 
     try {
@@ -459,10 +639,12 @@ export async function POST(request: Request) {
 
     return Response.json({
       concepts: Array.isArray(artifact.concepts) ? artifact.concepts : [],
+      evidence: normalizeEvidence(artifact.evidence, mediaItems, timedAudioSegments, textbookContext),
       generatedBy: "openai",
       reconstructionTitle: cleanString(artifact.reconstructionTitle).slice(0, 120),
       sourceMediaIds: mediaItems.map((item) => cleanString(item.id)).filter(Boolean),
       summary: cleanString(artifact.summary),
+      timedAudioSegments,
       transcribedMediaIds,
       transcriptText: cleanString(artifact.transcriptText) || audioTranscripts.join("\n\n"),
       usage: totalUsage

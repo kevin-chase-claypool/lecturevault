@@ -1175,6 +1175,18 @@ For archive organization changes, manually verify:
 - AI now treats lecture media as the primary record, uses retrieved textbook excerpts only when they directly clarify a lecture-supported explanation, and places a nearby page citation only for those relevant paragraphs or formula explanations.
 - The generated `Textbook Context Used` section now contains only references that were actually used, with a brief statement of what each one clarified.
 
+### 2026-07-21 - Source-Linked Reconstruction Evidence
+
+- Added a selective evidence model for reconstruction output: cited board visuals appear as stable `Fig. N` references, source-grounded audio clips use real transcription segment ranges, and relevant textbook support retains the cited page or page range.
+- New audio reconstructions default to `gpt-4o-transcribe-diarize`, which provides true timestamps. The app no longer invents audio cue points from synthetic transcript rows; when timestamped transcription is unavailable, audio clip citations are omitted.
+- Added a compact, collapsed `Source references` panel beneath each reconstruction with figure previews, clip players that start and stop at the cited range, and textbook-page links. It stays out of the reading flow until opened.
+- Added inline source links to the KaTeX/structured reconstruction preview for `Fig. N`, `Audio M:SS`, and exact textbook citations.
+- Added an authenticated signed-link service for Supabase objects. LectureVault creates private, direct Supabase URLs valid for seven days while the user is signed in, so opening a source from the reconstruction or its PDF does not require another LectureVault sign-in.
+- Exam review PDFs now receive a compact clickable Source Links appendix containing only the cited figures, audio cues, and textbook pages from selected reconstructions.
+- Verified with:
+  - `npm run typecheck`
+  - `npm run build`
+
 ### 2026-07-20 - Dark Authentication Surface
 
 - Added dark-theme auth page, card, and error treatments so the signed-out screen uses the same contrast and surface system as the authenticated workspace.
