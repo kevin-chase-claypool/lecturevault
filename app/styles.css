@@ -7848,6 +7848,30 @@ summary:focus-visible {
     max-width: none;
     line-height: 1.35;
   }
+
+  /* Keep class-record setup readable on a phone; never preserve desktop columns. */
+  .capture-details-flow,
+  .capture-meeting-fields {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .capture-details-flow {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .capture-details-flow > *,
+  .capture-meeting-fields > label,
+  .capture-record-status {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .capture-record-status {
+    box-sizing: border-box;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
