@@ -1846,7 +1846,8 @@ export default function LectureVaultApp() {
   const [examForm, setExamForm] = useState({
     courseId: "",
     name: "",
-    startsOn: ""
+    startsOn: "",
+    context: DEFAULT_REVIEW_CONTEXT
   });
   const [builderCourseId, setBuilderCourseId] = useState("");
   const [builderFolderId, setBuilderFolderId] = useState("all");
@@ -2485,20 +2486,6 @@ export default function LectureVaultApp() {
     };
   }, [builderCourseId, builderSelectedLectures, state.concepts, state.mediaItems, state.textbooks]);
   const basketCount = builderSelectedLectures.length;
-  const reviewContext = selectedExam?.context ?? DEFAULT_REVIEW_CONTEXT;
-
-  function updateSelectedReviewContext(context: string) {
-    if (!selectedExam) {
-      return;
-    }
-
-    setState((current) => ({
-      ...current,
-      exams: current.exams.map((exam) =>
-        exam.id === selectedExam.id ? { ...exam, context } : exam
-      )
-    }));
-  }
 
   useEffect(() => {
     setState((current) => ensureCourseLectureFolders(current));
@@ -3830,49 +3817,6 @@ export default function LectureVaultApp() {
     setReviewSortDirection(key === "name" || key === "course" ? "asc" : "desc");
   }
 
-  function addLectureToExam(lectureId: string, examId = selectedExamId) {
-    const exam = state.exams.find((item) => item.id === examId);
-    const lecture = state.lectures.find((item) => item.id === lectureId);
-
-    if (!exam) {
-      setStatus("Create a review set first.");
-      return;
-    }
-
-    if (!lecture) {
-      setStatus("Could not find that lecture in the archive.");
-      return;
-    }
-
-    if (lecture.courseId !== exam.courseId) {
-      setStatus("Review sets can only use lectures from the same course.");
-      return;
-    }
-
-    const alreadyAdded = state.examItems.some(
-      (item) => item.examWorkspaceId === examId && item.lectureId === lectureId
-    );
-
-    if (alreadyAdded) {
-      setStatus("That lecture is already in this review set.");
-      return;
-    }
-
-    setState((current) => ({
-      ...current,
-      examItems: [
-        {
-          id: uid("exam-item"),
-          examWorkspaceId: examId,
-          lectureId,
-          addedAt: new Date().toISOString()
-        },
-        ...current.examItems
-      ]
-    }));
-    setStatus("Added lecture reference to the review set. Original media stayed in the archive.");
-  }
-
   function setExamBuilderCourse(courseId: string) {
     setBuilderCourseId(courseId);
     setBuilderFolderId("all");
@@ -3912,14 +3856,14 @@ export default function LectureVaultApp() {
 
       return [...sameCourseIds, lectureId];
     });
-    setStatus(`Added "${lecture.title}" to the review set draft.`);
+    setStatus(`Added "${lecture.title}" to the new review draft.`);
   }
 
   function removeLectureFromBasket(lectureId: string) {
     setBuilderSelectedLectureIds((current) =>
       current.filter((id) => id !== lectureId)
     );
-    setStatus("Removed source from the review set draft.");
+    setStatus("Removed source from the new review draft.");
   }
 
   function toggleBuilderLecture(lectureId: string) {
@@ -3999,7 +3943,7 @@ export default function LectureVaultApp() {
     });
     setVaultReviewSelectionIds([]);
     setStatus(
-      `Added ${selectedIds.length} reconstruction${selectedIds.length === 1 ? "" : "s"} to the review set draft.`
+      `Added ${selectedIds.length} reconstruction${selectedIds.length === 1 ? "" : "s"} to the new review draft.`
     );
   }
 
@@ -4023,7 +3967,7 @@ export default function LectureVaultApp() {
       }
       return Array.from(next);
     });
-    setStatus("Added visible archive materials to the review set draft.");
+    setStatus("Added visible archive materials to the new review draft.");
   }
 
   function changeBuilderSort(key: ArchiveSortKey) {
@@ -4036,26 +3980,27 @@ export default function LectureVaultApp() {
     setBuilderSortDirection(key === "name" ? "asc" : "desc");
   }
 
-  function createWorkspaceFromBuilder(event: FormEvent) {
+  async function createWorkspaceFromBuilder(event: FormEvent) {
     event.preventDefault();
 
     if (!examForm.name.trim()) {
-      setStatus("Name the review set before creating it.");
+      setStatus("Name the review before building it.");
       return;
     }
 
     if (!builderSelectedLectures.length) {
-      setStatus("Select archive materials before creating the review set.");
+      setStatus("Select archive materials before building the review.");
       return;
     }
 
     const createdAt = new Date().toISOString();
+    const context = examForm.context.trim() || DEFAULT_REVIEW_CONTEXT;
     const exam: ExamWorkspace = {
       id: uid("exam"),
       courseId: builderCourseId,
       name: examForm.name.trim(),
       startsOn: examForm.startsOn,
-      context: DEFAULT_REVIEW_CONTEXT,
+      context,
       createdAt
     };
 
@@ -4073,28 +4018,16 @@ export default function LectureVaultApp() {
       ]
     }));
     setSelectedExamId(exam.id);
-    setExamForm((current) => ({ ...current, name: "", startsOn: "" }));
-    setBuilderSelectedLectureIds([]);
-    setStatus(`Created ${exam.name} with ${builderSelectedLectures.length} archive source${builderSelectedLectures.length === 1 ? "" : "s"}.`);
-    setScreen("exam");
-  }
-
-  function removeLectureFromExam(lectureId: string) {
-    if (!selectedExam) {
-      return;
-    }
-
-    setState((current) => ({
+    setExamForm((current) => ({
       ...current,
-      examItems: current.examItems.filter(
-        (item) =>
-          !(
-            item.examWorkspaceId === selectedExam.id &&
-            item.lectureId === lectureId
-          )
-      )
+      name: "",
+      startsOn: "",
+      context: DEFAULT_REVIEW_CONTEXT
     }));
-    setStatus("Removed from review set. Archive item was not changed.");
+    setBuilderSelectedLectureIds([]);
+    setStatus(`Building ${exam.name} from ${builderSelectedLectures.length} archive source${builderSelectedLectures.length === 1 ? "" : "s"}.`);
+    await generateGuideFor(exam, builderSelectedLectures, context);
+    setScreen("exam");
   }
 
   function deleteExam(examId: string) {
@@ -4116,17 +4049,17 @@ export default function LectureVaultApp() {
     );
   }
 
-  async function generateGuide() {
-    if (!selectedExam) {
-      return;
-    }
-
-    if (!selectedExamLectures.length) {
+  async function generateGuideFor(
+    exam: ExamWorkspace,
+    selectedLectures: Lecture[],
+    context: string
+  ) {
+    if (!selectedLectures.length) {
       setStatus("Add archive materials before generating an exam review.");
       return;
     }
 
-    const sourceLectureIds = selectedExamLectures.map((lecture) => lecture.id);
+    const sourceLectureIds = selectedLectures.map((lecture) => lecture.id);
     const selectedTranscripts = state.transcripts.filter((transcript) =>
       sourceLectureIds.includes(transcript.lectureId)
     );
@@ -4142,7 +4075,7 @@ export default function LectureVaultApp() {
       {
         id: "collect",
         label: "Collecting review sources",
-        detail: `${selectedExamLectures.length} lecture source${selectedExamLectures.length === 1 ? "" : "s"} selected`
+        detail: `${selectedLectures.length} lecture source${selectedLectures.length === 1 ? "" : "s"} selected`
       },
       {
         id: "prepare",
@@ -4156,12 +4089,12 @@ export default function LectureVaultApp() {
       },
       {
         id: "save",
-        label: "Saving review set output",
+        label: "Saving review output",
         detail: "Saving generated review and token usage"
       }
     ]);
     setStatus("Generating AI review from selected review-set materials...");
-    const submittedContext = reviewContext.trim();
+    const submittedContext = context.trim();
 
     const selectedConcepts = state.concepts.filter((concept) =>
       sourceLectureIds.includes(concept.lectureId)
@@ -4170,10 +4103,10 @@ export default function LectureVaultApp() {
       sourceLectureIds.includes(item.lectureId)
     );
     const courseStudyProfile = state.courses.find(
-      (course) => course.id === selectedExam.courseId
+      (course) => course.id === exam.courseId
     )?.studyProfile;
     const courseTextbooks = state.textbooks.filter(
-      (textbook) => textbook.courseId === selectedExam.courseId
+      (textbook) => textbook.courseId === exam.courseId
     );
     const textbookCitations = selectedTranscripts.flatMap((transcript) =>
       evidenceForTranscript(transcript, selectedMediaItems).textbookCitations.map((citation) => {
@@ -4208,12 +4141,12 @@ export default function LectureVaultApp() {
           "content-type": "application/json"
         },
         body: JSON.stringify({
-          courseId: selectedExam.courseId,
-          examName: selectedExam.name,
-          courseName: courseLabel(selectedExam.courseId),
+          courseId: exam.courseId,
+          examName: exam.name,
+          courseName: courseLabel(exam.courseId),
           courseStudyProfile,
           instructions: submittedContext,
-          lectures: selectedExamLectures,
+          lectures: selectedLectures,
           transcripts: selectedTranscripts,
           concepts: selectedConcepts,
           mediaItems: reviewMediaItems,
@@ -4246,13 +4179,13 @@ export default function LectureVaultApp() {
       activatePipelineStep("save", "Saving generated review");
       const guide: StudyGuide = {
         id: uid("guide"),
-        examWorkspaceId: selectedExam.id,
-        title: `${selectedExam.name} Exam Review`,
+        examWorkspaceId: exam.id,
+        title: `${exam.name} Exam Review`,
         content: data.text,
         sourceLectureIds,
         figures: data.figures?.length
           ? data.figures
-          : buildReviewFigures(selectedExamLectures, reviewMediaItems),
+          : buildReviewFigures(selectedLectures, reviewMediaItems),
         instructions: submittedContext,
         generatedBy: data.generatedBy || "openai",
         usage: data.usage || null,
@@ -4264,7 +4197,7 @@ export default function LectureVaultApp() {
         studyGuides: [
           guide,
           ...current.studyGuides.filter(
-            (item) => item.examWorkspaceId !== selectedExam.id
+             (item) => item.examWorkspaceId !== exam.id
           )
         ]
       }));
@@ -5382,7 +5315,7 @@ export default function LectureVaultApp() {
           <div className="sidebar-library-summary">
             <span>Archived items</span>
             <strong>{state.lectures.length}</strong>
-            <span>Review sets</span>
+            <span>Past reviews</span>
             <strong>{state.exams.length}</strong>
           </div>
           <span className="sidebar-sync-status">{cloudSyncLabel}</span>
@@ -5410,7 +5343,7 @@ export default function LectureVaultApp() {
               className={basketCount ? "cart-button active" : "cart-button"}
               type="button"
               onClick={() => setScreen("builder")}
-              aria-label={`Review set draft with ${basketCount} selected source${basketCount === 1 ? "" : "s"}`}
+              aria-label={`New review draft with ${basketCount} selected source${basketCount === 1 ? "" : "s"}`}
             >
               <span className="cart-icon" aria-hidden="true">Review Draft</span>
               <strong>{basketCount}</strong>
@@ -6037,8 +5970,10 @@ export default function LectureVaultApp() {
             concepts={state.concepts.filter(
               (concept) => concept.lectureId === selectedLecture.id
             )}
-            exams={state.exams}
-            onAddToExam={addLectureToExam}
+            onAddToReviewDraft={(lectureId) => {
+              addLectureToBasket(lectureId);
+              setScreen("builder");
+            }}
             onOpenLecture={(lectureId) => {
               setSelectedLectureId(lectureId);
               setScreen("lecture");
@@ -6515,11 +6450,11 @@ export default function LectureVaultApp() {
                       <span className="pill">
                         {builderSelectedLectures.length} selected
                       </span>
-                      <h3>Review Set Draft</h3>
+                      <h3>Review Draft</h3>
                     </div>
                   </div>
                   <label>
-                    Review set name
+                    Review name
                     <input
                       aria-describedby="review-draft-next-step"
                       value={examForm.name}
@@ -6545,6 +6480,20 @@ export default function LectureVaultApp() {
                       }
                     />
                   </label>
+                  <label className="review-draft-context">
+                    AI instructions
+                    <textarea
+                      value={examForm.context}
+                      onChange={(event) =>
+                        setExamForm((current) => ({
+                          ...current,
+                          context: event.target.value
+                        }))
+                      }
+                      rows={3}
+                      placeholder="Prioritize high-yield concepts, formulas, worked problem patterns, common mistakes, and a practice checklist."
+                    />
+                  </label>
                   <div className="review-draft-source-list" aria-label="Selected reconstructions">
                     <div className="review-draft-source-heading">
                       <strong>Selected reconstructions</strong>
@@ -6560,7 +6509,7 @@ export default function LectureVaultApp() {
                           <span>{lecture.date}</span>
                         </div>
                         <button
-                          aria-label={`Remove ${lecture.title} from the review set draft`}
+                          aria-label={`Remove ${lecture.title} from the new review draft`}
                           className="review-draft-remove"
                           type="button"
                           onClick={() => toggleBuilderLecture(lecture.id)}
@@ -6571,7 +6520,7 @@ export default function LectureVaultApp() {
                     ))}
                     {!builderSelectedLectures.length ? (
                       <p className="empty">
-                        Select archived lectures to build this review set.
+                        Select archived reconstructions to build this review.
                       </p>
                     ) : null}
                   </div>
@@ -6579,8 +6528,8 @@ export default function LectureVaultApp() {
                     {!builderSelectedLectures.length
                       ? "Select one or more reconstructions to begin."
                       : !examForm.name.trim()
-                        ? "Name this review set to continue."
-                        : "Create the review set to unlock AI generation and PDF export."}
+                        ? "Name this review to continue."
+                        : "Build the review to generate and save it to Past Reviews."}
                   </p>
                   <div className="review-coverage" aria-label="Review input coverage">
                     <div>
@@ -6608,10 +6557,12 @@ export default function LectureVaultApp() {
                       className="primary"
                       type="submit"
                       disabled={
-                        !examForm.name.trim() || !builderSelectedLectures.length
+                        isReviewGenerating ||
+                        !examForm.name.trim() ||
+                        !builderSelectedLectures.length
                       }
                     >
-                      Create Review Set
+                      {isReviewGenerating ? "Building Review..." : "Build Review"}
                     </button>
                     <button
                       type="button"
@@ -6620,17 +6571,6 @@ export default function LectureVaultApp() {
                     >
                       Clear Selection
                     </button>
-                  </div>
-                  <div className="review-action-preview">
-                    <h3>Review Actions</h3>
-                    <div className="button-row stacked">
-                      <button type="button" disabled>
-                        Generate AI Review
-                      </button>
-                      <button type="button" disabled>
-                        Download Review PDF
-                      </button>
-                    </div>
                   </div>
                 </form>
               </aside>
@@ -6808,7 +6748,7 @@ export default function LectureVaultApp() {
                   placeholder="Review name, course, or date..."
                 />
               </label>
-              <div className="review-file-list" aria-label="Saved review sets">
+              <div className="review-file-list" aria-label="Saved reviews">
                 <div className="review-file-header">
                   {([
                     ["name", "Name"],
@@ -6853,7 +6793,7 @@ export default function LectureVaultApp() {
                   );
                 })}
                 {!pastReviews.length ? (
-                  <p className="empty">No saved review sets in this folder.</p>
+                  <p className="empty">No saved reviews in this folder.</p>
                 ) : null}
               </div>
             </section>
@@ -6861,7 +6801,7 @@ export default function LectureVaultApp() {
             <aside className="panel review-inspector">
               {selectedExam ? (
                 <>
-                  <span className="selected-lecture-kicker">Selected review set</span>
+                  <span className="selected-lecture-kicker">Selected review</span>
                   <h3>{selectedExam.name}</h3>
                   <p>{courseLabel(selectedExam.courseId)}</p>
                   <div className="selected-lecture-meta">
@@ -6884,13 +6824,13 @@ export default function LectureVaultApp() {
                   </label>
                   <div className="button-row stacked">
                     <button className="primary" type="button" onClick={() => setScreen("exam")}>Open review</button>
-                    <button className="danger" type="button" onClick={() => deleteExam(selectedExam.id)}>Delete review set</button>
+                    <button className="danger" type="button" onClick={() => deleteExam(selectedExam.id)}>Delete review</button>
                   </div>
                 </>
               ) : (
                 <>
                   <h3>Review details</h3>
-                  <p className="empty">Select a saved review set to inspect and organize it.</p>
+                  <p className="empty">Select a saved review to inspect and organize it.</p>
                 </>
               )}
             </aside>
@@ -6901,24 +6841,14 @@ export default function LectureVaultApp() {
           <ExamDetail
             exam={selectedExam}
             lectures={selectedExamLectures}
-            availableLectures={state.lectures.filter(
-              (lecture) => lecture.courseId === selectedExam.courseId
-            )}
-            courses={state.courses}
             mediaItems={state.mediaItems}
             concepts={state.concepts}
             transcripts={state.transcripts}
             selectedGuide={selectedExamGuide}
-            instructions={reviewContext}
-            isGeneratingReview={isReviewGenerating}
             isRenderingPdf={isPdfRendering}
             isBuildingGptPackage={isGptPackageBuilding}
             pdfStatus={reviewPdfStatus}
             courseLabel={courseLabel}
-            onInstructionsChange={updateSelectedReviewContext}
-            onAdd={addLectureToExam}
-            onRemove={removeLectureFromExam}
-            onGenerate={generateGuide}
             onDownloadPdf={downloadExamReviewPdf}
             onDownloadGptPackage={downloadGptPackage}
             onDelete={() => deleteExam(selectedExam.id)}
@@ -7020,7 +6950,7 @@ function LoginGate({ onAuthenticated }: { onAuthenticated: () => void }) {
         <VaultMark />
         <h1>LectureVault</h1>
         <p>
-          Enter the app password to use the lecture archive, review sets, AI
+          Enter the app password to use the lecture archive, saved reviews, AI
           review generation, and PDF download.
         </p>
         <label>
@@ -7075,7 +7005,7 @@ function Dashboard({
         </div>
         <div className="metric">
           <strong>{state.exams.length}</strong>
-          <span>Review sets</span>
+          <span>Past reviews</span>
         </div>
       </div>
 
@@ -7100,11 +7030,11 @@ function Dashboard({
               <h3>Build from saved reconstructions</h3>
             </div>
             <button type="button" onClick={() => setScreen("builder")}>
-              Create Review Set
+              New Review
             </button>
           </div>
           <p>
-            Select archived reconstruction sources, create a review set, and
+            Select archived reconstruction sources, build a review, and
             generate one focused AI review with PDF export.
           </p>
         </section>
@@ -7137,7 +7067,7 @@ function Dashboard({
         <section className="panel list-panel">
           <div className="section-heading compact-heading">
             <div>
-              <h3>Review Sets</h3>
+              <h3>Past Reviews</h3>
               <p className="section-note">Build exam prep from saved reconstructions.</p>
             </div>
           </div>
@@ -8459,8 +8389,7 @@ function LectureDetail({
   textbooks,
   transcript,
   concepts,
-  exams,
-  onAddToExam,
+  onAddToReviewDraft,
   onOpenLecture,
   onBackToVault
 }: {
@@ -8474,16 +8403,10 @@ function LectureDetail({
   textbooks: CourseTextbook[];
   transcript?: Transcript;
   concepts: ExtractedConcept[];
-  exams: ExamWorkspace[];
-  onAddToExam: (lectureId: string, examId?: string) => void;
+  onAddToReviewDraft: (lectureId: string) => void;
   onOpenLecture: (lectureId: string) => void;
   onBackToVault: () => void;
 }) {
-  const matchingExams = useMemo(
-    () => exams.filter((exam) => exam.courseId === lecture.courseId),
-    [exams, lecture.courseId]
-  );
-  const [targetExamId, setTargetExamId] = useState(matchingExams[0]?.id || "");
   const [explorerQuery, setExplorerQuery] = useState("");
   const [explorerSortKey, setExplorerSortKey] = useState<ArchiveSortKey>("date");
   const [explorerSortDirection, setExplorerSortDirection] = useState<SortDirection>("desc");
@@ -8491,10 +8414,6 @@ function LectureDetail({
   const [isStudyBrowserOpen, setIsStudyBrowserOpen] = useState(false);
   const [transcriptQuery, setTranscriptQuery] = useState("");
   const [activeTranscriptSegmentId, setActiveTranscriptSegmentId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setTargetExamId(matchingExams[0]?.id || "");
-  }, [matchingExams]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 1120px)");
@@ -8995,29 +8914,17 @@ function LectureDetail({
       </article>
 
       <aside className="panel side-panel">
-        <h3>Add to Review Set</h3>
-        <select
-          value={targetExamId}
-          onChange={(event) => setTargetExamId(event.target.value)}
-        >
-          {matchingExams.map((exam) => (
-            <option key={exam.id} value={exam.id}>
-              {exam.name}
-            </option>
-          ))}
-        </select>
+        <h3>Add to New Review</h3>
+        <p className="section-note">
+          Adds this reconstruction to the New Review draft without changing any saved review.
+        </p>
         <button
+          className="primary"
           type="button"
-          onClick={() => onAddToExam(lecture.id, targetExamId)}
-          disabled={!targetExamId}
+          onClick={() => onAddToReviewDraft(lecture.id)}
         >
-          Add Reference
+          Add to Review Draft
         </button>
-        {!matchingExams.length ? (
-          <p className="empty">
-            Create a review set for this course before adding references.
-          </p>
-        ) : null}
 
         <h3>Media</h3>
         <div className="media-list">
@@ -9067,22 +8974,14 @@ function LectureDetail({
 function ExamDetail({
   exam,
   lectures,
-  availableLectures,
-  courses,
   mediaItems,
   concepts,
   transcripts,
   selectedGuide,
-  instructions,
-  isGeneratingReview,
   isRenderingPdf,
   isBuildingGptPackage,
   pdfStatus,
   courseLabel,
-  onInstructionsChange,
-  onAdd,
-  onRemove,
-  onGenerate,
   onDownloadPdf,
   onDownloadGptPackage,
   onDelete,
@@ -9090,22 +8989,14 @@ function ExamDetail({
 }: {
   exam: ExamWorkspace;
   lectures: Lecture[];
-  availableLectures: Lecture[];
-  courses: Course[];
   mediaItems: MediaItem[];
   concepts: ExtractedConcept[];
   transcripts: Transcript[];
   selectedGuide?: StudyGuide;
-  instructions: string;
-  isGeneratingReview: boolean;
   isRenderingPdf: boolean;
   isBuildingGptPackage: boolean;
   pdfStatus: string;
   courseLabel: (id: string) => string;
-  onInstructionsChange: (value: string) => void;
-  onAdd: (lectureId: string, examId?: string) => void;
-  onRemove: (lectureId: string) => void;
-  onGenerate: () => void | Promise<void>;
   onDownloadPdf: () => void | Promise<void>;
   onDownloadGptPackage: () => void | Promise<void>;
   onDelete: () => void;
@@ -9115,12 +9006,7 @@ function ExamDetail({
   const [selectedScopeLectureId, setSelectedScopeLectureId] = useState<string | null>(null);
   const selectedIds = new Set(lectures.map((lecture) => lecture.id));
   const normalizedQuery = explorerQuery.trim().toLowerCase();
-  const visibleCourses = courses.filter(
-    (course) =>
-      course.id === exam.courseId ||
-      availableLectures.some((lecture) => lecture.courseId === course.id)
-  );
-  const filteredLectures = availableLectures.filter((lecture) => {
+  const filteredLectures = lectures.filter((lecture) => {
     const haystack = [
       lecture.title,
       lecture.summary,
@@ -9149,20 +9035,6 @@ function ExamDetail({
     (item) => selectedIds.has(item.lectureId) && item.kind === "image"
   ).length;
   const reviewUsage = formatTokenUsage(selectedGuide?.usage);
-  const reviewScopeGroups = useMemo(() => {
-    const groups = new Map<string, Lecture[]>();
-
-    lectures.forEach((lecture) => {
-      const group = groups.get(lecture.date) || [];
-      group.push(lecture);
-      groups.set(lecture.date, group);
-    });
-
-    return Array.from(groups, ([date, groupLectures]) => ({
-      date: date || "Undated",
-      lectures: groupLectures
-    }));
-  }, [lectures]);
   const selectedScopeLecture =
     lectures.find((lecture) => lecture.id === selectedScopeLectureId) || lectures[0];
   const selectedScopeMedia = selectedScopeLecture
@@ -9175,34 +9047,18 @@ function ExamDetail({
     ? concepts.filter((concept) => concept.lectureId === selectedScopeLecture.id).length
     : 0;
 
-  function addToReviewScope(lectureId: string) {
-    setSelectedScopeLectureId(lectureId);
-    onAdd(lectureId, exam.id);
-  }
-
-  function removeFromReviewScope(lectureId: string) {
-    const currentIndex = lectures.findIndex((lecture) => lecture.id === lectureId);
-    const nextSelection =
-      lectures[currentIndex + 1]?.id || lectures[currentIndex - 1]?.id || null;
-
-    if (selectedScopeLectureId === lectureId) {
-      setSelectedScopeLectureId(nextSelection);
-    }
-    onRemove(lectureId);
-  }
-
   return (
     <section className="exam-builder-layout">
       <div className="exam-explorer-column">
-        <aside className="panel archive-explorer" aria-label="Archive explorer">
+        <aside className="panel archive-explorer" aria-label="Review sources">
         <div className="section-heading">
           <div>
-            <span className="pill">Archive</span>
-            <h3>File Explorer</h3>
+            <span className="pill">Saved sources</span>
+            <h3>Review Sources</h3>
           </div>
         </div>
         <label>
-          Filter materials
+          Filter sources
           <input
             value={explorerQuery}
             onChange={(event) => setExplorerQuery(event.target.value)}
@@ -9210,81 +9066,41 @@ function ExamDetail({
           />
         </label>
 
-        <div className="explorer-tree">
-          {visibleCourses.map((course) => {
-            const courseLectures = filteredLectures.filter(
-              (lecture) => lecture.courseId === course.id
+        <div className="explorer-tree review-source-tree">
+          {filteredLectures.map((lecture) => {
+            const lectureTranscript = transcripts.find(
+              (transcript) => transcript.lectureId === lecture.id
             );
-
-            if (!courseLectures.length) {
-              return null;
-            }
+            const lectureConceptCount = concepts.filter(
+              (concept) => concept.lectureId === lecture.id
+            ).length;
+            const lectureMediaCount = mediaItems.filter(
+              (item) => item.lectureId === lecture.id
+            ).length;
+            const isSelected = selectedScopeLecture?.id === lecture.id;
 
             return (
-              <details key={course.id} open>
-                <summary>
-                  <span className="folder-icon" aria-hidden="true" />
-                  <strong>{course.code}</strong>
-                  <small>{courseLectures.length}</small>
-                </summary>
-                <div className="explorer-children">
-                  {courseLectures.map((lecture) => {
-                    const lectureMedia = mediaItems.filter(
-                      (item) => item.lectureId === lecture.id
-                    );
-                    const lectureConcepts = concepts.filter(
-                      (concept) => concept.lectureId === lecture.id
-                    );
-
-                    return (
-                      <div
-                        className={
-                          selectedIds.has(lecture.id)
-                            ? "explorer-item selected"
-                            : "explorer-item"
-                        }
-                        draggable
-                        key={lecture.id}
-                        onDragStart={(event) => {
-                          event.dataTransfer.effectAllowed = "copy";
-                          event.dataTransfer.setData(
-                            "text/lecture-id",
-                            lecture.id
-                          );
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => addToReviewScope(lecture.id)}
-                        >
-                          <span className="file-icon" aria-hidden="true" />
-                          <span>
-                            <strong>{lecture.title}</strong>
-                            <small>{lecture.date}</small>
-                          </span>
-                        </button>
-                        <div className="explorer-meta">
-                          {lectureMedia.map((item) => (
-                            <span key={item.id}>
-                              {item.kind === "image"
-                                ? "Image"
-                                : item.kind === "video"
-                                  ? "Video"
-                                  : item.kind === "audio"
-                                    ? "Audio"
-                                    : "Doc"}
-                              : {item.name}
-                            </span>
-                          ))}
-                          <span>{lectureConcepts.length} concepts</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </details>
+              <button
+                aria-pressed={isSelected}
+                className={isSelected ? "explorer-item selected" : "explorer-item"}
+                key={lecture.id}
+                type="button"
+                onClick={() => setSelectedScopeLectureId(lecture.id)}
+              >
+                <span className="file-icon" aria-hidden="true" />
+                <span>
+                  <strong>{lecture.title}</strong>
+                  <small>{lecture.date}</small>
+                </span>
+                <span className="explorer-meta">
+                  {lectureTranscript?.segments.length || 0} passages · {lectureConceptCount} concepts · {lectureMediaCount} media
+                </span>
+              </button>
             );
           })}
+          {!filteredLectures.length ? (
+            <p className="empty">No saved review sources match this filter.</p>
+          ) : null}
         </div>
         </aside>
 
@@ -9316,13 +9132,6 @@ function ExamDetail({
                 >
                   Open reconstruction
                 </button>
-                <button
-                  className="danger"
-                  type="button"
-                  onClick={() => removeFromReviewScope(selectedScopeLecture.id)}
-                >
-                  Remove from review
-                </button>
               </div>
             </div>
           ) : (
@@ -9333,17 +9142,7 @@ function ExamDetail({
         </aside>
       </div>
 
-      <article
-        className="panel detail-main exam-dropbox"
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault();
-          const lectureId = event.dataTransfer.getData("text/lecture-id");
-          if (lectureId) {
-            addToReviewScope(lectureId);
-          }
-        }}
-      >
+      <article className="panel detail-main review-viewer-main">
         <div className="section-heading">
           <div>
             <span className="pill">{courseLabel(exam.courseId)}</span>
@@ -9351,41 +9150,10 @@ function ExamDetail({
           </div>
           <span>{exam.startsOn || "No date"}</span>
         </div>
-        <p>
-          Drag lectures from the file explorer into this review set. Items here
-          are references to the archive, so removing them does not delete
-          original media.
+        <p className="section-note">
+          This saved review is read-only. Its sources, generation instructions,
+          and output are preserved so you can return to the same study artifact.
         </p>
-
-        <div className="workflow-steps" aria-label="Exam review workflow">
-          {[
-            { number: "1", label: "Select sources", complete: lectures.length > 0 },
-            {
-              number: "2",
-              label: "Add AI context",
-              complete: instructions.trim().length > 0
-            },
-            { number: "3", label: "Generate review", complete: Boolean(selectedGuide) },
-            { number: "4", label: "Download PDF", complete: Boolean(selectedGuide) }
-          ].map((step) => (
-            <div
-              className={step.complete ? "workflow-step complete" : "workflow-step"}
-              key={step.label}
-            >
-              <strong>{step.number}</strong>
-              <span>{step.label}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="drop-instructions">
-          <strong>Drop archive lectures here</strong>
-          <span>
-            {lectures.length
-              ? `${lectures.length} selected source${lectures.length === 1 ? "" : "s"}`
-              : "No sources selected yet"}
-          </span>
-        </div>
 
         <div className="source-readiness">
           <div>
@@ -9410,80 +9178,6 @@ function ExamDetail({
           </div>
         </div>
 
-        <section className="review-scope" aria-label="Review set draft">
-          <div className="section-heading compact-heading">
-            <div>
-              <span className="pill">Review Scope</span>
-              <h3>Selected reconstructions</h3>
-            </div>
-            <span>
-              {lectures.length} source{lectures.length === 1 ? "" : "s"}
-            </span>
-          </div>
-          <div className="review-scope-list">
-            {reviewScopeGroups.map((group) => (
-              <section className="review-scope-group" key={group.date}>
-                <div className="review-scope-group-heading">
-                  <strong>{group.date}</strong>
-                  <span>
-                    {group.lectures.length} reconstruction
-                    {group.lectures.length === 1 ? "" : "s"}
-                  </span>
-                </div>
-                {group.lectures.map((lecture) => {
-                  const lectureTranscript = transcripts.find(
-                    (transcript) => transcript.lectureId === lecture.id
-                  );
-                  const lectureConceptCount = concepts.filter(
-                    (concept) => concept.lectureId === lecture.id
-                  ).length;
-                  const lectureMediaCount = mediaItems.filter(
-                    (item) => item.lectureId === lecture.id
-                  ).length;
-                  const isSelected = selectedScopeLecture?.id === lecture.id;
-
-                  return (
-                    <div
-                      className={
-                        isSelected
-                          ? "review-scope-row selected"
-                          : "review-scope-row"
-                      }
-                      key={lecture.id}
-                    >
-                      <button
-                        aria-pressed={isSelected}
-                        type="button"
-                        onClick={() => setSelectedScopeLectureId(lecture.id)}
-                      >
-                        <span className="file-icon" aria-hidden="true" />
-                        <span className="review-scope-row-copy">
-                          <strong>{lecture.title}</strong>
-                          <small>
-                            {lectureTranscript?.segments.length || 0} source passages · {lectureConceptCount} concepts · {lectureMediaCount} media
-                          </small>
-                        </span>
-                      </button>
-                      <button
-                        className="review-scope-remove"
-                        type="button"
-                        onClick={() => removeFromReviewScope(lecture.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  );
-                })}
-              </section>
-            ))}
-            {!lectures.length ? (
-              <p className="empty">
-                Add lectures from the archive or drag lecture cards here.
-              </p>
-            ) : null}
-          </div>
-        </section>
-
         <section className="usage-panel" aria-label="Review generation usage">
           <div>
             <h4>Review Generation Usage</h4>
@@ -9492,20 +9186,15 @@ function ExamDetail({
                 ? `AI review usage: ${reviewUsage}. PDF downloads do not run AI again.`
                 : selectedGuide
                   ? "Review generated without token usage returned."
-                  : "No review-generation usage yet. Usage appears after Generate AI Review runs."}
+                  : "No review-generation usage was saved for this review."}
             </p>
           </div>
         </section>
 
-        <label className="exam-instructions">
-          AI context before submission
-          <textarea
-            value={instructions}
-            onChange={(event) => onInstructionsChange(event.target.value)}
-            rows={4}
-            placeholder="Example: focus on formulas from chapters 4-6, emphasize worked examples, assume the exam is closed-note, and flag common unit mistakes."
-          />
-        </label>
+        <details className="review-context-summary">
+          <summary>Generation instructions</summary>
+          <p>{selectedGuide?.instructions || exam.context || DEFAULT_REVIEW_CONTEXT}</p>
+        </details>
 
         {selectedGuide ? (
           <section className="review-preview" aria-label="Generated exam review preview">
@@ -9523,43 +9212,24 @@ function ExamDetail({
             <ReviewMarkdownPreview compact text={selectedGuide.content} />
             <ReviewFigureReferences figures={selectedGuide.figures || []} />
           </section>
-        ) : null}
+        ) : (
+          <section className="review-preview empty-review-preview" aria-label="No generated review">
+            <h3>No generated review saved</h3>
+            <p>Build a new review from the New Review workspace to create an AI study artifact.</p>
+          </section>
+        )}
 
-        <section className="review-actions" aria-label="Review actions">
+        <section className="review-actions" aria-label="Review exports and management">
           <div className="section-heading">
             <div>
-              <span className="pill">Actions</span>
-              <h3>Review Actions</h3>
+              <span className="pill">Saved review</span>
+              <h3>Exports and management</h3>
               <p className="section-note">
-                Generate spends AI tokens. PDF and GPT package exports reuse saved content.
+                Exports reuse saved review content and do not run AI again.
               </p>
             </div>
           </div>
           <div className="review-action-grid">
-            <div className="review-action-card primary-action">
-              <div>
-                <strong>Generate in LectureVault</strong>
-                <span>
-                  Sends selected review-set material to AI, spends API tokens,
-                  and saves the generated review here.
-                </span>
-              </div>
-              <button
-                className="primary"
-                type="button"
-                onClick={() => void onGenerate()}
-                disabled={
-                  isGeneratingReview ||
-                  isRenderingPdf ||
-                  isBuildingGptPackage ||
-                  !lectures.length ||
-                  !selectedTranscriptCount
-                }
-              >
-                {isGeneratingReview ? "Generating..." : "Generate AI Review"}
-              </button>
-            </div>
-
             <div className="review-action-card">
               <div>
                 <strong>Export saved review</strong>
@@ -9573,7 +9243,6 @@ function ExamDetail({
                 onClick={() => void onDownloadPdf()}
                 disabled={
                   isRenderingPdf ||
-                  isGeneratingReview ||
                   isBuildingGptPackage ||
                   !selectedGuide
                 }
@@ -9595,7 +9264,6 @@ function ExamDetail({
                 onClick={() => void onDownloadGptPackage()}
                 disabled={
                   isRenderingPdf ||
-                  isGeneratingReview ||
                   isBuildingGptPackage ||
                   !lectures.length
                 }
@@ -9606,14 +9274,14 @@ function ExamDetail({
 
             <div className="review-action-card danger-action">
               <div>
-                <strong>Remove this review set</strong>
+                <strong>Remove this review</strong>
                 <span>
-                  Deletes the review set record. Archived lectures and media stay
+                  Deletes the saved review. Archived lectures and media stay
                   in the vault.
                 </span>
               </div>
               <button className="danger" type="button" onClick={onDelete}>
-                Delete Review Set
+                Delete Review
               </button>
             </div>
           </div>

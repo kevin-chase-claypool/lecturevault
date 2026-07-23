@@ -1246,7 +1246,13 @@ https://production-sfo.browserless.io/pdf
 
 ### 2026-07-23 - Review Viewer Naming
 
-- Renamed the existing-review workspace title from `Review set` to `Review Viewer`. `New review` remains the only creation workflow; the viewer is for reading, refining, exporting, and managing saved reviews.
+- Renamed the existing-review workspace title from `Review set` to `Review Viewer`. `New Review` remains the only creation workflow; the viewer is for reading, exporting, and managing saved reviews.
+
+### 2026-07-23 - Separate Review Building From Viewing
+
+- Moved AI review construction into `New Review`. The draft now collects instructions alongside its selected reconstructions, and `Build Review` creates, generates, and saves the review before opening it.
+- Made `Review Viewer` read-only for saved review content: it shows preserved source provenance, generation instructions, usage, figures, generated output, PDF export, GPT-package export, and deletion. It no longer accepts source changes, context edits, or AI generation.
+- Removed the remaining saved-review source-removal path so source edits are confined to the new-review draft before a review is built.
 
 ## Known Limitations
 
@@ -1270,15 +1276,14 @@ npm run build
 
 For workflow changes, manually verify:
 
-1. Open an exam workspace.
-2. Add archive materials.
-3. Confirm source readiness counts update.
-4. Add or edit exam instructions.
-5. Generate AI Review.
-6. Confirm token usage appears when OpenAI is used.
-7. Download Review PDF.
-8. Confirm PDF text size, equations, source map, and figure appendix.
-9. Confirm embedded images render when image data exists.
+1. Open `New Review`.
+2. Select archive materials and confirm source coverage counts update.
+3. Name the review, set an exam date, and add AI instructions.
+4. Use `Build Review` and confirm token usage appears when OpenAI is used.
+5. Confirm the saved read-only `Review Viewer` opens with source provenance and generated output.
+6. Download Review PDF.
+7. Confirm PDF text size, equations, source map, and figure appendix.
+8. Confirm embedded images render when image data exists.
 
 For archive organization changes, manually verify:
 
