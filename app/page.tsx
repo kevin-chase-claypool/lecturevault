@@ -9190,7 +9190,8 @@ function ExamDetail({
 
   return (
     <section className="exam-builder-layout">
-      <aside className="panel archive-explorer" aria-label="Archive explorer">
+      <div className="exam-explorer-column">
+        <aside className="panel archive-explorer" aria-label="Archive explorer">
         <div className="section-heading">
           <div>
             <span className="pill">Archive</span>
@@ -9282,7 +9283,52 @@ function ExamDetail({
             );
           })}
         </div>
-      </aside>
+        </aside>
+
+        <aside className="panel side-panel source-inspector">
+          <h3>Selected Reconstruction</h3>
+          {selectedScopeLecture ? (
+            <div className="source-card selected-source-card">
+              <strong>{selectedScopeLecture.title}</strong>
+              <span>{selectedScopeLecture.date}</span>
+              <small>
+                {selectedScopeTranscript?.segments.length || 0} source passages
+              </small>
+              <small>{selectedScopeConceptCount} extracted concepts</small>
+              <small>
+                {selectedScopeMedia.length} media item
+                {selectedScopeMedia.length === 1 ? "" : "s"}
+              </small>
+              {selectedScopeMedia.length ? (
+                <div className="selected-source-media" aria-label="Attached media">
+                  {selectedScopeMedia.map((item) => (
+                    <span key={item.id}>{item.name}</span>
+                  ))}
+                </div>
+              ) : null}
+              <div className="button-row stacked">
+                <button
+                  type="button"
+                  onClick={() => onOpenLecture(selectedScopeLecture.id)}
+                >
+                  Open reconstruction
+                </button>
+                <button
+                  className="danger"
+                  type="button"
+                  onClick={() => removeFromReviewScope(selectedScopeLecture.id)}
+                >
+                  Remove from review
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="empty">
+              Choose a reconstruction in the review scope to inspect it here.
+            </p>
+          )}
+        </aside>
+      </div>
 
       <article
         className="panel detail-main exam-dropbox"
@@ -9583,49 +9629,6 @@ function ExamDetail({
         ) : null}
       </article>
 
-      <aside className="panel side-panel source-inspector">
-        <h3>Selected Reconstruction</h3>
-        {selectedScopeLecture ? (
-          <div className="source-card selected-source-card">
-            <strong>{selectedScopeLecture.title}</strong>
-            <span>{selectedScopeLecture.date}</span>
-            <small>
-              {selectedScopeTranscript?.segments.length || 0} source passages
-            </small>
-            <small>{selectedScopeConceptCount} extracted concepts</small>
-            <small>
-              {selectedScopeMedia.length} media item
-              {selectedScopeMedia.length === 1 ? "" : "s"}
-            </small>
-            {selectedScopeMedia.length ? (
-              <div className="selected-source-media" aria-label="Attached media">
-                {selectedScopeMedia.map((item) => (
-                  <span key={item.id}>{item.name}</span>
-                ))}
-              </div>
-            ) : null}
-            <div className="button-row stacked">
-              <button
-                type="button"
-                onClick={() => onOpenLecture(selectedScopeLecture.id)}
-              >
-                Open reconstruction
-              </button>
-              <button
-                className="danger"
-                type="button"
-                onClick={() => removeFromReviewScope(selectedScopeLecture.id)}
-              >
-                Remove from review
-              </button>
-            </div>
-          </div>
-        ) : (
-          <p className="empty">
-            Choose a reconstruction in the review scope to inspect it here.
-          </p>
-        )}
-      </aside>
     </section>
   );
 }

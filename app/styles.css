@@ -2452,9 +2452,26 @@ button.review-draft-button:disabled {
 
 .exam-builder-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 0.38fr) minmax(420px, 1fr) 300px;
+  grid-template-columns: minmax(260px, 0.36fr) minmax(560px, 1fr);
   gap: 14px;
   align-items: flex-start;
+}
+
+.exam-explorer-column {
+  display: grid;
+  align-self: start;
+  gap: 14px;
+  min-width: 0;
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  scrollbar-color: #9aafbf transparent;
+  scrollbar-width: thin;
+}
+
+.exam-explorer-column .archive-explorer,
+.exam-explorer-column .source-inspector {
+  position: static;
+  max-height: none;
 }
 
 .detail-main,
@@ -4487,9 +4504,11 @@ button.review-draft-button:disabled {
 
 .selected-source-media {
   display: grid;
+  max-height: 132px;
   gap: 5px;
   border-top: 1px solid #dbe3ea;
   padding-top: 9px;
+  overflow-y: auto;
 }
 
 .selected-source-media span {
@@ -5522,6 +5541,7 @@ button.review-draft-button:disabled {
   .detail-grid,
   .storage-layout,
   .exam-builder-layout,
+  .exam-explorer-column,
   .archive-organizer,
   .content-grid,
   .dashboard-grid,
@@ -5569,6 +5589,7 @@ button.review-draft-button:disabled {
   .archive-folder-panel,
   .storage-browser-panel,
   .source-inspector,
+  .exam-explorer-column,
   .archive-organizer > .side-panel {
     position: static;
     max-height: none;
@@ -5920,6 +5941,7 @@ button.review-draft-button:disabled {
   .detail-grid,
   .storage-layout,
   .exam-builder-layout,
+  .exam-explorer-column,
   .archive-organizer,
   .content-grid,
   .dashboard-grid,
@@ -6044,6 +6066,7 @@ button.review-draft-button:disabled {
   .archive-folder-panel,
   .storage-browser-panel,
   .source-inspector,
+  .exam-explorer-column,
   .archive-organizer > .side-panel {
     position: static;
     max-height: none;

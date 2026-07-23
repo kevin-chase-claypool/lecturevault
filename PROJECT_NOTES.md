@@ -1227,6 +1227,11 @@ https://production-sfo.browserless.io/pdf
 - Removed fixed light gradients from nested review surfaces in dark mode so generated review content remains readable rather than switching abruptly between white and dark cards.
 - Applied the same treatment to the selected-reconstruction inspector card and its attached-media list, eliminating the remaining white card from the saved-review workspace.
 
+### 2026-07-23 - Wider Review Workspace
+
+- Moved the selected-reconstruction inspector beneath the review File Explorer on desktop, converting the review builder to a two-column layout and giving the main review canvas substantially more reading and authoring width.
+- Bounded the attached-media list in that inspector so large source bundles remain a compact, scrollable reference list instead of extending the page indefinitely.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.
