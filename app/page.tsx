@@ -6727,6 +6727,7 @@ export default function LectureVaultApp() {
                 exams={state.exams}
                 selectedFolderId={selectedReviewFolderId}
                 onSelectFolder={setSelectedReviewFolderId}
+                onDropReview={(reviewId, folderId) => moveReviewToFolder(reviewId, folderId || "")}
               />
             </aside>
 
@@ -6783,6 +6784,11 @@ export default function LectureVaultApp() {
                       className={selectedExamId === exam.id ? "review-file-row active" : "review-file-row"}
                       key={exam.id}
                       type="button"
+                      draggable
+                      onDragStart={(event) => {
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/review-id", exam.id);
+                      }}
                       onClick={() => setSelectedExamId(exam.id)}
                     >
                       <strong>{exam.name}</strong>
@@ -7320,13 +7326,40 @@ function ReviewFolderTree({
   folders,
   exams,
   selectedFolderId,
-  onSelectFolder
+  onSelectFolder,
+  onDropReview
 }: {
   folders: ReviewFolder[];
   exams: ExamWorkspace[];
   selectedFolderId: string;
   onSelectFolder: (folderId: string) => void;
+  onDropReview: (reviewId: string, folderId?: string) => void;
 }) {
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
+  function allowDrop(event: DragEvent<HTMLElement>, targetId: string) {
+    if (!event.dataTransfer.types.includes("text/review-id")) return;
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDropTargetId(targetId);
+  }
+
+  function clearDropTarget(event: DragEvent<HTMLElement>, targetId: string) {
+    if (event.currentTarget.contains(event.relatedTarget as Node)) return;
+    if (dropTargetId === targetId) setDropTargetId(null);
+  }
+
+  function dropOnFolder(event: DragEvent<HTMLElement>, folderId?: string) {
+    event.preventDefault();
+    const reviewId = event.dataTransfer.getData("text/review-id");
+    setDropTargetId(null);
+
+    if (reviewId) {
+      onDropReview(reviewId, folderId);
+    }
+  }
+
   function reviewCount(folderId?: string) {
     if (!folderId) {
       return exams.filter((exam) => !exam.folderId).length;
@@ -7343,9 +7376,12 @@ function ReviewFolderTree({
     return (
       <details className="folder-node" key={folder.id} open>
         <summary
-          className={selectedFolderId === folder.id ? "active" : ""}
+          className={`${selectedFolderId === folder.id ? "active" : ""}${dropTargetId === folder.id ? " review-drop-target" : ""}`}
           style={{ "--tree-depth": depth } as CSSProperties}
           onClick={() => onSelectFolder(folder.id)}
+          onDragOver={(event) => allowDrop(event, folder.id)}
+          onDragLeave={(event) => clearDropTarget(event, folder.id)}
+          onDrop={(event) => dropOnFolder(event, folder.id)}
         >
           <span className="folder-icon" aria-hidden="true" />
           <span>{folder.name}</span>
@@ -7372,9 +7408,12 @@ function ReviewFolderTree({
         <small>{exams.length}</small>
       </button>
       <button
-        className={selectedFolderId === "unfiled" ? "active" : ""}
+        className={`${selectedFolderId === "unfiled" ? "active" : ""}${dropTargetId === "unfiled" ? " review-drop-target" : ""}`}
         type="button"
         onClick={() => onSelectFolder("unfiled")}
+        onDragOver={(event) => allowDrop(event, "unfiled")}
+        onDragLeave={(event) => clearDropTarget(event, "unfiled")}
+        onDrop={(event) => dropOnFolder(event)}
       >
         <span className="folder-icon" aria-hidden="true" />
         <span>Unfiled</span>

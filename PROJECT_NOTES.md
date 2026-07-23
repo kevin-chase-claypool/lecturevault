@@ -1273,6 +1273,10 @@ https://production-sfo.browserless.io/pdf
 
 - Isolated embedded audio range controls from shared form-field padding and added explicit cross-browser track/thumb styling, so the seek thumb reaches both playback endpoints.
 
+### 2026-07-23 - Past Review Drag Organization
+
+- Made saved review rows draggable into Past Reviews folders or Unfiled. Folder moves only change the review's organizational placement, preserving its saved sources, generated content, and exports.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.

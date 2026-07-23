@@ -3655,6 +3655,13 @@ button.review-draft-button:disabled {
   transform: none;
 }
 
+.review-folder-tree summary.review-drop-target,
+.review-folder-tree button.review-drop-target {
+  border-color: #5d9cc1;
+  background: #e5f3f9;
+  box-shadow: inset 3px 0 0 var(--primary), 0 0 0 2px rgba(31, 95, 145, 0.13);
+}
+
 .review-folder-tree summary.active,
 .review-folder-tree button.active {
   border-color: #a9cbe2;
@@ -3727,6 +3734,14 @@ button.review-draft-button:disabled {
   font-weight: 850;
   text-align: left;
   box-shadow: none;
+}
+
+.review-file-row[draggable="true"] {
+  cursor: grab;
+}
+
+.review-file-row[draggable="true"]:active {
+  cursor: grabbing;
 }
 
 .review-file-header .sort-header:not(:disabled):hover,
@@ -3858,6 +3873,13 @@ button.review-draft-button:disabled {
 :root[data-theme="dark"] .review-folder-tree button:hover {
   border-color: #41657b;
   background: #203647;
+}
+
+:root[data-theme="dark"] .review-folder-tree summary.review-drop-target,
+:root[data-theme="dark"] .review-folder-tree button.review-drop-target {
+  border-color: #55a7d1;
+  background: #21465f;
+  box-shadow: inset 3px 0 0 #55a7d1, 0 0 0 2px rgba(85, 167, 209, 0.18);
 }
 
 @media (max-width: 1180px) {
