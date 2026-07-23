@@ -1260,6 +1260,11 @@ https://production-sfo.browserless.io/pdf
 - Collapsed each review image into a compact `Fig. N` disclosure row. Opening a row reveals that source image once, its source lecture, and its filename.
 - Left-aligned saved-source rows in Review Viewer so they scan as file-explorer entries rather than centered cards.
 
+### 2026-07-23 - Review Viewer De-duplication
+
+- Removed repeated saved-review totals for sources, transcripts, passages, concepts, and images from the main viewing pane. The source explorer and selected-source inspector remain the single places to inspect that provenance.
+- Consolidated selected-source metadata into one compact line, leaving more visual priority for the generated review, figures, and exports.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.

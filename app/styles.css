@@ -4520,6 +4520,12 @@ button.review-draft-button:disabled {
   align-content: start;
 }
 
+.source-inspector-meta {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
 .selected-source-media {
   display: grid;
   max-height: 132px;

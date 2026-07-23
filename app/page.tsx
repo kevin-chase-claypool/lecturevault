@@ -9006,7 +9006,6 @@ function ExamDetail({
 }) {
   const [explorerQuery, setExplorerQuery] = useState("");
   const [selectedScopeLectureId, setSelectedScopeLectureId] = useState<string | null>(null);
-  const selectedIds = new Set(lectures.map((lecture) => lecture.id));
   const normalizedQuery = explorerQuery.trim().toLowerCase();
   const filteredLectures = lectures.filter((lecture) => {
     const haystack = [
@@ -9024,18 +9023,6 @@ function ExamDetail({
 
     return haystack.includes(normalizedQuery);
   });
-  const selectedTranscriptCount = transcripts.filter((transcript) =>
-    selectedIds.has(transcript.lectureId)
-  ).length;
-  const selectedSegmentCount = transcripts
-    .filter((transcript) => selectedIds.has(transcript.lectureId))
-    .reduce((total, transcript) => total + transcript.segments.length, 0);
-  const selectedConceptCount = concepts.filter((concept) =>
-    selectedIds.has(concept.lectureId)
-  ).length;
-  const selectedImageCount = mediaItems.filter(
-    (item) => selectedIds.has(item.lectureId) && item.kind === "image"
-  ).length;
   const reviewUsage = formatTokenUsage(selectedGuide?.usage);
   const selectedScopeLecture =
     lectures.find((lecture) => lecture.id === selectedScopeLectureId) || lectures[0];
@@ -9112,13 +9099,8 @@ function ExamDetail({
             <div className="source-card selected-source-card">
               <strong>{selectedScopeLecture.title}</strong>
               <span>{selectedScopeLecture.date}</span>
-              <small>
-                {selectedScopeTranscript?.segments.length || 0} source passages
-              </small>
-              <small>{selectedScopeConceptCount} extracted concepts</small>
-              <small>
-                {selectedScopeMedia.length} media item
-                {selectedScopeMedia.length === 1 ? "" : "s"}
+              <small className="source-inspector-meta">
+                {selectedScopeTranscript?.segments.length || 0} passages · {selectedScopeConceptCount} concepts · {selectedScopeMedia.length} media
               </small>
               {selectedScopeMedia.length ? (
                 <div className="selected-source-media" aria-label="Attached media">
@@ -9153,32 +9135,9 @@ function ExamDetail({
           <span>{exam.startsOn || "No date"}</span>
         </div>
         <p className="section-note">
-          This saved review is read-only. Its sources, generation instructions,
-          and output are preserved so you can return to the same study artifact.
+          Saved sources remain available in the explorer. This viewer preserves
+          the generated study artifact and its original instructions.
         </p>
-
-        <div className="source-readiness">
-          <div>
-            <strong>{lectures.length}</strong>
-            <span>sources</span>
-          </div>
-          <div>
-            <strong>{selectedTranscriptCount}</strong>
-            <span>transcripts</span>
-          </div>
-          <div>
-            <strong>{selectedSegmentCount}</strong>
-            <span>source passages</span>
-          </div>
-          <div>
-            <strong>{selectedConceptCount}</strong>
-            <span>concepts</span>
-          </div>
-          <div>
-            <strong>{selectedImageCount}</strong>
-            <span>images</span>
-          </div>
-        </div>
 
         <section className="usage-panel" aria-label="Review generation usage">
           <div>
