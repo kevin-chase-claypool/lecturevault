@@ -8486,6 +8486,8 @@ function LectureDetail({
   const [explorerSortDirection, setExplorerSortDirection] = useState<SortDirection>("desc");
   const [explorerFolderId, setExplorerFolderId] = useState(lecture.folderId || "all");
   const [isStudyBrowserOpen, setIsStudyBrowserOpen] = useState(false);
+  const [transcriptQuery, setTranscriptQuery] = useState("");
+  const [activeTranscriptSegmentId, setActiveTranscriptSegmentId] = useState<string | null>(null);
 
   useEffect(() => {
     setTargetExamId(matchingExams[0]?.id || "");
@@ -8508,6 +8510,11 @@ function LectureDetail({
     setExplorerFolderId(selectedFolderStillExists && lecture.folderId ? lecture.folderId : "all");
     setExplorerQuery("");
   }, [archiveFolders, lecture.courseId, lecture.folderId, lecture.id]);
+
+  useEffect(() => {
+    setTranscriptQuery("");
+    setActiveTranscriptSegmentId(null);
+  }, [lecture.id]);
 
   const selectedFolderIds = useMemo(
     () =>
@@ -8673,6 +8680,27 @@ function LectureDetail({
       return media?.kind === "audio" && segment.endSeconds > segment.startSeconds;
     })
   );
+  const timestampedTranscriptSegmentCount = transcript?.segments.filter((segment) => {
+    const media = mediaItems.find((item) => item.id === segment.mediaItemId);
+    return media?.kind === "audio" && segment.endSeconds > segment.startSeconds;
+  }).length || 0;
+  const visibleTranscriptSegments = useMemo(() => {
+    const normalizedQuery = transcriptQuery.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return transcript?.segments || [];
+    }
+
+    return (transcript?.segments || []).filter((segment) =>
+      segment.text.toLowerCase().includes(normalizedQuery)
+    );
+  }, [transcript?.segments, transcriptQuery]);
+  const activeTranscriptSegment = transcript?.segments.find(
+    (segment) => segment.id === activeTranscriptSegmentId
+  );
+  const activeTranscriptMedia = activeTranscriptSegment
+    ? mediaItems.find((item) => item.id === activeTranscriptSegment.mediaItemId)
+    : undefined;
 
   return (
     <section className="lecture-study-layout">
@@ -8864,28 +8892,28 @@ function LectureDetail({
           ) : null}
         </section>
 
-        <h4>{hasTimestampedTranscript ? "Timestamped source transcript" : "Transcript"}</h4>
-        <div className="transcript-box">
-          {transcript?.segments.map((segment) => {
-            const segmentMedia = mediaItems.find((item) => item.id === segment.mediaItemId);
-            const hasAudioCue = segmentMedia?.kind === "audio" && segment.endSeconds > segment.startSeconds;
-
-            return (
-              <p key={segment.id}>
-                {hasAudioCue ? (
-                  <a
-                    href={`${sourceUrlForMedia(segmentMedia)}#t=${Math.max(0, Math.floor(segment.startSeconds))}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {formatSeconds(segment.startSeconds)}
-                  </a>
-                ) : null}{hasAudioCue ? " " : null}
-                <MathPreview text={segment.text} />
-              </p>
-            );
-          }) || "No transcript yet."}
-        </div>
+        <section className="study-document" aria-label="Structured reconstruction">
+          <div className="section-heading compact-heading">
+            <div>
+              <span className="pill">Study artifact</span>
+              <h4>Reconstruction</h4>
+            </div>
+            <span>Organized for review</span>
+          </div>
+          <div className="math-preview-panel">
+            <ReviewMarkdownPreview
+              className="math-document-preview"
+              sourceLinks={evidenceTextLinks}
+              text={
+                hasTimestampedTranscript
+                  ? transcript?.text || lecture.summary || "No reconstruction has been generated yet."
+                  : stripNonAudioTimestampPrefixes(transcript?.text ||
+                    lecture.summary ||
+                    "No reconstruction has been generated yet.")
+              }
+            />
+          </div>
+        </section>
         <EvidenceReferencePanel
           evidence={reconstructionEvidence}
           mediaItems={mediaItems}
@@ -8893,20 +8921,74 @@ function LectureDetail({
           sourceUrlForTextbook={sourceUrlForTextbook}
           textbooks={textbooks}
         />
-        <h4>KaTeX Preview</h4>
-        <div className="math-preview-panel">
-          <ReviewMarkdownPreview
-            className="math-document-preview"
-            sourceLinks={evidenceTextLinks}
-            text={
-              hasTimestampedTranscript
-                ? transcript?.text || lecture.summary || "No transcript or summary math to preview."
-                : stripNonAudioTimestampPrefixes(transcript?.text ||
-              lecture.summary ||
-              "No transcript or summary math to preview.")
-            }
-          />
-        </div>
+        <section className="source-transcript" aria-label="Full source transcript">
+          <details>
+            <summary>
+              <span>
+                <span className="pill">Source record</span>
+                <strong>{hasTimestampedTranscript ? "Full audio transcript" : "Full transcript"}</strong>
+                <small>
+                  {hasTimestampedTranscript
+                    ? "Search the original lecture and jump to a recorded moment when needed."
+                    : "Search the complete source text behind this reconstruction."}
+                </small>
+              </span>
+              <span>
+                {timestampedTranscriptSegmentCount || transcript?.segments.length || 0} {hasTimestampedTranscript ? "audio cues" : "source passages"}
+              </span>
+            </summary>
+            <div className="source-transcript-content">
+              <label className="source-transcript-search">
+                Search source transcript
+                <input
+                  value={transcriptQuery}
+                  onChange={(event) => setTranscriptQuery(event.target.value)}
+                  placeholder="Search a topic, formula, or phrase..."
+                />
+              </label>
+              {activeTranscriptSegment && activeTranscriptMedia?.kind === "audio" ? (
+                <div className="source-transcript-player">
+                  <div>
+                    <strong>Playing source at {formatSeconds(activeTranscriptSegment.startSeconds)}</strong>
+                    <span>{activeTranscriptMedia.name}</span>
+                  </div>
+                  <EmbeddedAudioPlayer
+                    compact
+                    src={sourceUrlForMedia(activeTranscriptMedia)}
+                    title={activeTranscriptMedia.name}
+                    startSeconds={activeTranscriptSegment.startSeconds}
+                    endSeconds={activeTranscriptSegment.endSeconds}
+                  />
+                </div>
+              ) : null}
+              <div className="source-transcript-list">
+                {visibleTranscriptSegments.map((segment) => {
+                  const segmentMedia = mediaItems.find((item) => item.id === segment.mediaItemId);
+                  const hasAudioCue = segmentMedia?.kind === "audio" && segment.endSeconds > segment.startSeconds;
+                  const isActive = activeTranscriptSegmentId === segment.id;
+
+                  return (
+                    <button
+                      className={isActive ? "active" : ""}
+                      key={segment.id}
+                      type="button"
+                      onClick={() => setActiveTranscriptSegmentId(segment.id)}
+                    >
+                      <time>
+                        {hasAudioCue ? formatSeconds(segment.startSeconds) : "Source"}
+                      </time>
+                      <span><MathPreview text={segment.text} /></span>
+                      {hasAudioCue ? <small>Play audio</small> : null}
+                    </button>
+                  );
+                })}
+                {!visibleTranscriptSegments.length ? (
+                  <p className="empty">No source passages match this search.</p>
+                ) : null}
+              </div>
+            </div>
+          </details>
+        </section>
       </article>
 
       <aside className="panel side-panel">
@@ -9267,7 +9349,7 @@ function ExamDetail({
           </div>
           <div>
             <strong>{selectedSegmentCount}</strong>
-            <span>segments</span>
+            <span>source passages</span>
           </div>
           <div>
             <strong>{selectedConceptCount}</strong>
@@ -9329,7 +9411,7 @@ function ExamDetail({
                         <span className="review-scope-row-copy">
                           <strong>{lecture.title}</strong>
                           <small>
-                            {lectureTranscript?.segments.length || 0} segments · {lectureConceptCount} concepts · {lectureMediaCount} media
+                            {lectureTranscript?.segments.length || 0} source passages · {lectureConceptCount} concepts · {lectureMediaCount} media
                           </small>
                         </span>
                       </button>
@@ -9508,7 +9590,7 @@ function ExamDetail({
             <strong>{selectedScopeLecture.title}</strong>
             <span>{selectedScopeLecture.date}</span>
             <small>
-              {selectedScopeTranscript?.segments.length || 0} transcript segments
+              {selectedScopeTranscript?.segments.length || 0} source passages
             </small>
             <small>{selectedScopeConceptCount} extracted concepts</small>
             <small>

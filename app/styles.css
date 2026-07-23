@@ -2523,31 +2523,170 @@ button.review-draft-button:disabled {
   color: var(--text);
 }
 
-.transcript-box {
+.study-document {
   display: grid;
-  gap: 8px;
-  padding: 12px;
+  gap: 10px;
+}
+
+.study-document > .section-heading {
+  margin-bottom: 0;
+}
+
+.source-transcript {
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, #fbfdff 0%, var(--panel) 100%);
-  line-height: 1.5;
+  border-radius: var(--radius);
+  background: var(--surface-muted);
 }
 
-.transcript-box p {
-  margin: 0;
+.source-transcript > details > summary {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.source-transcript > details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.source-transcript > details > summary > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.source-transcript > details > summary strong {
   color: var(--text);
+  font-size: 0.88rem;
 }
 
-.transcript-box a {
-  color: var(--primary);
-  font-weight: 900;
-  text-decoration: none;
-}
-
-.transcript-time {
+.source-transcript > details > summary small,
+.source-transcript > details > summary > span:last-child {
   color: var(--muted);
+  font-size: 0.73rem;
+  font-weight: 750;
+}
+
+.source-transcript > details > summary > span:last-child {
+  flex: 0 0 auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.source-transcript[open] > details > summary,
+.source-transcript > details[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.source-transcript-content {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.source-transcript-search {
+  display: grid;
+  gap: 5px;
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.source-transcript-search input {
+  min-height: 36px;
+}
+
+.source-transcript-player {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.8fr);
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  background: var(--surface);
+}
+
+.source-transcript-player > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.source-transcript-player strong {
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+.source-transcript-player span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-transcript-list {
+  display: grid;
+  max-height: min(58dvh, 620px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.source-transcript-list > button {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  min-height: 54px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 10px 11px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  box-shadow: none;
+}
+
+.source-transcript-list > button:last-of-type {
+  border-bottom: 0;
+}
+
+.source-transcript-list > button:hover,
+.source-transcript-list > button.active {
+  background: var(--surface-muted);
+  box-shadow: inset 3px 0 0 var(--primary);
+  transform: none;
+}
+
+.source-transcript-list time {
+  color: var(--primary-dark);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
   font-weight: 900;
+}
+
+.source-transcript-list > button > span {
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.48;
+}
+
+.source-transcript-list small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .evidence-panel {
@@ -7051,6 +7190,31 @@ button.primary:hover:not(:disabled),
     gap: 12px;
   }
 
+  .source-transcript > details > summary {
+    align-items: flex-start;
+  }
+
+  .source-transcript > details > summary > span:last-child {
+    max-width: 10ch;
+    white-space: normal;
+  }
+
+  .source-transcript-player {
+    grid-template-columns: 1fr;
+  }
+
+  .source-transcript-list {
+    max-height: min(52dvh, 460px);
+  }
+
+  .source-transcript-list > button {
+    grid-template-columns: 50px minmax(0, 1fr);
+  }
+
+  .source-transcript-list > button > small {
+    grid-column: 2;
+  }
+
   .lecture-study-list {
     max-height: min(42dvh, 330px);
   }
@@ -8212,6 +8376,28 @@ body {
 :root[data-theme="dark"] .embedded-audio-player {
   border-color: #3b5366;
   background: #1b2a38;
+}
+
+:root[data-theme="dark"] .source-transcript,
+:root[data-theme="dark"] .source-transcript-list,
+:root[data-theme="dark"] .source-transcript-player {
+  border-color: #3b5366;
+  background: #1b2a38;
+}
+
+:root[data-theme="dark"] .source-transcript > details > summary,
+:root[data-theme="dark"] .source-transcript-list > button {
+  color: #e7f0f6;
+}
+
+:root[data-theme="dark"] .source-transcript-list > button {
+  border-color: #31495b;
+}
+
+:root[data-theme="dark"] .source-transcript-list > button:hover,
+:root[data-theme="dark"] .source-transcript-list > button.active {
+  background: #1c3040;
+  box-shadow: inset 3px 0 0 #65b4e1;
 }
 
 :root[data-theme="dark"] .evidence-panel,

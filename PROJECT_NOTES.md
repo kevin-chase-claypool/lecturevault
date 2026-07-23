@@ -107,6 +107,13 @@ Read this section before changing the project.
 - Reconstruction AI receives one continuous transcript and retains accurate `Audio M:SS` citations against the original stored MP3. The user still uploads one lecture recording and never manages chunks.
 - Verified with `npm run typecheck` and `npm run build`.
 
+### 2026-07-23 - Readable Long-Lecture Reconstruction View
+
+- Reordered reconstruction detail so the structured, KaTeX-capable study artifact is the primary reading surface rather than the raw source transcript.
+- Preserved every saved transcript passage in a collapsed `Full audio transcript` source timeline with search, bounded scrolling, and click-to-play audio cues against the original stored recording.
+- The transcript remains available in full for verification, AI context, exports, and source-grounded study, but no longer forces a student to scroll through an hour of raw speech before reaching the reconstruction.
+- Renamed review-facing segment counts to `source passages` so workflow screens emphasize selected reconstructions and study material rather than internal transcription chunking.
+
 ### 2026-07-21 - Reconstruction Evidence and Review Context
 
 - Added selective source-linked reconstruction evidence: stable `Fig. N` board visuals, source-grounded timestamped audio clips, and nearby textbook page citations only where they clarify lecture-supported material.
