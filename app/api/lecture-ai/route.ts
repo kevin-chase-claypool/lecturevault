@@ -125,6 +125,13 @@ function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function stripNonAudioTimestampPrefixes(text: string) {
+  return text.replace(
+    /(^|\n)\s*(?:\*\*)?\d{1,2}:\d{2}(?:\*\*)?\s*(?:[-–—:]\s*)?/g,
+    "$1"
+  );
+}
+
 function jsonError(message: string, status: number) {
   return Response.json({ error: message }, { status });
 }
@@ -839,7 +846,7 @@ export async function POST(request: Request) {
             : "No audio transcription text was available. Use the notes and visible images.",
           timedAudioSegments.length
             ? "Timestamped audio cues are source evidence. Return an audio clip only when one of those exact cue ranges directly supports a nearby reconstruction claim."
-            : "No timestamped audio cues are available, so do not return audio clips.",
+            : "No audio transcription or timestamped audio cue is available. Do not return audio clips and do not write elapsed timestamps such as M:SS anywhere in the reconstruction. Organize visual or document-only material with headings rather than a timeline.",
           documentInputs.length
             ? `${documentInputs.length} source PDF${documentInputs.length === 1 ? "" : "s"} is attached as visual study material. Inspect handwriting, formulas, diagrams, and page layout directly.`
             : "No source PDF was attached.",
@@ -891,6 +898,12 @@ export async function POST(request: Request) {
       );
     }
 
+    const artifactTranscriptText =
+      cleanString(artifact.transcriptText) || audioTranscripts.join("\n\n");
+    const transcriptText = timedAudioSegments.length
+      ? artifactTranscriptText
+      : stripNonAudioTimestampPrefixes(artifactTranscriptText);
+
     return Response.json({
       concepts: Array.isArray(artifact.concepts) ? artifact.concepts : [],
       evidence: normalizeEvidence(artifact.evidence, mediaItems, timedAudioSegments, textbookContext),
@@ -900,7 +913,7 @@ export async function POST(request: Request) {
       summary: cleanString(artifact.summary),
       timedAudioSegments,
       transcribedMediaIds,
-      transcriptText: cleanString(artifact.transcriptText) || audioTranscripts.join("\n\n"),
+      transcriptText,
       usage: totalUsage
     });
   } catch (error) {

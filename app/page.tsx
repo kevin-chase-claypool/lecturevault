@@ -1485,12 +1485,20 @@ function splitTranscript(text: string): TranscriptSegment[] {
       .filter(Boolean) || [];
 
   return (sentences.length ? sentences : ["No transcript text yet."]).map(
-    (sentence, index) => ({
+    (sentence) => ({
       id: uid("seg"),
-      startSeconds: index * 45,
-      endSeconds: index * 45 + 44,
+      // Logical reconstruction sections are not elapsed-time audio cues.
+      startSeconds: 0,
+      endSeconds: 0,
       text: sentence
     })
+  );
+}
+
+function stripNonAudioTimestampPrefixes(text: string) {
+  return text.replace(
+    /(^|\n)\s*(?:\*\*)?\d{1,2}:\d{2}(?:\*\*)?\s*(?:[-–—:]\s*)?/g,
+    "$1"
   );
 }
 
@@ -1608,12 +1616,19 @@ function buildStudyGuide(
     const transcript = transcripts.find((item) => item.lectureId === lecture.id);
     lines.push("", `### ${lecture.title}`, lecture.summary || "No summary yet.");
 
-    for (const segment of transcript?.segments.slice(0, 4) || []) {
-      lines.push(
-        `- ${formatSeconds(segment.startSeconds)}-${formatSeconds(
-          segment.endSeconds
-        )}: ${segment.text}`
-      );
+    const timedSegments = (transcript?.segments || []).filter(
+      (segment) => Boolean(segment.mediaItemId) && segment.endSeconds > segment.startSeconds
+    );
+    if (timedSegments.length) {
+      for (const segment of timedSegments.slice(0, 4)) {
+        lines.push(
+          `- Audio ${formatSeconds(segment.startSeconds)}-${formatSeconds(
+            segment.endSeconds
+          )}: ${segment.text}`
+        );
+      }
+    } else if (transcript?.text) {
+      lines.push(`- ${stripNonAudioTimestampPrefixes(transcript.text)}`);
     }
   }
 
@@ -1626,9 +1641,13 @@ function buildStudyGuide(
   lines.push("", "## Source Map");
   for (const lecture of lectures) {
     const transcript = transcripts.find((item) => item.lectureId === lecture.id);
-    const first = transcript?.segments[0];
+    const first = transcript?.segments.find(
+      (segment) => Boolean(segment.mediaItemId) && segment.endSeconds > segment.startSeconds
+    );
     lines.push(
-      `- ${lecture.title}: transcript ${first ? formatSeconds(first.startSeconds) : "0:00"} and attached media remain in the permanent archive.`
+      first
+        ? `- ${lecture.title}: audio begins near ${formatSeconds(first.startSeconds)}; attached media remain in the permanent archive.`
+        : `- ${lecture.title}: saved reconstruction and attached media remain in the permanent archive.`
     );
   }
 
@@ -3493,6 +3512,9 @@ export default function LectureVaultApp() {
         transcriptUsage = data.usage || null;
         reconstructionEvidence = data.evidence;
         sourceTranscriptSegments = timedTranscriptSegments(data.timedAudioSegments);
+        if (!sourceTranscriptSegments.length) {
+          transcriptText = stripNonAudioTimestampPrefixes(transcriptText);
+        }
         generatedBy = data.generatedBy || "openai";
         sourceMediaIds = data.sourceMediaIds?.length
           ? data.sourceMediaIds
@@ -5719,11 +5741,16 @@ export default function LectureVaultApp() {
                         <strong>Extracted concepts</strong>
                         {selectedArchiveConcepts.length ? selectedArchiveConcepts.map((concept) => {
                           const segment = selectedArchiveTranscript?.segments.find((item) => item.id === concept.sourceSegmentId);
-                          const media = selectedArchiveMedia.find((item) => item.id === concept.mediaItemId);
+                          const conceptMedia = selectedArchiveMedia.find((item) => item.id === concept.mediaItemId);
+                          const segmentMedia = selectedArchiveMedia.find((item) => item.id === segment?.mediaItemId);
+                          const hasAudioCue = Boolean(
+                            segmentMedia?.kind === "audio" &&
+                              (segment?.endSeconds || 0) > (segment?.startSeconds || 0)
+                          );
                           return (
                             <span className="metadata-tooltip-item" key={concept.id}>
                               <b>{concept.title}</b>
-                              <small>{segment ? `Source ${formatSeconds(segment.startSeconds)}` : "Source segment unavailable"}{media ? ` · ${media.name}` : ""}</small>
+                              <small>{hasAudioCue ? `Audio ${formatSeconds(segment!.startSeconds)}` : "Source reconstruction"}{segmentMedia || conceptMedia ? ` · ${(segmentMedia || conceptMedia)?.name}` : ""}</small>
                               <em>{concept.detail}</em>
                             </span>
                           );
@@ -8296,7 +8323,10 @@ function LectureDetail({
     return [...figureLinks, ...audioLinks, ...textbookLinks];
   }, [mediaItems, reconstructionEvidence, signedSourceUrls, textbooks]);
   const hasTimestampedTranscript = Boolean(
-    transcript?.segments.some((segment) => segment.mediaItemId)
+    transcript?.segments.some((segment) => {
+      const media = mediaItems.find((item) => item.id === segment.mediaItemId);
+      return media?.kind === "audio" && segment.endSeconds > segment.startSeconds;
+    })
   );
 
   return (
@@ -8491,24 +8521,25 @@ function LectureDetail({
 
         <h4>{hasTimestampedTranscript ? "Timestamped source transcript" : "Transcript"}</h4>
         <div className="transcript-box">
-          {transcript?.segments.map((segment) => (
-            <p key={segment.id}>
-              {segment.mediaItemId && mediaItems.find((item) => item.id === segment.mediaItemId) ? (
-                <a
-                  href={`${sourceUrlForMedia(
-                    mediaItems.find((item) => item.id === segment.mediaItemId) as MediaItem
-                  )}#t=${Math.max(0, Math.floor(segment.startSeconds))}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {formatSeconds(segment.startSeconds)}
-                </a>
-              ) : (
-                <span className="transcript-time">{formatSeconds(segment.startSeconds)}</span>
-              )}{" "}
-              <MathPreview text={segment.text} />
-            </p>
-          )) || "No transcript yet."}
+          {transcript?.segments.map((segment) => {
+            const segmentMedia = mediaItems.find((item) => item.id === segment.mediaItemId);
+            const hasAudioCue = segmentMedia?.kind === "audio" && segment.endSeconds > segment.startSeconds;
+
+            return (
+              <p key={segment.id}>
+                {hasAudioCue ? (
+                  <a
+                    href={`${sourceUrlForMedia(segmentMedia)}#t=${Math.max(0, Math.floor(segment.startSeconds))}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {formatSeconds(segment.startSeconds)}
+                  </a>
+                ) : null}{hasAudioCue ? " " : null}
+                <MathPreview text={segment.text} />
+              </p>
+            );
+          }) || "No transcript yet."}
         </div>
         <EvidenceReferencePanel
           evidence={reconstructionEvidence}
@@ -8523,9 +8554,11 @@ function LectureDetail({
             className="math-document-preview"
             sourceLinks={evidenceTextLinks}
             text={
-              transcript?.text ||
+              hasTimestampedTranscript
+                ? transcript?.text || lecture.summary || "No transcript or summary math to preview."
+                : stripNonAudioTimestampPrefixes(transcript?.text ||
               lecture.summary ||
-              "No transcript or summary math to preview."
+              "No transcript or summary math to preview.")
             }
           />
         </div>

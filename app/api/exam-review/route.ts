@@ -31,6 +31,7 @@ type ExamReviewTranscript = {
   text?: string;
   segments?: Array<{
     id?: string;
+    mediaItemId?: string;
     startSeconds?: number;
     endSeconds?: number;
     text?: string;
@@ -84,16 +85,36 @@ function cleanNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+function isTimedAudioSegment(segment: {
+  mediaItemId?: string;
+  startSeconds?: number;
+  endSeconds?: number;
+}) {
+  return (
+    Boolean(cleanString(segment.mediaItemId)) &&
+    cleanNumber(segment.endSeconds) > cleanNumber(segment.startSeconds)
+  );
+}
+
+function stripNonAudioTimestampPrefixes(text: string) {
+  return text.replace(
+    /(^|\n)\s*(?:\*\*)?\d{1,2}:\d{2}(?:\*\*)?\s*(?:[-–—:]\s*)?/g,
+    "$1"
+  );
+}
+
 function prepareTranscripts(transcripts: ExamReviewTranscript[]) {
   return transcripts.map((transcript) => {
+    const segments = Array.isArray(transcript.segments) ? transcript.segments : [];
+    const hasTimedAudio = segments.some(isTimedAudioSegment);
     const text = cleanString(transcript.text);
 
     return {
       lectureId: cleanString(transcript.lectureId),
       // Keep every selected reconstruction intact. The review must never silently omit
       // later lecture material because an internal character budget was exhausted.
-      text,
-      segments: Array.isArray(transcript.segments) ? transcript.segments : []
+      text: hasTimedAudio ? text : stripNonAudioTimestampPrefixes(text),
+      segments
     };
   });
 }
@@ -166,7 +187,7 @@ function buildLectureBundle({
         (concept) => cleanString(concept.lectureId) === lectureId
       );
       const lectureFigures = figures.filter((figure) => figure.lectureId === lectureId);
-      const segments = transcript?.segments || [];
+      const timedAudioSegments = (transcript?.segments || []).filter(isTimedAudioSegment);
 
       return `Lecture ${index + 1}
 Title: ${cleanString(lecture.title) || "Untitled lecture"}
@@ -207,12 +228,12 @@ ${
 
 Transcript segments:
 ${
-  segments.length
-    ? segments
+  timedAudioSegments.length
+    ? timedAudioSegments
         .slice(0, 80)
         .map(
           (segment) =>
-            `- ${formatSeconds(segment.startSeconds)}-${formatSeconds(
+            `- Audio ${formatSeconds(segment.startSeconds)}-${formatSeconds(
               segment.endSeconds
             )}: ${cleanString(segment.text)}`
         )
@@ -415,6 +436,7 @@ export async function POST(request: Request) {
       instructions: [
         "You create senior-level engineering and math exam review guides from selected lecture archive materials.",
         "This is a second AI aggregation pass. Do not re-transcribe; use the saved transcripts, concepts, segments, media, and explicit user instructions.",
+        "Preserve elapsed timestamps only when the selected source material provides actual timed audio evidence. Do not invent M:SS timestamps for image, PDF, document, or note-only material.",
         "Use only the selected exam workspace materials. Do not invent unsupported formulas, facts, theorems, or examples.",
         "Prioritize high-yield concepts, formulas, assumptions, worked problem patterns, common mistakes, and practice steps.",
         "Use LaTeX math with \\(...\\) for inline math and complete \\[ equation \\] blocks for display math.",

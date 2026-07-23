@@ -53,6 +53,14 @@ Read this section before changing the project.
 
 ## Latest Changes
 
+### 2026-07-23 - Audio Timestamps Only
+
+- Removed the synthetic 45-second transcript timing fallback. Logical reconstruction sections now use an untimed representation instead of implying they are audio cues.
+- Reconstruction and review prompts explicitly prohibit elapsed `M:SS` timestamps when no actual audio cue is available. The reconstruction API also removes stray leading timestamps from non-audio output before it is saved.
+- Reconstruction, KaTeX preview, study-guide, source-map, concept-tooltip, and review-context rendering now expose timestamps only for segments that have a real audio media reference and a valid duration. Image, PDF, and note-only sources remain organized by headings and figures without an artificial timeline.
+- Existing untimed reconstructions receive the same cleanup in their KaTeX and study-guide display, so legacy visual-only output no longer shows fake timing prefixes.
+- Verification required: run `npm run typecheck`, `npm run build`, create an image-only reconstruction, and confirm neither its detail view nor review context shows elapsed timestamps; confirm a recorded MP3 still renders clickable audio times.
+
 ### 2026-07-21 - One-Time Canonical Textbook Evidence
 
 - Added the durable `public.textbook_page_evidence` Supabase table. Textbook ingestion now saves a page-level canonical record for every readable page: native PDF text for text-backed pages and a faithful vision record for sparse/image-first pages.
