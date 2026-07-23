@@ -8389,6 +8389,7 @@ body {
 :root[data-theme="dark"] .review-preview,
 :root[data-theme="dark"] .review-actions,
 :root[data-theme="dark"] .review-action-card,
+:root[data-theme="dark"] .source-card,
 :root[data-theme="dark"] .guide-rendered {
   border-color: #3b5366;
   background: #172635;
@@ -8447,6 +8448,22 @@ body {
   border-color: #3d566a;
   background: #1b2a38;
   color: #e5eef5;
+}
+
+:root[data-theme="dark"] .source-card strong {
+  color: #edf5fa;
+}
+
+:root[data-theme="dark"] .source-card span,
+:root[data-theme="dark"] .source-card small,
+:root[data-theme="dark"] .selected-source-media span {
+  color: #c6d5e0;
+  opacity: 1;
+}
+
+:root[data-theme="dark"] .selected-source-media {
+  border-color: #3b5366;
+  background: #1b2a38;
 }
 
 :root[data-theme="dark"] .source-transcript,

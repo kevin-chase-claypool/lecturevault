@@ -1225,6 +1225,7 @@ https://production-sfo.browserless.io/pdf
 
 - Unified the dark-mode treatment for the full saved-review workflow: workflow steps, source readiness counters, the archive drop target, AI context field, generated-review reader, and review actions now use the same dark surface and readable text hierarchy.
 - Removed fixed light gradients from nested review surfaces in dark mode so generated review content remains readable rather than switching abruptly between white and dark cards.
+- Applied the same treatment to the selected-reconstruction inspector card and its attached-media list, eliminating the remaining white card from the saved-review workspace.
 
 ## Known Limitations
 
