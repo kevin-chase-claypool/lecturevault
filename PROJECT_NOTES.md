@@ -53,6 +53,13 @@ Read this section before changing the project.
 
 ## Latest Changes
 
+### 2026-07-23 - Dedicated Past Reviews Explorer
+
+- Split the Study navigation into `New Review` and `Past Reviews`. The New Review workspace now focuses only on selecting reconstructions and creating a review set; saved review sets no longer expand the narrow draft panel.
+- Replaced the retired empty-review form with a compact Past Reviews explorer. It supports nested review folders, folder create/rename/delete, search, name/date/course sorting, a selected-review inspector, and moving any saved review to a folder or back to Unfiled. Changing folders or search results selects the first visible review so the inspector never shows an unrelated hidden item.
+- Review folders are archive metadata only. Moving or deleting a review folder never changes the saved review artifact, selected reconstructions, generated guide, or referenced Supabase media; deleting a folder returns its review sets to Unfiled.
+- Verification required: run `npm run typecheck`, then `npm run build`; create a review in New Review, organize it in Past Reviews, move it between folders, and confirm opening it still preserves all selected reconstructions and generated output.
+
 ### 2026-07-23 - Audio Timestamps Only
 
 - Removed the synthetic 45-second transcript timing fallback. Logical reconstruction sections now use an untimed representation instead of implying they are audio cues.

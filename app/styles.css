@@ -3140,6 +3140,334 @@ button.review-draft-button:disabled {
   }
 }
 
+/* Saved reviews use the same compact, file-explorer pattern as the Vault. */
+.review-library-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.72fr) minmax(420px, 1.72fr) minmax(236px, 0.72fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.review-folder-panel,
+.review-explorer-panel,
+.review-inspector {
+  display: grid;
+  gap: 10px;
+}
+
+.review-folder-panel {
+  position: static;
+}
+
+.review-folder-tree {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(188, 201, 214, 0.96);
+  border-radius: 10px;
+  padding: 7px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%);
+}
+
+.review-folder-tree details {
+  display: block;
+}
+
+.review-folder-tree summary {
+  list-style: none;
+}
+
+.review-folder-tree summary::-webkit-details-marker {
+  display: none;
+}
+
+.review-folder-tree summary,
+.review-folder-tree button {
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px 18px minmax(0, 1fr) minmax(2ch, auto);
+  gap: 7px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 760;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.review-folder-tree summary::before {
+  content: "›";
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  transition: transform 120ms ease;
+}
+
+.review-folder-tree button::before {
+  content: "";
+}
+
+.review-folder-tree details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.review-folder-tree summary:hover,
+.review-folder-tree button:hover {
+  border-color: #c9d6e2;
+  background: #f4f8fb;
+  box-shadow: none;
+  transform: none;
+}
+
+.review-folder-tree summary.active,
+.review-folder-tree button.active {
+  border-color: #a9cbe2;
+  background: linear-gradient(180deg, #edfafd 0%, #e4f3f7 100%);
+  color: var(--primary-dark);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.review-folder-tree .folder-node > summary {
+  padding-left: calc(6px + (var(--tree-depth, 0) * 14px));
+}
+
+.review-folder-tree .folder-children {
+  display: grid;
+  gap: 2px;
+  margin-left: 10px;
+}
+
+.review-folder-tree span:nth-of-type(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-folder-tree small {
+  color: var(--muted);
+  font-weight: 900;
+  justify-self: end;
+  min-width: 2ch;
+  text-align: right;
+}
+
+.review-search {
+  display: grid;
+  gap: 5px;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.review-file-list {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.review-file-header,
+.review-file-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.2fr) minmax(140px, 1fr) minmax(94px, 0.55fr) minmax(78px, 0.45fr);
+  min-width: 0;
+}
+
+.review-file-header {
+  border-bottom: 1px solid var(--border);
+  background: #f5f8fb;
+}
+
+.review-file-header .sort-header {
+  min-width: 0;
+  min-height: 38px;
+  border: 0;
+  border-radius: 0;
+  padding: 7px 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 850;
+  text-align: left;
+  box-shadow: none;
+}
+
+.review-file-header .sort-header:not(:disabled):hover,
+.review-file-header .sort-header.active {
+  background: #eaf3f8;
+  color: var(--primary-dark);
+  transform: none;
+}
+
+.review-file-header .sort-header:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.review-file-header .sort-header span {
+  margin-left: 5px;
+  font-size: 0.63rem;
+}
+
+.review-file-row {
+  width: 100%;
+  min-height: 56px;
+  border: 0;
+  border-bottom: 1px solid #e5ebf1;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  box-shadow: none;
+}
+
+.review-file-row:last-of-type {
+  border-bottom: 0;
+}
+
+.review-file-row > * {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  border-right: 1px solid #e5ebf1;
+  padding: 9px 10px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-file-row > *:last-child {
+  border-right: 0;
+}
+
+.review-file-row strong {
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.review-file-row:hover {
+  background: #f7fafc;
+  transform: none;
+}
+
+.review-file-row.active {
+  background: #eaf4f9;
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.review-inspector {
+  align-content: start;
+}
+
+.review-inspector > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.review-folder-select {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+:root[data-theme="dark"] .review-folder-tree,
+:root[data-theme="dark"] .review-file-list,
+:root[data-theme="dark"] .review-file-row {
+  border-color: #3b5366;
+  background: #172737;
+  color: #d6e3ec;
+}
+
+:root[data-theme="dark"] .review-file-header {
+  border-color: #3b5366;
+  background: #1d3142;
+}
+
+:root[data-theme="dark"] .review-file-header .sort-header {
+  color: #b8cbd8;
+}
+
+:root[data-theme="dark"] .review-file-header .sort-header:not(:disabled):hover,
+:root[data-theme="dark"] .review-file-header .sort-header.active,
+:root[data-theme="dark"] .review-file-row:hover {
+  background: #21394b;
+  color: #e8f2f7;
+}
+
+:root[data-theme="dark"] .review-file-row > * {
+  border-color: #354e61;
+  color: #b8cbd8;
+}
+
+:root[data-theme="dark"] .review-file-row strong {
+  color: #f1f7fb;
+}
+
+:root[data-theme="dark"] .review-file-row.active,
+:root[data-theme="dark"] .review-folder-tree summary.active,
+:root[data-theme="dark"] .review-folder-tree button.active {
+  border-color: #4c8cad;
+  background: #21465f;
+  color: #f1f7fb;
+}
+
+:root[data-theme="dark"] .review-folder-tree summary:hover,
+:root[data-theme="dark"] .review-folder-tree button:hover {
+  border-color: #41657b;
+  background: #203647;
+}
+
+@media (max-width: 1180px) {
+  .review-library-layout {
+    grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.35fr);
+  }
+
+  .review-inspector {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .review-inspector .button-row {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .review-library-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .review-inspector {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .review-file-list {
+    overflow-x: auto;
+  }
+
+  .review-file-header,
+  .review-file-row {
+    min-width: 650px;
+  }
+}
+
 .capture-steps {
   margin-top: 10px;
   display: grid;

@@ -91,6 +91,7 @@ type MediaItem = {
 type ArchiveSortKey = "name" | "date" | "size";
 type SortDirection = "asc" | "desc";
 type MediaSortKey = "name" | "date" | "size";
+type ReviewSortKey = "name" | "date" | "course";
 
 type CaptureSource = {
   id: string;
@@ -229,9 +230,17 @@ type ExtractedConcept = {
 type ExamWorkspace = {
   id: string;
   courseId: string;
+  folderId?: string;
   name: string;
   startsOn: string;
   context?: string;
+  createdAt: string;
+};
+
+type ReviewFolder = {
+  id: string;
+  parentId?: string;
+  name: string;
   createdAt: string;
 };
 
@@ -366,6 +375,7 @@ type VaultState = {
   transcripts: Transcript[];
   concepts: ExtractedConcept[];
   exams: ExamWorkspace[];
+  reviewFolders: ReviewFolder[];
   examItems: ExamWorkspaceItem[];
   studyGuides: StudyGuide[];
   reconstructionDrafts: ClassDayDraft[];
@@ -395,6 +405,7 @@ const emptyState: VaultState = {
   transcripts: [],
   concepts: [],
   exams: [],
+  reviewFolders: [],
   examItems: [],
   studyGuides: [],
   reconstructionDrafts: []
@@ -1126,6 +1137,28 @@ function mediaFolderDescendantIds(folders: MediaLibraryFolder[], folderId: strin
   return ids;
 }
 
+function reviewFolderDescendantIds(folders: ReviewFolder[], folderId: string) {
+  const ids = new Set<string>();
+  const stack = [folderId];
+
+  while (stack.length) {
+    const current = stack.pop();
+
+    if (!current || ids.has(current)) {
+      continue;
+    }
+
+    ids.add(current);
+    for (const folder of folders) {
+      if (folder.parentId === current) {
+        stack.push(folder.id);
+      }
+    }
+  }
+
+  return ids;
+}
+
 function defaultLectureFolderId(folders: ArchiveFolder[], courseId: string) {
   return folders.find(
     (folder) =>
@@ -1677,6 +1710,9 @@ function loadState(): VaultState {
       mediaLibraryPlacements: Array.isArray(parsed.mediaLibraryPlacements)
         ? parsed.mediaLibraryPlacements
         : [],
+      reviewFolders: Array.isArray(parsed.reviewFolders)
+        ? parsed.reviewFolders
+        : [],
       textbooks: Array.isArray(parsed.textbooks)
         ? parsed.textbooks
         : [],
@@ -1711,6 +1747,9 @@ function normalizeState(input: unknown): VaultState {
       mediaLibraryPlacements: Array.isArray(parsed.mediaLibraryPlacements)
         ? parsed.mediaLibraryPlacements
         : [],
+      reviewFolders: Array.isArray(parsed.reviewFolders)
+        ? parsed.reviewFolders
+        : [],
       textbooks: Array.isArray(parsed.textbooks)
         ? parsed.textbooks
         : [],
@@ -1737,6 +1776,7 @@ function stateHasUserData(state: VaultState) {
       state.transcripts.length ||
       state.concepts.length ||
       state.exams.length ||
+      state.reviewFolders.length ||
       state.examItems.length ||
       state.studyGuides.length
   );
@@ -1759,6 +1799,11 @@ export default function LectureVaultApp() {
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedLectureId, setSelectedLectureId] = useState("");
   const [selectedExamId, setSelectedExamId] = useState("");
+  const [selectedReviewFolderId, setSelectedReviewFolderId] = useState("all");
+  const [reviewFolderName, setReviewFolderName] = useState("");
+  const [reviewQuery, setReviewQuery] = useState("");
+  const [reviewSortKey, setReviewSortKey] = useState<ReviewSortKey>("date");
+  const [reviewSortDirection, setReviewSortDirection] = useState<SortDirection>("desc");
   const [selectedArchiveFolderId, setSelectedArchiveFolderId] = useState("all");
   const [archiveSortKey, setArchiveSortKey] = useState<ArchiveSortKey>("date");
   const [archiveSortDirection, setArchiveSortDirection] = useState<SortDirection>("desc");
@@ -2343,6 +2388,41 @@ export default function LectureVaultApp() {
   const selectedVaultReviewCount = vaultReviewSelectionIds.filter((id) =>
     state.lectures.some((lecture) => lecture.id === id)
   ).length;
+  const selectedReviewFolder = state.reviewFolders.find(
+    (folder) => folder.id === selectedReviewFolderId
+  );
+  const pastReviews = useMemo(() => {
+    const term = reviewQuery.trim().toLowerCase();
+    const visibleFolderIds =
+      selectedReviewFolderId === "all" || selectedReviewFolderId === "unfiled"
+        ? new Set<string>()
+        : reviewFolderDescendantIds(state.reviewFolders, selectedReviewFolderId);
+
+    return state.exams
+      .filter((exam) => {
+        if (selectedReviewFolderId === "unfiled") return !exam.folderId;
+        if (selectedReviewFolderId !== "all") {
+          return Boolean(exam.folderId && visibleFolderIds.has(exam.folderId));
+        }
+        return true;
+      })
+      .filter((exam) => {
+        if (!term) return true;
+        return [exam.name, exam.startsOn, courseLabel(exam.courseId)]
+          .join(" ")
+          .toLowerCase()
+          .includes(term);
+      })
+      .sort((first, second) => {
+        const comparison =
+          reviewSortKey === "course"
+            ? courseLabel(first.courseId).localeCompare(courseLabel(second.courseId), undefined, { sensitivity: "base" })
+            : reviewSortKey === "date"
+              ? `${first.startsOn || first.createdAt}`.localeCompare(`${second.startsOn || second.createdAt}`)
+              : first.name.localeCompare(second.name, undefined, { sensitivity: "base" });
+        return reviewSortDirection === "asc" ? comparison : -comparison;
+      });
+  }, [reviewQuery, reviewSortDirection, reviewSortKey, selectedReviewFolderId, state.courses, state.exams, state.reviewFolders]);
   const areAllVisibleArchiveLecturesSelected =
     archiveLectures.length > 0 &&
     archiveLectures.every((lecture) => vaultReviewSelectionIds.includes(lecture.id));
@@ -2498,6 +2578,16 @@ export default function LectureVaultApp() {
   }, [builderCourseId, builderFolderId, state.archiveFolders]);
 
   useEffect(() => {
+    if (
+      selectedReviewFolderId !== "all" &&
+      selectedReviewFolderId !== "unfiled" &&
+      !state.reviewFolders.some((folder) => folder.id === selectedReviewFolderId)
+    ) {
+      setSelectedReviewFolderId("all");
+    }
+  }, [selectedReviewFolderId, state.reviewFolders]);
+
+  useEffect(() => {
     if (screen !== "archive") {
       return;
     }
@@ -2511,6 +2601,18 @@ export default function LectureVaultApp() {
 
     setSelectedLectureId(archiveLectures[0]?.id || "");
   }, [archiveLectures, screen, selectedLectureId]);
+
+  useEffect(() => {
+    if (screen !== "exams") {
+      return;
+    }
+
+    if (selectedExamId && pastReviews.some((exam) => exam.id === selectedExamId)) {
+      return;
+    }
+
+    setSelectedExamId(pastReviews[0]?.id || "");
+  }, [pastReviews, screen, selectedExamId]);
 
   const selectedExamGuide = selectedExam
     ? state.studyGuides.find(
@@ -3618,30 +3720,101 @@ export default function LectureVaultApp() {
     setScreen("lecture");
   }
 
-  function createExam(event: FormEvent) {
+  function createReviewFolder(event: FormEvent) {
     event.preventDefault();
-    if (!examForm.name.trim()) {
+    const name = reviewFolderName.trim();
+
+    if (!name) {
+      setStatus("Name the review folder before adding it.");
       return;
     }
 
-    const createdAt = new Date().toISOString();
-    const exam: ExamWorkspace = {
-      id: uid("exam"),
-      courseId: examForm.courseId,
-      name: examForm.name.trim(),
-      startsOn: examForm.startsOn,
-      context: DEFAULT_REVIEW_CONTEXT,
-      createdAt
+    const parentId =
+      selectedReviewFolderId === "all" || selectedReviewFolderId === "unfiled"
+        ? undefined
+        : selectedReviewFolderId;
+    const folder: ReviewFolder = {
+      id: uid("review-folder"),
+      parentId,
+      name,
+      createdAt: new Date().toISOString()
     };
 
     setState((current) => ({
       ...current,
-      exams: [exam, ...current.exams]
+      reviewFolders: [...current.reviewFolders, folder]
     }));
-    setSelectedExamId(exam.id);
-    setExamForm((current) => ({ ...current, name: "", startsOn: "" }));
-    setStatus(`Created ${exam.name}. Add archive sources to the review set.`);
-    setScreen("exam");
+    setReviewFolderName("");
+    setSelectedReviewFolderId(folder.id);
+    setStatus(`Created review folder ${folder.name}.`);
+  }
+
+  function renameReviewFolder() {
+    if (selectedReviewFolderId === "all" || selectedReviewFolderId === "unfiled") {
+      return;
+    }
+
+    const currentName = selectedReviewFolder?.name || "";
+    const nextName = window.prompt("Rename review folder", currentName)?.trim();
+
+    if (!nextName || nextName === currentName) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      reviewFolders: current.reviewFolders.map((folder) =>
+        folder.id === selectedReviewFolderId ? { ...folder, name: nextName } : folder
+      )
+    }));
+    setStatus(`Renamed review folder to ${nextName}.`);
+  }
+
+  function deleteReviewFolder() {
+    if (selectedReviewFolderId === "all" || selectedReviewFolderId === "unfiled") {
+      return;
+    }
+
+    const folderName = selectedReviewFolder?.name || "Review folder";
+    if (!window.confirm(`Delete ${folderName}? Reviews inside will remain available under Unfiled.`)) {
+      return;
+    }
+
+    const folderIds = reviewFolderDescendantIds(state.reviewFolders, selectedReviewFolderId);
+    setState((current) => ({
+      ...current,
+      reviewFolders: current.reviewFolders.filter((folder) => !folderIds.has(folder.id)),
+      exams: current.exams.map((exam) =>
+        exam.folderId && folderIds.has(exam.folderId)
+          ? { ...exam, folderId: undefined }
+          : exam
+      )
+    }));
+    setSelectedReviewFolderId("all");
+    setStatus(`Deleted ${folderName}. Its review sets are now Unfiled.`);
+  }
+
+  function moveReviewToFolder(examId: string, folderId: string) {
+    const destinationName = folderId
+      ? state.reviewFolders.find((folder) => folder.id === folderId)?.name || "folder"
+      : "Unfiled";
+    setState((current) => ({
+      ...current,
+      exams: current.exams.map((exam) =>
+        exam.id === examId ? { ...exam, folderId: folderId || undefined } : exam
+      )
+    }));
+    setStatus(`Moved review set to ${destinationName}.`);
+  }
+
+  function changeReviewSort(key: ReviewSortKey) {
+    if (reviewSortKey === key) {
+      setReviewSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setReviewSortKey(key);
+    setReviewSortDirection(key === "name" || key === "course" ? "asc" : "desc");
   }
 
   function addLectureToExam(lectureId: string, examId = selectedExamId) {
@@ -5130,7 +5303,10 @@ export default function LectureVaultApp() {
             },
             {
               label: "Study",
-              items: [{ id: "builder", label: "Reviews", icon: <Sparkles aria-hidden="true" size={17} /> }]
+              items: [
+                { id: "builder", label: "New Review", icon: <Sparkles aria-hidden="true" size={17} /> },
+                { id: "exams", label: "Past Reviews", icon: <FolderOpen aria-hidden="true" size={17} /> }
+              ]
             }
           ].map((group) => (
             <div className="nav-group" key={group.label}>
@@ -5139,9 +5315,10 @@ export default function LectureVaultApp() {
                 <button
                   key={id}
                   className={
-                    id === "builder" &&
-                    ["builder", "exams", "exam"].includes(screen)
-                      ? "active"
+                    id === "exams"
+                      ? ["exams", "exam"].includes(screen)
+                        ? "active"
+                        : ""
                       : screen === id
                         ? "active"
                         : ""
@@ -6512,123 +6689,160 @@ export default function LectureVaultApp() {
                   </div>
                 </div>
               </form>
-              <div className="saved-review-sets">
-                <h3>Saved Review Sets</h3>
-                <div className="source-list">
-                  {state.exams.map((exam) => (
-                    <button
-                      className="row-button"
-                      key={exam.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedExamId(exam.id);
-                        setScreen("exam");
-                      }}
-                    >
-                      <strong>{exam.name}</strong>
-                      <span>{courseLabel(exam.courseId)}</span>
-                      <small>
-                        {
-                          state.examItems.filter(
-                            (item) => item.examWorkspaceId === exam.id
-                          ).length
-                        }{" "}
-                        selected source
-                        {state.examItems.filter(
-                          (item) => item.examWorkspaceId === exam.id
-                        ).length === 1
-                          ? ""
-                          : "s"}
-                      </small>
-                    </button>
-                  ))}
-                  {!state.exams.length ? (
-                    <p className="empty">Created review sets will appear here.</p>
-                  ) : null}
-                </div>
-              </div>
             </aside>
           </section>
         ) : null}
 
         {screen === "exams" ? (
-          <section className="content-grid">
-            <form className="panel form-panel" onSubmit={createExam}>
-              <h3>Create Empty Review Set</h3>
-              <label>
-                Course
-                <select
-                  value={examForm.courseId}
-                  onChange={(event) =>
-                    setExamForm((current) => ({
-                      ...current,
-                      courseId: event.target.value
-                    }))
-                  }
-                >
-                  {state.courses.map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {course.code} {course.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Review set name
+          <section className="review-library-layout">
+            <aside className="panel review-folder-panel">
+              <div className="section-heading compact-heading">
+                <div>
+                  <span className="pill">Folders</span>
+                  <h3>Past Reviews</h3>
+                </div>
+              </div>
+              <form className="folder-form" onSubmit={createReviewFolder}>
                 <input
-                  value={examForm.name}
-                  onChange={(event) =>
-                    setExamForm((current) => ({
-                      ...current,
-                      name: event.target.value
-                    }))
-                  }
-                  placeholder="Exam 2, Final, Quiz 1"
-                />
-              </label>
-              <label>
-                Exam date
-                <input
-                  type="date"
-                  value={examForm.startsOn}
-                  onChange={(event) =>
-                    setExamForm((current) => ({
-                      ...current,
-                      startsOn: event.target.value
-                    }))
+                  value={reviewFolderName}
+                  onChange={(event) => setReviewFolderName(event.target.value)}
+                  placeholder={
+                    selectedReviewFolderId === "all" || selectedReviewFolderId === "unfiled"
+                      ? "New folder"
+                      : "New subfolder"
                   }
                 />
-              </label>
-              <button className="primary" type="submit">
-                Create Review Set
-              </button>
-            </form>
-
-            <section className="panel list-panel">
-              <h3>Review Sets</h3>
-              {state.exams.map((exam) => (
+                <button type="submit">Add</button>
+              </form>
+              <div className="folder-actions">
                 <button
-                  className="row-button"
-                  key={exam.id}
                   type="button"
-                  onClick={() => {
-                    setSelectedExamId(exam.id);
-                    setScreen("exam");
-                  }}
+                  onClick={renameReviewFolder}
+                  disabled={selectedReviewFolderId === "all" || selectedReviewFolderId === "unfiled"}
                 >
-                  <strong>{exam.name}</strong>
-                  <span>{courseLabel(exam.courseId)}</span>
-                  <small>
-                    {
-                      state.examItems.filter(
-                        (item) => item.examWorkspaceId === exam.id
-                      ).length
-                    }{" "}
-                    selected archive items
-                  </small>
+                  Rename
                 </button>
-              ))}
+                <button
+                  className="danger"
+                  type="button"
+                  onClick={deleteReviewFolder}
+                  disabled={selectedReviewFolderId === "all" || selectedReviewFolderId === "unfiled"}
+                >
+                  Delete
+                </button>
+              </div>
+              <ReviewFolderTree
+                folders={state.reviewFolders}
+                exams={state.exams}
+                selectedFolderId={selectedReviewFolderId}
+                onSelectFolder={setSelectedReviewFolderId}
+              />
+            </aside>
+
+            <section className="panel review-explorer-panel">
+              <div className="section-heading compact-heading">
+                <div>
+                  <span className="pill">
+                    {pastReviews.length} review{pastReviews.length === 1 ? "" : "s"}
+                  </span>
+                  <h3>{selectedReviewFolder?.name || (selectedReviewFolderId === "unfiled" ? "Unfiled Reviews" : "All Reviews")}</h3>
+                </div>
+                <button className="primary" type="button" onClick={() => setScreen("builder")}>New Review</button>
+              </div>
+              <label className="review-search">
+                Search reviews
+                <input
+                  value={reviewQuery}
+                  onChange={(event) => setReviewQuery(event.target.value)}
+                  placeholder="Review name, course, or date..."
+                />
+              </label>
+              <div className="review-file-list" aria-label="Saved review sets">
+                <div className="review-file-header">
+                  {([
+                    ["name", "Name"],
+                    ["course", "Course"],
+                    ["date", "Date"],
+                    ["sources", "Sources"]
+                  ] as Array<[ReviewSortKey | "sources", string]>).map(([key, label]) => {
+                    const canSort = key !== "sources";
+                    const isActive = canSort && reviewSortKey === key;
+                    return (
+                      <button
+                        key={key}
+                        className={isActive ? "sort-header active" : "sort-header"}
+                        type="button"
+                        disabled={!canSort}
+                        onClick={() => canSort && changeReviewSort(key as ReviewSortKey)}
+                      >
+                        {label}
+                        <span aria-hidden="true">
+                          {isActive ? (reviewSortDirection === "asc" ? "Asc" : "Desc") : ""}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {pastReviews.map((exam) => {
+                  const sourceCount = state.examItems.filter(
+                    (item) => item.examWorkspaceId === exam.id
+                  ).length;
+                  return (
+                    <button
+                      className={selectedExamId === exam.id ? "review-file-row active" : "review-file-row"}
+                      key={exam.id}
+                      type="button"
+                      onClick={() => setSelectedExamId(exam.id)}
+                    >
+                      <strong>{exam.name}</strong>
+                      <span>{courseLabel(exam.courseId)}</span>
+                      <span>{exam.startsOn || new Date(exam.createdAt).toLocaleDateString()}</span>
+                      <span>{sourceCount} source{sourceCount === 1 ? "" : "s"}</span>
+                    </button>
+                  );
+                })}
+                {!pastReviews.length ? (
+                  <p className="empty">No saved review sets in this folder.</p>
+                ) : null}
+              </div>
             </section>
+
+            <aside className="panel review-inspector">
+              {selectedExam ? (
+                <>
+                  <span className="selected-lecture-kicker">Selected review set</span>
+                  <h3>{selectedExam.name}</h3>
+                  <p>{courseLabel(selectedExam.courseId)}</p>
+                  <div className="selected-lecture-meta">
+                    <span>{selectedExam.startsOn || "No exam date"}</span>
+                    <span>{selectedExamLectures.length} source{selectedExamLectures.length === 1 ? "" : "s"}</span>
+                  </div>
+                  <label className="review-folder-select">
+                    Folder
+                    <select
+                      value={selectedExam.folderId || ""}
+                      onChange={(event) => moveReviewToFolder(selectedExam.id, event.target.value)}
+                    >
+                      <option value="">Unfiled</option>
+                      {state.reviewFolders.map((folder) => (
+                        <option key={folder.id} value={folder.id}>
+                          {folder.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="button-row stacked">
+                    <button className="primary" type="button" onClick={() => setScreen("exam")}>Open review</button>
+                    <button className="danger" type="button" onClick={() => deleteExam(selectedExam.id)}>Delete review set</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3>Review details</h3>
+                  <p className="empty">Select a saved review set to inspect and organize it.</p>
+                </>
+              )}
+            </aside>
           </section>
         ) : null}
 
@@ -6677,8 +6891,8 @@ function screenTitle(screen: Screen) {
     lecture: "Reconstruction detail",
     capture: "New reconstruction",
     storage: "Media Library",
-    builder: "Reviews",
-    exams: "Review sets",
+    builder: "New review",
+    exams: "Past reviews",
     exam: "Review set"
   };
   return titles[screen];
@@ -7115,6 +7329,75 @@ function ArchiveFolderTree({
           </details>
         );
       })}
+    </div>
+  );
+}
+
+function ReviewFolderTree({
+  folders,
+  exams,
+  selectedFolderId,
+  onSelectFolder
+}: {
+  folders: ReviewFolder[];
+  exams: ExamWorkspace[];
+  selectedFolderId: string;
+  onSelectFolder: (folderId: string) => void;
+}) {
+  function reviewCount(folderId?: string) {
+    if (!folderId) {
+      return exams.filter((exam) => !exam.folderId).length;
+    }
+    const descendantIds = reviewFolderDescendantIds(folders, folderId);
+    return exams.filter((exam) => exam.folderId && descendantIds.has(exam.folderId)).length;
+  }
+
+  function renderFolder(folder: ReviewFolder, depth = 0): ReactNode {
+    const children = folders
+      .filter((item) => item.parentId === folder.id)
+      .sort((first, second) => first.name.localeCompare(second.name, undefined, { sensitivity: "base" }));
+
+    return (
+      <details className="folder-node" key={folder.id} open>
+        <summary
+          className={selectedFolderId === folder.id ? "active" : ""}
+          style={{ "--tree-depth": depth } as CSSProperties}
+          onClick={() => onSelectFolder(folder.id)}
+        >
+          <span className="folder-icon" aria-hidden="true" />
+          <span>{folder.name}</span>
+          <small>{reviewCount(folder.id)}</small>
+        </summary>
+        {children.length ? <div className="folder-children">{children.map((child) => renderFolder(child, depth + 1))}</div> : null}
+      </details>
+    );
+  }
+
+  const rootFolders = folders
+    .filter((folder) => !folder.parentId)
+    .sort((first, second) => first.name.localeCompare(second.name, undefined, { sensitivity: "base" }));
+
+  return (
+    <div className="review-folder-tree">
+      <button
+        className={selectedFolderId === "all" ? "active" : ""}
+        type="button"
+        onClick={() => onSelectFolder("all")}
+      >
+        <span className="folder-icon" aria-hidden="true" />
+        <span>All reviews</span>
+        <small>{exams.length}</small>
+      </button>
+      <button
+        className={selectedFolderId === "unfiled" ? "active" : ""}
+        type="button"
+        onClick={() => onSelectFolder("unfiled")}
+      >
+        <span className="folder-icon" aria-hidden="true" />
+        <span>Unfiled</span>
+        <small>{reviewCount()}</small>
+      </button>
+      {rootFolders.map((folder) => renderFolder(folder))}
     </div>
   );
 }
