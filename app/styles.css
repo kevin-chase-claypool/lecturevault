@@ -2452,9 +2452,27 @@ button.review-draft-button:disabled {
 
 .exam-builder-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 0.36fr) minmax(560px, 1fr);
+  grid-template-columns: minmax(300px, 0.36fr) minmax(0, 1fr);
   gap: 14px;
   align-items: flex-start;
+}
+
+.builder-sidebar-stack {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+}
+
+.builder-sidebar-stack > .archive-folder-panel {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.builder-sidebar-stack > .review-draft-panel {
+  margin-top: -1px;
+  border-top-right-radius: 0;
+  border-top-left-radius: 0;
+  box-shadow: none;
 }
 
 .exam-explorer-column {

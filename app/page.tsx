@@ -6473,7 +6473,8 @@ export default function LectureVaultApp() {
 
         {screen === "builder" ? (
           <section className="exam-builder-layout">
-            <aside className="panel archive-folder-panel">
+            <div className="builder-sidebar-stack">
+              <aside className="panel archive-folder-panel">
               <div className="section-heading">
                 <div>
                   <span className="pill">Archive</span>
@@ -6505,7 +6506,135 @@ export default function LectureVaultApp() {
                 onSelectFolder={setBuilderFolderId}
                 onDropLecture={() => undefined}
               />
-            </aside>
+              </aside>
+
+              <aside className="panel side-panel source-inspector review-draft-panel">
+                <form onSubmit={createWorkspaceFromBuilder}>
+                  <div className="section-heading">
+                    <div>
+                      <span className="pill">
+                        {builderSelectedLectures.length} selected
+                      </span>
+                      <h3>Review Set Draft</h3>
+                    </div>
+                  </div>
+                  <label>
+                    Review set name
+                    <input
+                      aria-describedby="review-draft-next-step"
+                      value={examForm.name}
+                      onChange={(event) =>
+                        setExamForm((current) => ({
+                          ...current,
+                          name: event.target.value
+                        }))
+                      }
+                      placeholder="Exam 1, Midterm, Final"
+                    />
+                  </label>
+                  <label>
+                    Exam date
+                    <input
+                      type="date"
+                      value={examForm.startsOn}
+                      onChange={(event) =>
+                        setExamForm((current) => ({
+                          ...current,
+                          startsOn: event.target.value
+                        }))
+                      }
+                    />
+                  </label>
+                  <div className="review-draft-source-list" aria-label="Selected reconstructions">
+                    <div className="review-draft-source-heading">
+                      <strong>Selected reconstructions</strong>
+                      <span>
+                        {builderSelectedLectures.length} source
+                        {builderSelectedLectures.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    {builderSelectedLectures.map((lecture) => (
+                      <div className="review-draft-source-row" key={lecture.id}>
+                        <div>
+                          <strong>{lecture.title}</strong>
+                          <span>{lecture.date}</span>
+                        </div>
+                        <button
+                          aria-label={`Remove ${lecture.title} from the review set draft`}
+                          className="review-draft-remove"
+                          type="button"
+                          onClick={() => toggleBuilderLecture(lecture.id)}
+                        >
+                          <Trash2 aria-hidden="true" size={16} strokeWidth={2} />
+                        </button>
+                      </div>
+                    ))}
+                    {!builderSelectedLectures.length ? (
+                      <p className="empty">
+                        Select archived lectures to build this review set.
+                      </p>
+                    ) : null}
+                  </div>
+                  <p className="review-draft-next-step" id="review-draft-next-step">
+                    {!builderSelectedLectures.length
+                      ? "Select one or more reconstructions to begin."
+                      : !examForm.name.trim()
+                        ? "Name this review set to continue."
+                        : "Create the review set to unlock AI generation and PDF export."}
+                  </p>
+                  <div className="review-coverage" aria-label="Review input coverage">
+                    <div>
+                      <strong>{builderSelectedLectures.length}</strong>
+                      <span>reconstructions</span>
+                    </div>
+                    <div>
+                      <strong>{builderReviewCoverage.media}</strong>
+                      <span>linked media</span>
+                    </div>
+                    <div>
+                      <strong>{builderReviewCoverage.concepts}</strong>
+                      <span>concepts</span>
+                    </div>
+                    <div>
+                      <strong>{builderReviewCoverage.textbooks}</strong>
+                      <span>course textbooks</span>
+                    </div>
+                  </div>
+                  <p className="review-coverage-note">
+                    AI will use the saved reconstruction artifacts, source media, figures, audio cues, and relevant textbook citations already linked to the selected reconstructions.
+                  </p>
+                  <div className="button-row stacked">
+                    <button
+                      className="primary"
+                      type="submit"
+                      disabled={
+                        !examForm.name.trim() || !builderSelectedLectures.length
+                      }
+                    >
+                      Create Review Set
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBuilderSelectedLectureIds([])}
+                      disabled={!builderSelectedLectureIds.length}
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+                  <div className="review-action-preview">
+                    <h3>Review Actions</h3>
+                    <div className="button-row stacked">
+                      <button type="button" disabled>
+                        Generate AI Review
+                      </button>
+                      <button type="button" disabled>
+                        Download Review PDF
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </aside>
+            </div>
 
             <section className="archive-list-panel">
               <div className="toolbar">
@@ -6612,132 +6741,6 @@ export default function LectureVaultApp() {
               ) : null}
             </section>
 
-            <aside className="panel side-panel source-inspector review-draft-panel">
-              <form onSubmit={createWorkspaceFromBuilder}>
-                <div className="section-heading">
-                  <div>
-                    <span className="pill">
-                      {builderSelectedLectures.length} selected
-                    </span>
-                    <h3>Review Set Draft</h3>
-                  </div>
-                </div>
-                <label>
-                  Review set name
-                  <input
-                    aria-describedby="review-draft-next-step"
-                    value={examForm.name}
-                    onChange={(event) =>
-                      setExamForm((current) => ({
-                        ...current,
-                        name: event.target.value
-                      }))
-                    }
-                    placeholder="Exam 1, Midterm, Final"
-                  />
-                </label>
-                <label>
-                  Exam date
-                  <input
-                    type="date"
-                    value={examForm.startsOn}
-                    onChange={(event) =>
-                      setExamForm((current) => ({
-                        ...current,
-                        startsOn: event.target.value
-                      }))
-                    }
-                  />
-                </label>
-                <div className="review-draft-source-list" aria-label="Selected reconstructions">
-                  <div className="review-draft-source-heading">
-                    <strong>Selected reconstructions</strong>
-                    <span>
-                      {builderSelectedLectures.length} source
-                      {builderSelectedLectures.length === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                  {builderSelectedLectures.map((lecture) => (
-                    <div className="review-draft-source-row" key={lecture.id}>
-                      <div>
-                        <strong>{lecture.title}</strong>
-                        <span>{lecture.date}</span>
-                      </div>
-                      <button
-                        aria-label={`Remove ${lecture.title} from the review set draft`}
-                        className="review-draft-remove"
-                        type="button"
-                        onClick={() => toggleBuilderLecture(lecture.id)}
-                      >
-                        <Trash2 aria-hidden="true" size={16} strokeWidth={2} />
-                      </button>
-                    </div>
-                  ))}
-                  {!builderSelectedLectures.length ? (
-                    <p className="empty">
-                      Select archived lectures to build this review set.
-                    </p>
-                  ) : null}
-                </div>
-                <p className="review-draft-next-step" id="review-draft-next-step">
-                  {!builderSelectedLectures.length
-                    ? "Select one or more reconstructions to begin."
-                    : !examForm.name.trim()
-                      ? "Name this review set to continue."
-                      : "Create the review set to unlock AI generation and PDF export."}
-                </p>
-                <div className="review-coverage" aria-label="Review input coverage">
-                  <div>
-                    <strong>{builderSelectedLectures.length}</strong>
-                    <span>reconstructions</span>
-                  </div>
-                  <div>
-                    <strong>{builderReviewCoverage.media}</strong>
-                    <span>linked media</span>
-                  </div>
-                  <div>
-                    <strong>{builderReviewCoverage.concepts}</strong>
-                    <span>concepts</span>
-                  </div>
-                  <div>
-                    <strong>{builderReviewCoverage.textbooks}</strong>
-                    <span>course textbooks</span>
-                  </div>
-                </div>
-                <p className="review-coverage-note">
-                  AI will use the saved reconstruction artifacts, source media, figures, audio cues, and relevant textbook citations already linked to the selected reconstructions.
-                </p>
-                <div className="button-row stacked">
-                  <button
-                    className="primary"
-                    type="submit"
-                    disabled={
-                      !examForm.name.trim() || !builderSelectedLectures.length
-                    }
-                  >
-                    Create Review Set
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBuilderSelectedLectureIds([])}
-                    disabled={!builderSelectedLectureIds.length}
-                  >
-                    Clear Selection
-                  </button>
-                </div>
-                <div className="review-action-preview">
-                  <h3>Review Actions</h3>
-                  <div className="button-row stacked">
-                    <button type="button" disabled>
-                      Generate AI Review
-                    </button>
-                    <button type="button" disabled>
-                      Download Review PDF
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </aside>
           </section>
         ) : null}
 

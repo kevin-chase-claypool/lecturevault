@@ -1232,6 +1232,11 @@ https://production-sfo.browserless.io/pdf
 - Moved the selected-reconstruction inspector beneath the review File Explorer on desktop, converting the review builder to a two-column layout and giving the main review canvas substantially more reading and authoring width.
 - Bounded the attached-media list in that inspector so large source bundles remain a compact, scrollable reference list instead of extending the page indefinitely.
 
+### 2026-07-23 - Continuous New Review Sidebar
+
+- Grouped Browse Archive and the Review Set Draft into one continuous left-hand stack on the New Review screen. The draft now follows the archive browser directly instead of being placed in an implicit grid row beneath the main reconstruction list.
+- Retained the complete review-draft workflow while widening the central course-reconstruction workspace and removing unused vertical space.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.
