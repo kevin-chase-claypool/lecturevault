@@ -1258,6 +1258,7 @@ https://production-sfo.browserless.io/pdf
 
 - Enlarged the saved generated-review reading surface to use most of the available viewport height instead of the compact preview cap.
 - Collapsed each review image into a compact `Fig. N` disclosure row. Opening a row reveals that source image once, its source lecture, and its filename.
+- Left-aligned saved-source rows in Review Viewer so they scan as file-explorer entries rather than centered cards.
 
 ## Known Limitations
 
