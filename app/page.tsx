@@ -6944,7 +6944,7 @@ function screenTitle(screen: Screen) {
     storage: "Media Library",
     builder: "New review",
     exams: "Past reviews",
-    exam: "Review set"
+    exam: "Review Viewer"
   };
   return titles[screen];
 }

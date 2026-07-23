@@ -1244,6 +1244,10 @@ https://production-sfo.browserless.io/pdf
 - Normalized New Review’s draft styling into the same neutral editor surface used elsewhere. Source counts, next action, and disabled post-creation actions remain available, but no longer read as separate competing panels.
 - Performed a final dark-surface audit for review generation, saved-review lists, inspectors, and source previews to prevent light-mode white fills from leaking into the dark workspace.
 
+### 2026-07-23 - Review Viewer Naming
+
+- Renamed the existing-review workspace title from `Review set` to `Review Viewer`. `New review` remains the only creation workflow; the viewer is for reading, refining, exporting, and managing saved reviews.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.
