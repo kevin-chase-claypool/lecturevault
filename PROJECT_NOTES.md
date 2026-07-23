@@ -1206,6 +1206,14 @@ https://production-sfo.browserless.io/pdf
   - `Remove from exam`
 - Added `openai`, `katex`, and `@types/katex`.
 
+### 2026-07-23 - Reconstruction and Review Readiness Polish
+
+- Added compact evidence coverage to the reconstruction build stage so users can confirm the number and kind of attached class-day sources, plus whether course textbooks are available, before AI runs.
+- Added review coverage to the New Review draft, showing selected reconstructions, linked media, extracted concepts, and indexed course textbooks alongside a concise statement of the source-grounded inputs used for review generation.
+- Updated embedded audio to prefer direct, time-limited Supabase Storage URLs for media with a stored object path. This preserves byte-range requests so browser controls can retrieve duration and seek; the authenticated media proxy remains the fallback.
+- Improved player metadata handling and added a visible load failure message for audio that cannot be read.
+- Increased dark-mode secondary text contrast across dashboard action descriptions, course metadata, explorer rows, media details, and review rows. Removed the low-contrast muted-blue treatment from supporting copy.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.

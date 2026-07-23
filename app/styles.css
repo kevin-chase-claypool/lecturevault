@@ -3140,6 +3140,141 @@ button.review-draft-button:disabled {
   }
 }
 
+/* Decision points: make evidence coverage explicit before an AI build, without
+   turning either workflow into a dashboard of its own. */
+.reconstruction-build-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.reconstruction-build-summary span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border: 1px solid #c9d9e5;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #f6fafc;
+  color: #49657a;
+  font-size: 0.7rem;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.reconstruction-build-summary strong {
+  margin-right: 4px;
+  color: #14567f;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-coverage {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid #cbdbe7;
+  border-radius: var(--control-radius);
+  background: #ffffff;
+}
+
+.review-coverage > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  padding: 8px 9px;
+  border-right: 1px solid #e1e9f0;
+  border-bottom: 1px solid #e1e9f0;
+}
+
+.review-coverage > div:nth-child(2n) {
+  border-right: 0;
+}
+
+.review-coverage > div:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.review-coverage strong {
+  color: #14567f;
+  font-size: 0.96rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-coverage span {
+  overflow: hidden;
+  color: #5d7083;
+  font-size: 0.66rem;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.review-coverage-note {
+  margin: -2px 0 0;
+  color: #607286;
+  font-size: 0.73rem;
+  line-height: 1.42;
+}
+
+.embedded-audio-player {
+  position: relative;
+}
+
+.audio-load-error {
+  grid-column: 1 / -1;
+  color: #b42318;
+  font-size: 0.68rem;
+  font-weight: 760;
+}
+
+:root[data-theme="dark"] .reconstruction-build-summary span {
+  border-color: #3d566a;
+  background: #1b2a38;
+  color: #b9cad7;
+}
+
+:root[data-theme="dark"] .reconstruction-build-summary strong,
+:root[data-theme="dark"] .review-coverage strong {
+  color: #aee0fa;
+}
+
+:root[data-theme="dark"] .review-coverage {
+  border-color: #3b5366;
+  background: #1b2a38;
+}
+
+:root[data-theme="dark"] .review-coverage > div {
+  border-color: #31495b;
+  background: #1b2a38;
+}
+
+:root[data-theme="dark"] .review-coverage span,
+:root[data-theme="dark"] .review-coverage-note {
+  color: #b5c6d3;
+}
+
+:root[data-theme="dark"] .audio-load-error {
+  color: #ffb8b2;
+}
+
+@media (max-width: 760px) {
+  .reconstruction-build-summary {
+    gap: 5px;
+  }
+
+  .reconstruction-build-summary span {
+    min-height: 24px;
+    padding-inline: 7px;
+    font-size: 0.66rem;
+  }
+
+  .review-coverage > div {
+    padding: 7px 8px;
+  }
+}
+
 /* Saved reviews use the same compact, file-explorer pattern as the Vault. */
 .review-library-layout {
   display: grid;
@@ -7740,8 +7875,8 @@ body {
   --panel: #172330;
   --surface-selected: #1b3a50;
   --text: #e8f0f6;
-  --muted: #a7b8c7;
-  --ink-soft: #c0d0dc;
+  --muted: #c4d0db;
+  --ink-soft: #d1dbe4;
   --border: #304355;
   --border-strong: #49657a;
   --line-soft: #2a3b4b;
@@ -8397,6 +8532,25 @@ summary:focus-visible {
   background: #1b2d3c;
   color: #d9e9f4;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+
+/* Secondary copy remains deliberately quieter than headings, but must be readable
+   at normal viewing distance on dark surfaces. Avoid the old muted blue scale. */
+:root[data-theme="dark"] .action-panel p,
+:root[data-theme="dark"] .section-note,
+:root[data-theme="dark"] .row-button span,
+:root[data-theme="dark"] .row-button small,
+:root[data-theme="dark"] .lecture-list-main p,
+:root[data-theme="dark"] .lecture-list-row.explorer-row .explorer-row-name span,
+:root[data-theme="dark"] .lecture-study-list small,
+:root[data-theme="dark"] .lecture-study-list time,
+:root[data-theme="dark"] .review-file-row > *,
+:root[data-theme="dark"] .panel p,
+:root[data-theme="dark"] .card-meta,
+:root[data-theme="dark"] .media-item span,
+:root[data-theme="dark"] .concept-list small {
+  color: #c4d0db;
+  opacity: 1;
 }
 
 :root[data-theme="dark"] .review-draft-panel,

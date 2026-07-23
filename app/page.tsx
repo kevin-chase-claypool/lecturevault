@@ -6,6 +6,7 @@ import {
   DragEvent,
   FormEvent,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState
@@ -2471,6 +2472,18 @@ export default function LectureVaultApp() {
     .filter((lecture): lecture is Lecture =>
       Boolean(lecture && lecture.courseId === builderCourseId)
     );
+  const builderReviewCoverage = useMemo(() => {
+    const selectedIds = new Set(builderSelectedLectures.map((lecture) => lecture.id));
+    const media = state.mediaItems.filter((item) => selectedIds.has(item.lectureId));
+    const concepts = state.concepts.filter((concept) => selectedIds.has(concept.lectureId));
+    const textbooks = state.textbooks.filter((textbook) => textbook.courseId === builderCourseId);
+
+    return {
+      media: media.length,
+      concepts: concepts.length,
+      textbooks: textbooks.length
+    };
+  }, [builderCourseId, builderSelectedLectures, state.concepts, state.mediaItems, state.textbooks]);
   const basketCount = builderSelectedLectures.length;
   const reviewContext = selectedExam?.context ?? DEFAULT_REVIEW_CONTEXT;
 
@@ -5187,6 +5200,15 @@ export default function LectureVaultApp() {
   const reconstructionTextbookCount = state.textbooks.filter(
     (textbook) => textbook.courseId === captureForm.courseId
   ).length;
+  const reconstructionEvidenceCount = captureFiles.length + (reconstructionNotesReady ? 1 : 0);
+  const reconstructionSourceSummary = [
+    reconstructionAudioCount ? `${reconstructionAudioCount} audio` : "",
+    reconstructionImageCount ? `${reconstructionImageCount} visual` : "",
+    reconstructionDocumentCount ? `${reconstructionDocumentCount} document` : "",
+    reconstructionNotesReady ? "notes" : ""
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const reconstructionCourseProfile = state.courses.find(
     (course) => course.id === captureForm.courseId
   )?.studyProfile?.trim();
@@ -6407,6 +6429,11 @@ export default function LectureVaultApp() {
                     Add the sources you have, then build one complete reconstruction
                     for this class day.
                   </p>
+                  <div className="reconstruction-build-summary" aria-label="Reconstruction input coverage">
+                    <span><strong>{reconstructionEvidenceCount}</strong> evidence item{reconstructionEvidenceCount === 1 ? "" : "s"}</span>
+                    <span>{reconstructionSourceSummary || "Add source material"}</span>
+                    <span>{reconstructionTextbookCount ? `${reconstructionTextbookCount} indexed textbook${reconstructionTextbookCount === 1 ? "" : "s"}` : "No course textbook"}</span>
+                  </div>
                 </div>
                 <div className="button-row">
                   <button
@@ -6658,6 +6685,27 @@ export default function LectureVaultApp() {
                     : !examForm.name.trim()
                       ? "Name this review set to continue."
                       : "Create the review set to unlock AI generation and PDF export."}
+                </p>
+                <div className="review-coverage" aria-label="Review input coverage">
+                  <div>
+                    <strong>{builderSelectedLectures.length}</strong>
+                    <span>reconstructions</span>
+                  </div>
+                  <div>
+                    <strong>{builderReviewCoverage.media}</strong>
+                    <span>linked media</span>
+                  </div>
+                  <div>
+                    <strong>{builderReviewCoverage.concepts}</strong>
+                    <span>concepts</span>
+                  </div>
+                  <div>
+                    <strong>{builderReviewCoverage.textbooks}</strong>
+                    <span>course textbooks</span>
+                  </div>
+                </div>
+                <p className="review-coverage-note">
+                  AI will use the saved reconstruction artifacts, source media, figures, audio cues, and relevant textbook citations already linked to the selected reconstructions.
                 </p>
                 <div className="button-row stacked">
                   <button
@@ -7946,6 +7994,8 @@ function EmbeddedAudioPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [loadError, setLoadError] = useState(false);
+  const errorId = useId();
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -7957,7 +8007,16 @@ function EmbeddedAudioPlayer({
     setIsPlaying(false);
     setCurrentTime(startSeconds);
     setDuration(0);
+    setLoadError(false);
   }, [endSeconds, src, startSeconds]);
+
+  function syncDuration(audio: HTMLAudioElement) {
+    const nextDuration = audio.duration;
+    if (Number.isFinite(nextDuration) && nextDuration > 0) {
+      setDuration(nextDuration);
+      setLoadError(false);
+    }
+  }
 
   async function togglePlayback() {
     const audio = audioRef.current;
@@ -8005,13 +8064,15 @@ function EmbeddedAudioPlayer({
         preload="metadata"
         playsInline
         onDurationChange={(event) => {
-          const nextDuration = event.currentTarget.duration;
-          setDuration(Number.isFinite(nextDuration) ? nextDuration : 0);
+          syncDuration(event.currentTarget);
         }}
         onLoadedMetadata={(event) => {
+          syncDuration(event.currentTarget);
           event.currentTarget.currentTime = startSeconds;
           setCurrentTime(startSeconds);
         }}
+        onCanPlay={(event) => syncDuration(event.currentTarget)}
+        onProgress={(event) => syncDuration(event.currentTarget)}
         onTimeUpdate={(event) => {
           const nextTime = event.currentTarget.currentTime;
           if (endSeconds && nextTime >= endSeconds) {
@@ -8027,6 +8088,10 @@ function EmbeddedAudioPlayer({
         onEnded={() => {
           setIsPlaying(false);
           setCurrentTime(startSeconds);
+        }}
+        onError={() => {
+          setIsPlaying(false);
+          setLoadError(true);
         }}
       />
       <button
@@ -8045,6 +8110,7 @@ function EmbeddedAudioPlayer({
       </span>
       <input
         aria-label="Audio progress"
+        aria-describedby={loadError ? errorId : undefined}
         className="audio-progress"
         type="range"
         min={startSeconds}
@@ -8054,6 +8120,7 @@ function EmbeddedAudioPlayer({
         disabled={!duration || Boolean(endSeconds && endSeconds <= startSeconds)}
         onChange={(event) => seek(Number(event.target.value))}
       />
+      {loadError ? <span className="audio-load-error" id={errorId}>Audio could not be loaded.</span> : null}
     </div>
   );
 }
@@ -8522,15 +8589,10 @@ function LectureDetail({
     [mediaItems, transcript]
   );
   const evidenceStorageReferences = useMemo(() => {
-    const mediaReferences = [
-      ...reconstructionEvidence.figures.map((figure) =>
-        mediaItems.find((item) => item.id === figure.mediaItemId)
-      ),
-      ...reconstructionEvidence.audioClips.map((clip) =>
-        mediaItems.find((item) => item.id === clip.mediaItemId)
-      )
-    ]
-      .filter((item): item is MediaItem => Boolean(item?.storagePath))
+    // Direct signed Storage URLs preserve byte-range requests, which keeps the
+    // embedded audio controls seekable. The authenticated proxy remains the fallback.
+    const mediaReferences = mediaItems
+      .filter((item): item is MediaItem => Boolean(item.storagePath))
       .map((item) => ({ bucket: item.storageBucket, path: item.storagePath }));
     const textbookReferences = reconstructionEvidence.textbookCitations
       .map((citation) =>
@@ -8875,7 +8937,7 @@ function LectureDetail({
         <h3>Media</h3>
         <div className="media-list">
           {mediaItems.map((item) => {
-            const sourceUrl = mediaStorageUrl(item);
+            const sourceUrl = sourceUrlForMedia(item);
 
             return (
               <div key={item.id} className="media-item">
