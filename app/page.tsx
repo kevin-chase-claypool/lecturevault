@@ -6840,6 +6840,7 @@ export default function LectureVaultApp() {
         {screen === "exam" && selectedExam ? (
           <ExamDetail
             exam={selectedExam}
+            reviews={state.exams}
             lectures={selectedExamLectures}
             mediaItems={state.mediaItems}
             concepts={state.concepts}
@@ -6852,6 +6853,7 @@ export default function LectureVaultApp() {
             onDownloadPdf={downloadExamReviewPdf}
             onDownloadGptPackage={downloadGptPackage}
             onDelete={() => deleteExam(selectedExam.id)}
+            onSelectReview={setSelectedExamId}
             onOpenLecture={(lectureId) => {
               setSelectedLectureId(lectureId);
               setScreen("lecture");
@@ -8975,6 +8977,7 @@ function LectureDetail({
 
 function ExamDetail({
   exam,
+  reviews,
   lectures,
   mediaItems,
   concepts,
@@ -8987,9 +8990,11 @@ function ExamDetail({
   onDownloadPdf,
   onDownloadGptPackage,
   onDelete,
+  onSelectReview,
   onOpenLecture
 }: {
   exam: ExamWorkspace;
+  reviews: ExamWorkspace[];
   lectures: Lecture[];
   mediaItems: MediaItem[];
   concepts: ExtractedConcept[];
@@ -9002,6 +9007,7 @@ function ExamDetail({
   onDownloadPdf: () => void | Promise<void>;
   onDownloadGptPackage: () => void | Promise<void>;
   onDelete: () => void;
+  onSelectReview: (reviewId: string) => void;
   onOpenLecture: (lectureId: string) => void;
 }) {
   const [explorerQuery, setExplorerQuery] = useState("");
@@ -9039,6 +9045,42 @@ function ExamDetail({
   return (
     <section className="exam-builder-layout">
       <div className="exam-explorer-column">
+        <aside className="panel review-viewer-library" aria-label="Saved reviews">
+          <div className="section-heading compact-heading">
+            <div>
+              <span className="pill">{reviews.length} saved</span>
+              <h3>Reviews</h3>
+            </div>
+          </div>
+          <div className="review-viewer-list" role="list">
+            {[...reviews]
+              .sort((left, right) => {
+                const leftDate = left.startsOn || left.createdAt;
+                const rightDate = right.startsOn || right.createdAt;
+                return rightDate.localeCompare(leftDate);
+              })
+              .map((review) => {
+                const isSelected = review.id === exam.id;
+                return (
+                  <button
+                    aria-current={isSelected ? "page" : undefined}
+                    className={isSelected ? "review-viewer-list-row selected" : "review-viewer-list-row"}
+                    key={review.id}
+                    role="listitem"
+                    type="button"
+                    onClick={() => onSelectReview(review.id)}
+                  >
+                    <span>
+                      <strong>{review.name}</strong>
+                      <small>{courseLabel(review.courseId)}</small>
+                    </span>
+                    <time>{review.startsOn || new Date(review.createdAt).toLocaleDateString()}</time>
+                  </button>
+                );
+              })}
+          </div>
+        </aside>
+
         <aside className="panel archive-explorer" aria-label="Review sources">
         <div className="section-heading">
           <div>

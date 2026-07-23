@@ -1265,6 +1265,10 @@ https://production-sfo.browserless.io/pdf
 - Removed repeated saved-review totals for sources, transcripts, passages, concepts, and images from the main viewing pane. The source explorer and selected-source inspector remain the single places to inspect that provenance.
 - Consolidated selected-source metadata into one compact line, leaving more visual priority for the generated review, figures, and exports.
 
+### 2026-07-23 - Review Viewer Explorer
+
+- Added a compact, scrollable saved-review list above Review Sources in Review Viewer. Selecting a review now switches the complete read-only workspace, including its source list, selected source inspector, instructions, generated review, figures, and exports.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.
