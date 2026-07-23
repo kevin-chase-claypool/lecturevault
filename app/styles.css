@@ -8378,6 +8378,77 @@ body {
   background: #1b2a38;
 }
 
+/* The review-set workspace has several self-contained light surfaces in the
+   default theme. Keep the complete working path on the same dark material so
+   status, source selection, AI context, and generated output remain legible. */
+:root[data-theme="dark"] .exam-dropbox,
+:root[data-theme="dark"] .workflow-step,
+:root[data-theme="dark"] .source-readiness div,
+:root[data-theme="dark"] .drop-instructions,
+:root[data-theme="dark"] .exam-instructions,
+:root[data-theme="dark"] .review-preview,
+:root[data-theme="dark"] .review-actions,
+:root[data-theme="dark"] .review-action-card,
+:root[data-theme="dark"] .guide-rendered {
+  border-color: #3b5366;
+  background: #172635;
+  color: #dce7ef;
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .workflow-step,
+:root[data-theme="dark"] .source-readiness div {
+  background: #1b2a38;
+}
+
+:root[data-theme="dark"] .workflow-step.complete,
+:root[data-theme="dark"] .review-action-card.primary-action {
+  border-color: #4b7189;
+  background: #1a3141;
+  color: #e6f1f8;
+}
+
+:root[data-theme="dark"] .workflow-step strong {
+  border-color: #3d657d;
+  background: #1b3446;
+  color: #b9e0f5;
+}
+
+:root[data-theme="dark"] .drop-instructions {
+  border-style: dashed;
+  color: #c5d5e0;
+}
+
+:root[data-theme="dark"] .drop-instructions strong,
+:root[data-theme="dark"] .source-readiness strong,
+:root[data-theme="dark"] .review-preview .section-heading h3,
+:root[data-theme="dark"] .review-actions .section-heading h3,
+:root[data-theme="dark"] .exam-instructions,
+:root[data-theme="dark"] .review-action-card strong,
+:root[data-theme="dark"] .guide-rendered h3,
+:root[data-theme="dark"] .guide-rendered h4,
+:root[data-theme="dark"] .guide-rendered h5 {
+  color: #edf5fa;
+}
+
+:root[data-theme="dark"] .source-readiness span,
+:root[data-theme="dark"] .review-action-card span,
+:root[data-theme="dark"] .review-preview .section-note,
+:root[data-theme="dark"] .review-actions .section-note,
+:root[data-theme="dark"] .guide-rendered,
+:root[data-theme="dark"] .guide-rendered p,
+:root[data-theme="dark"] .guide-rendered li {
+  color: #c6d5e0;
+  opacity: 1;
+}
+
+:root[data-theme="dark"] .exam-instructions textarea,
+:root[data-theme="dark"] .review-preview .guide-rendered {
+  border-color: #3d566a;
+  background: #1b2a38;
+  color: #e5eef5;
+}
+
 :root[data-theme="dark"] .source-transcript,
 :root[data-theme="dark"] .source-transcript-list,
 :root[data-theme="dark"] .source-transcript-player {

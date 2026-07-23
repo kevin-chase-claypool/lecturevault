@@ -1221,6 +1221,11 @@ https://production-sfo.browserless.io/pdf
 - Improved player metadata handling and added a visible load failure message for audio that cannot be read.
 - Increased dark-mode secondary text contrast across dashboard action descriptions, course metadata, explorer rows, media details, and review rows. Removed the low-contrast muted-blue treatment from supporting copy.
 
+### 2026-07-23 - Coherent Dark Review Workspace
+
+- Unified the dark-mode treatment for the full saved-review workflow: workflow steps, source readiness counters, the archive drop target, AI context field, generated-review reader, and review actions now use the same dark surface and readable text hierarchy.
+- Removed fixed light gradients from nested review surfaces in dark mode so generated review content remains readable rather than switching abruptly between white and dark cards.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.
