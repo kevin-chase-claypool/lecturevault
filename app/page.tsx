@@ -8283,20 +8283,22 @@ function ReviewFigureReferences({ figures }: { figures: ReviewFigure[] }) {
           }`;
 
           return (
-            <figure className="review-figure" key={`${figure.lectureId}-${figure.label}-${figure.name}`}>
-              <div className="review-figure-label">
+            <details className="review-figure" key={`${figure.lectureId}-${figure.label}-${figure.name}`}>
+              <summary>
                 <strong>{figure.label}</strong>
-                <span>{figure.lectureTitle}</span>
+                <span>{figure.lectureTitle || figure.name}</span>
+              </summary>
+              <div className="review-figure-content">
+                {sourceUrl ? (
+                  <a href={sourceUrl} target="_blank" rel="noreferrer" title="Open original source image">
+                    <img src={sourceUrl} alt={caption} />
+                  </a>
+                ) : (
+                  <div className="review-figure-missing">Source image is unavailable.</div>
+                )}
+                <p>{figure.name}</p>
               </div>
-              {sourceUrl ? (
-                <a href={sourceUrl} target="_blank" rel="noreferrer" title="Open original source image">
-                  <img src={sourceUrl} alt={caption} />
-                </a>
-              ) : (
-                <div className="review-figure-missing">Source image is unavailable.</div>
-              )}
-              <figcaption>{figure.name}</figcaption>
-            </figure>
+            </details>
           );
         })}
       </div>
@@ -9209,7 +9211,7 @@ function ExamDetail({
               </div>
               <span>{new Date(selectedGuide.createdAt).toLocaleString()}</span>
             </div>
-            <ReviewMarkdownPreview compact text={selectedGuide.content} />
+            <ReviewMarkdownPreview className="review-generated-output" text={selectedGuide.content} />
             <ReviewFigureReferences figures={selectedGuide.figures || []} />
           </section>
         ) : (

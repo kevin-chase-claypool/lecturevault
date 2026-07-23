@@ -1254,6 +1254,11 @@ https://production-sfo.browserless.io/pdf
 - Made `Review Viewer` read-only for saved review content: it shows preserved source provenance, generation instructions, usage, figures, generated output, PDF export, GPT-package export, and deletion. It no longer accepts source changes, context edits, or AI generation.
 - Removed the remaining saved-review source-removal path so source edits are confined to the new-review draft before a review is built.
 
+### 2026-07-23 - Review Reading Density
+
+- Enlarged the saved generated-review reading surface to use most of the available viewport height instead of the compact preview cap.
+- Collapsed each review image into a compact `Fig. N` disclosure row. Opening a row reveals that source image once, its source lecture, and its filename.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.
