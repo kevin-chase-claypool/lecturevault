@@ -1237,6 +1237,13 @@ https://production-sfo.browserless.io/pdf
 - Grouped Browse Archive and the Review Set Draft into one continuous left-hand stack on the New Review screen. The draft now follows the archive browser directly instead of being placed in an implicit grid row beneath the main reconstruction list.
 - Retained the complete review-draft workflow while widening the central course-reconstruction workspace and removing unused vertical space.
 
+### 2026-07-23 - System-Wide Workflow Confluence
+
+- Applied a shared hierarchy to the workspace: dense explorers for selection, compact forms for setup, and quiet full-width panels for reading detail. Adjacent panels no longer stretch short forms to match longer lists.
+- Reduced dashboard action-card height while retaining the persistent navigation model, so summary cards explain the workflow without competing with the sidebar/menu as duplicate navigation.
+- Normalized New Review’s draft styling into the same neutral editor surface used elsewhere. Source counts, next action, and disabled post-creation actions remain available, but no longer read as separate competing panels.
+- Performed a final dark-surface audit for review generation, saved-review lists, inspectors, and source previews to prevent light-mode white fills from leaking into the dark workspace.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.

@@ -6525,6 +6525,192 @@ button.review-draft-button:disabled {
   }
 }
 
+/* Product-wide hierarchy pass: each screen uses the same three surfaces.
+   Explorer = dense selection, editor = compact form, detail = quiet reading. */
+.content-grid,
+.dashboard-grid,
+.detail-grid {
+  align-items: start;
+}
+
+.content-grid > .panel,
+.dashboard-grid > .panel,
+.detail-grid > .panel {
+  align-self: start;
+}
+
+.form-panel,
+.list-panel,
+.side-panel,
+.archive-folder-panel,
+.archive-list-panel,
+.storage-browser-panel,
+.review-explorer-panel,
+.review-folder-panel,
+.review-inspector {
+  min-width: 0;
+}
+
+/* Forms should never grow simply because the adjacent explorer has more rows. */
+.course-form-panel,
+.capture-details-flow,
+.review-draft-panel form {
+  align-content: start;
+}
+
+.course-form-panel > .primary {
+  min-height: 38px;
+  padding-inline: 16px;
+}
+
+/* Dashboard cards summarize destinations; navigation stays in the persistent menu. */
+.dashboard-grid .action-panel {
+  min-height: 118px;
+  padding-block: 15px;
+}
+
+.dashboard-grid .action-panel .section-heading {
+  margin-bottom: 8px;
+}
+
+.dashboard-grid .action-panel p {
+  max-width: 64ch;
+  font-size: 0.91rem;
+}
+
+.metric-grid {
+  align-items: stretch;
+}
+
+.metric {
+  min-height: 70px;
+}
+
+/* A draft is an editor state, not a second colored product surface. */
+.review-draft-panel {
+  border-color: var(--line-strong);
+  background: var(--surface-subtle);
+  box-shadow: none;
+}
+
+.review-draft-panel form {
+  display: grid;
+  gap: 10px;
+}
+
+.review-draft-panel .section-heading {
+  margin-bottom: 2px;
+}
+
+.review-draft-next-step {
+  border-left-color: var(--accent);
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.review-coverage-note {
+  margin-top: 0;
+  font-size: 0.72rem;
+}
+
+.review-action-preview {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 10px;
+}
+
+.review-action-preview h3 {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+/* Toolbars are intentionally one compact control band across every file explorer. */
+.toolbar,
+.vault-review-selection-bar,
+.storage-toolbar,
+.review-explorer-toolbar {
+  border-radius: var(--control-radius);
+}
+
+.lecture-list-header,
+.storage-explorer-header,
+.review-file-header,
+.review-draft-source-heading,
+.review-scope-group-heading {
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-theme="dark"] .review-draft-panel,
+:root[data-theme="dark"] .review-draft-panel .review-draft-source-list,
+:root[data-theme="dark"] .review-draft-panel .review-draft-next-step,
+:root[data-theme="dark"] .review-draft-panel .review-action-preview,
+:root[data-theme="dark"] .review-draft-panel .saved-review-sets {
+  border-color: #3b5366;
+  background: #172330;
+}
+
+/* Final dark-surface audit: these are the generated-review and explorer leaves
+   that previously retained light-mode white fills. */
+:root[data-theme="dark"] .exam-dropbox,
+:root[data-theme="dark"] .review-preview,
+:root[data-theme="dark"] .review-actions,
+:root[data-theme="dark"] .review-action-card,
+:root[data-theme="dark"] .exam-instructions,
+:root[data-theme="dark"] .review-file-list,
+:root[data-theme="dark"] .review-file-header,
+:root[data-theme="dark"] .review-file-row,
+:root[data-theme="dark"] .review-folder-tree,
+:root[data-theme="dark"] .review-inspector,
+:root[data-theme="dark"] .builder-source-preview,
+:root[data-theme="dark"] .selected-source-media {
+  border-color: #3b5366;
+  background: #172330;
+  color: #e8f0f6;
+}
+
+:root[data-theme="dark"] .review-preview textarea,
+:root[data-theme="dark"] .review-preview pre,
+:root[data-theme="dark"] .review-preview .markdown-body,
+:root[data-theme="dark"] .review-preview .review-output,
+:root[data-theme="dark"] .exam-instructions textarea {
+  border-color: #3d566a;
+  background: #1b2a38;
+  color: #e8f0f6;
+}
+
+:root[data-theme="dark"] .review-preview p,
+:root[data-theme="dark"] .review-preview li,
+:root[data-theme="dark"] .review-preview small,
+:root[data-theme="dark"] .review-action-card p,
+:root[data-theme="dark"] .review-file-row span,
+:root[data-theme="dark"] .review-file-row small,
+:root[data-theme="dark"] .review-inspector p,
+:root[data-theme="dark"] .builder-source-preview p {
+  color: #cbd7e1;
+  opacity: 1;
+}
+
+:root[data-theme="dark"] .review-file-row:hover,
+:root[data-theme="dark"] .review-folder-tree summary:hover,
+:root[data-theme="dark"] .review-folder-tree button:hover {
+  background: #203443;
+}
+
+@media (max-width: 760px) {
+  .dashboard-grid .action-panel {
+    min-height: 0;
+  }
+
+  .dashboard-grid .action-panel p {
+    font-size: 0.88rem;
+  }
+
+  .review-draft-panel form {
+    gap: 9px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .status.status-toast {
     animation: none;
