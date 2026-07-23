@@ -3077,14 +3077,60 @@ button.review-draft-button:disabled {
 }
 
 .audio-progress {
+  appearance: none;
+  -webkit-appearance: none;
   width: 100%;
   min-width: 0;
+  height: 18px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
   accent-color: var(--primary);
+  cursor: pointer;
 }
 
 .audio-progress:disabled {
   cursor: default;
   opacity: 0.45;
+}
+
+.audio-progress::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  border: 1px solid #aebdca;
+  border-radius: 999px;
+  background: #eef3f7;
+}
+
+.audio-progress::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 1px rgba(23, 76, 117, 0.18);
+}
+
+.audio-progress::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  border: 1px solid #aebdca;
+  border-radius: 999px;
+  background: #eef3f7;
+}
+
+.audio-progress::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 1px rgba(23, 76, 117, 0.18);
 }
 
 .concept-list .math-inline,

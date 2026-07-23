@@ -1269,6 +1269,10 @@ https://production-sfo.browserless.io/pdf
 
 - Added a compact, scrollable saved-review list above Review Sources in Review Viewer. Selecting a review now switches the complete read-only workspace, including its source list, selected source inspector, instructions, generated review, figures, and exports.
 
+### 2026-07-23 - Audio Seek Track
+
+- Isolated embedded audio range controls from shared form-field padding and added explicit cross-browser track/thumb styling, so the seek thumb reaches both playback endpoints.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.
