@@ -1312,6 +1312,11 @@ https://production-sfo.browserless.io/pdf
 - Fixed the wide-screen sidebar to the viewport so navigation, archive counts, and usage status remain visible while the workspace scrolls.
 - Preserved the existing reserved grid column and separate responsive drawer behavior for tablet, phone, and narrow split-screen layouts.
 
+## 2026-07-24 - Corrected Sidebar Cascade Regression
+
+- Moved the authoritative desktop and responsive sidebar rules to the end of the stylesheet so legacy media queries cannot override fixed positioning, width, or workspace placement.
+- Restored the desktop grid relationship between the fixed sidebar and workspace while keeping narrow layouts as a fixed top drawer with natural page scrolling.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.

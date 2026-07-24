@@ -3432,6 +3432,64 @@ button.review-draft-button:disabled {
   }
 }
 
+/* Final responsive shell contract. These rules intentionally live last so
+   older page-specific media queries cannot make the sidebar cover content or
+   re-enter document flow. */
+@media (min-width: 1121px) {
+  .app-shell {
+    grid-template-columns: 252px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    z-index: 40;
+    width: 252px !important;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .workspace {
+    grid-column: 2;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 1120px) {
+  html,
+  body {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .app-shell {
+    display: block;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    inset: 0 0 auto !important;
+    z-index: 60;
+    width: 100% !important;
+    height: auto;
+    max-height: min(100dvh, 520px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .workspace {
+    min-height: 100dvh;
+    margin: 0;
+    padding-top: calc(var(--responsive-header-height, 80px) + 8px);
+  }
+}
+
 /* Responsive shell guard: the app bar is viewport chrome, not page content.
    Keeping the expanded menu inside a bounded fixed surface prevents it from
    pushing the dashboard down or scrolling away with the document. */
