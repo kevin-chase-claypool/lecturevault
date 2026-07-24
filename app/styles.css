@@ -3432,6 +3432,369 @@ button.review-draft-button:disabled {
   }
 }
 
+/* Product-quality shell pass: keep every workspace dense, readable, and width-safe
+   across wide desktop, split-screen, tablet, and phone layouts. */
+:root {
+  --surface-control: #ffffff;
+  --surface-muted: #f5f8fb;
+  --text-secondary: #526477;
+  --active-accent: #e7be49;
+}
+
+html,
+body {
+  overflow-x: hidden;
+}
+
+button,
+.button-like,
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea {
+  min-width: 0;
+}
+
+.workspace,
+.workspace > *,
+.content-grid,
+.archive-layout,
+.archive-organizer,
+.dashboard-grid,
+.exam-builder-layout,
+.review-library-layout,
+.review-viewer-layout,
+.capture,
+.capture-details-flow,
+.capture-meeting-fields {
+  min-width: 0;
+}
+
+.topbar {
+  min-height: 72px;
+}
+
+.topbar h2,
+.topbar-actions,
+.workflow-diagram,
+.workflow-diagram-copy {
+  min-width: 0;
+}
+
+.topbar h2 {
+  overflow-wrap: anywhere;
+}
+
+.status.status-toast {
+  position: fixed;
+  z-index: 100;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  left: max(16px, env(safe-area-inset-left));
+  width: min(520px, calc(100vw - 32px));
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--primary);
+}
+
+.embedded-audio-player,
+.source-transcript-player,
+.audio-player {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.embedded-audio-player audio,
+.source-transcript-player audio,
+.audio-player audio {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+.lecture-list.explorer-list,
+.storage-explorer-list,
+.review-file-list,
+.review-viewer-list,
+.review-draft-source-list,
+.review-scope-list,
+.archive-folder-tree,
+.storage-folder-tree {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.lecture-list-row,
+.storage-row,
+.review-file-row,
+.review-viewer-list-row,
+.review-draft-source-row,
+.review-scope-row {
+  min-width: 0;
+}
+
+.lecture-list-row strong,
+.storage-row strong,
+.review-file-row strong,
+.review-viewer-list-row strong,
+.review-draft-source-row strong,
+.review-scope-row strong,
+.source-card strong,
+.media-item strong {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* A final dark layer prevents late light-theme rules from creating white islands. */
+:root[data-theme="dark"] {
+  --surface-control: #1d2c3a;
+  --surface-muted: #1b2a38;
+  --text-secondary: #c4d0db;
+  --active-accent: #f3c95b;
+}
+
+:root[data-theme="dark"] button,
+:root[data-theme="dark"] .button-like,
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .topbar,
+:root[data-theme="dark"] .panel,
+:root[data-theme="dark"] .metric,
+:root[data-theme="dark"] .lecture-card,
+:root[data-theme="dark"] .row-card,
+:root[data-theme="dark"] .action-panel,
+:root[data-theme="dark"] .archive-folder-panel,
+:root[data-theme="dark"] .storage-browser-panel,
+:root[data-theme="dark"] .source-inspector,
+:root[data-theme="dark"] .storage-file-details,
+:root[data-theme="dark"] .review-folder-panel,
+:root[data-theme="dark"] .review-explorer-panel,
+:root[data-theme="dark"] .review-inspector,
+:root[data-theme="dark"] .review-viewer-library,
+:root[data-theme="dark"] .course-row,
+:root[data-theme="dark"] .course-form-panel,
+:root[data-theme="dark"] .content-grid > *,
+:root[data-theme="dark"] .archive-layout > *,
+:root[data-theme="dark"] .exam-builder-layout > * {
+  border-color: var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] .lecture-list-header,
+:root[data-theme="dark"] .storage-explorer-header,
+:root[data-theme="dark"] .review-file-header,
+:root[data-theme="dark"] .review-draft-source-heading,
+:root[data-theme="dark"] .review-scope-group-heading {
+  border-color: var(--border-strong);
+  background: var(--surface-control);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .review-viewer-list-row,
+:root[data-theme="dark"] .review-file-row,
+:root[data-theme="dark"] .review-draft-source-row,
+:root[data-theme="dark"] .review-scope-row,
+:root[data-theme="dark"] .source-card,
+:root[data-theme="dark"] .media-item,
+:root[data-theme="dark"] .exam-item,
+:root[data-theme="dark"] .selected-source-media,
+:root[data-theme="dark"] .course-syllabus-item,
+:root[data-theme="dark"] .course-textbook-item,
+:root[data-theme="dark"] .review-figure,
+:root[data-theme="dark"] .review-figure-content > a {
+  border-color: var(--line-strong);
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .review-viewer-list-row:hover,
+:root[data-theme="dark"] .review-viewer-list-row.selected,
+:root[data-theme="dark"] .review-file-row:hover,
+:root[data-theme="dark"] .review-draft-source-row:hover,
+:root[data-theme="dark"] .review-scope-row:hover,
+:root[data-theme="dark"] .source-card:hover {
+  border-color: #5d8aa5;
+  background: #20394a;
+}
+
+:root[data-theme="dark"] .review-viewer-list-row strong,
+:root[data-theme="dark"] .review-viewer-list-row small,
+:root[data-theme="dark"] .review-viewer-list-row time,
+:root[data-theme="dark"] .review-file-row > *,
+:root[data-theme="dark"] .review-draft-source-row span,
+:root[data-theme="dark"] .review-scope-row small,
+:root[data-theme="dark"] .source-card span,
+:root[data-theme="dark"] .source-card small,
+:root[data-theme="dark"] .media-item span,
+:root[data-theme="dark"] .card-meta {
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+:root[data-theme="dark"] .review-viewer-list-row strong,
+:root[data-theme="dark"] .review-file-row strong,
+:root[data-theme="dark"] .review-draft-source-row strong,
+:root[data-theme="dark"] .review-scope-row strong,
+:root[data-theme="dark"] .source-card strong,
+:root[data-theme="dark"] .media-item strong,
+:root[data-theme="dark"] .course-syllabus-item strong,
+:root[data-theme="dark"] .course-textbook-item strong {
+  color: #edf5fa;
+}
+
+:root[data-theme="dark"] .review-preview,
+:root[data-theme="dark"] .review-preview textarea,
+:root[data-theme="dark"] .review-preview pre,
+:root[data-theme="dark"] .review-preview .review-output,
+:root[data-theme="dark"] .guide-rendered,
+:root[data-theme="dark"] .math-preview-panel,
+:root[data-theme="dark"] .math-document-preview,
+:root[data-theme="dark"] .transcript-box,
+:root[data-theme="dark"] .usage-panel {
+  border-color: var(--border-strong);
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .review-preview p,
+:root[data-theme="dark"] .review-preview li,
+:root[data-theme="dark"] .guide-rendered p,
+:root[data-theme="dark"] .guide-rendered li,
+:root[data-theme="dark"] .transcript-box p,
+:root[data-theme="dark"] .panel p,
+:root[data-theme="dark"] .action-panel p {
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+:root[data-theme="dark"] .review-preview h1,
+:root[data-theme="dark"] .review-preview h2,
+:root[data-theme="dark"] .review-preview h3,
+:root[data-theme="dark"] .review-preview h4,
+:root[data-theme="dark"] .guide-rendered h1,
+:root[data-theme="dark"] .guide-rendered h2,
+:root[data-theme="dark"] .guide-rendered h3,
+:root[data-theme="dark"] .guide-rendered h4 {
+  color: #edf5fa;
+}
+
+@media (max-width: 1120px) {
+  .workspace {
+    width: 100%;
+    padding-inline: clamp(16px, 3vw, 28px);
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .workflow-diagram {
+    order: 3;
+    flex: 1 1 100%;
+    max-width: none;
+  }
+
+  .topbar-actions {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace {
+    padding-inline: 12px;
+    padding-bottom: calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-left: 0;
+  }
+
+  .topbar-actions button {
+    width: 100%;
+  }
+
+  .workflow-diagram {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 10px;
+    min-width: 0;
+  }
+
+  .workflow-diagram li {
+    padding-inline: 2px 6px;
+  }
+
+  .workflow-diagram li:nth-child(2)::after {
+    display: none;
+  }
+
+  .status.status-toast {
+    width: calc(100vw - 24px);
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+  }
+
+  .review-library-layout,
+  .exam-builder-layout,
+  .archive-layout,
+  .content-grid,
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .review-file-list,
+  .review-viewer-list,
+  .lecture-list.explorer-list,
+  .storage-explorer-list {
+    overflow-x: hidden;
+  }
+}
+
+@media (max-width: 430px) {
+  .topbar-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-diagram {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-diagram li::after {
+    display: none;
+  }
+}
+
 /* Responsive experience contract: keep the compact app bar in document flow
    and reduce desktop explorers to scannable phone-sized views. */
 @media (max-width: 1120px) {

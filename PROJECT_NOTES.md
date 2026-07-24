@@ -1379,3 +1379,9 @@ For archive organization changes, manually verify:
 - Removed the legacy `SUPABASE_SERVICE_KEY` fallback. Server access now requires the documented `SUPABASE_SERVICE_ROLE_KEY`, preventing a stale or misnamed secret from being selected silently.
 - No Vercel configuration change is required because Production and Preview already use `SUPABASE_SERVICE_ROLE_KEY`.
 - Verification: Ontoly coverage/stats/architecture/configuration queries completed before the change; typecheck and production build completed after the change.
+## 2026-07-24 - Product-quality responsive UI pass
+
+- Audited the shared shell and responsive cascade with Ontoly graph `1u3o3sb`; the UI is concentrated in `app/page.tsx` and `app/styles.css`, so the lowest-risk improvement was a final shared stylesheet layer rather than screen-specific rewrites.
+- Added width-safe behavior for shared controls, grids, explorer rows, long study text, audio players, range controls, and status toasts across desktop, split-screen, tablet, and phone widths.
+- Added a coherent dark-mode surface layer for review viewers, explorers, source inspectors, course cards, media cards, generated review content, transcript/math panels, and form controls to prevent late light-theme rules from producing white islands or low-contrast copy.
+- Kept all routes, state behavior, Supabase links, AI workflows, media references, and existing feature controls unchanged.
