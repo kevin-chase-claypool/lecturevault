@@ -7833,7 +7833,7 @@ function StorageManager({
                 onClick={() => setActiveFilePath(file.path)}
                 onDragStart={(event) => dragFiles(event, file.path)}
               >
-                <label className="storage-check">
+                <label className="storage-check storage-explorer-name">
                   <input
                     type="checkbox"
                     checked={selectedPaths.includes(file.path)}
@@ -7841,8 +7841,8 @@ function StorageManager({
                   />
                   <span title={file.name}>{file.name}</span>
                 </label>
-                <time dateTime={file.updatedAt || file.createdAt}>{file.updatedAt || file.createdAt ? new Date(file.updatedAt || file.createdAt || "").toLocaleDateString() : "No date"}</time>
-                <span>{typeof file.size === "number" ? formatFileSize(file.size) : "Unknown"}</span>
+                <time className="storage-explorer-date" dateTime={file.updatedAt || file.createdAt}>{file.updatedAt || file.createdAt ? new Date(file.updatedAt || file.createdAt || "").toLocaleDateString() : "No date"}</time>
+                <span className="storage-explorer-size">{typeof file.size === "number" ? formatFileSize(file.size) : "Unknown"}</span>
               </div>
             );
           })}

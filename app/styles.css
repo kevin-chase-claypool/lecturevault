@@ -10973,3 +10973,34 @@ summary:focus-visible {
     font-size: 0.72rem;
   }
 }
+
+/* Final explorer contract: these cells are intentionally named because the
+   generic storage-row styles also support richer card layouts. Keep file
+   metadata in the same row at every responsive width. */
+.storage-row.explorer-row > .storage-explorer-name {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  min-width: 0 !important;
+  display: grid !important;
+  align-items: center !important;
+}
+
+.storage-row.explorer-row > .storage-explorer-date {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.storage-row.explorer-row > .storage-explorer-size {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
