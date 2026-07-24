@@ -1317,6 +1317,11 @@ https://production-sfo.browserless.io/pdf
 - Moved the authoritative desktop and responsive sidebar rules to the end of the stylesheet so legacy media queries cannot override fixed positioning, width, or workspace placement.
 - Restored the desktop grid relationship between the fixed sidebar and workspace while keeping narrow layouts as a fixed top drawer with natural page scrolling.
 
+## 2026-07-24 - Tightened Mobile Dashboard Header
+
+- Reworked the narrow Dashboard topbar into an explicit compact vertical grid: title, workflow steps, then actions.
+- Reduced excess padding and forced Review Draft and Log out into a balanced two-column action row, preserving the complete workflow diagram without the large empty band.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.
