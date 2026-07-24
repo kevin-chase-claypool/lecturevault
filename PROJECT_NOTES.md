@@ -1458,3 +1458,10 @@ For archive organization changes, manually verify:
 - Kept the explorer horizontally contained with ellipsis-safe date and size cells.
 - Applied the placement guard through the tablet breakpoint as well; device pixel width can be narrower than its CSS viewport, so phone-only breakpoints were insufficient.
 - Named the explorer filename, date, and size cells and added a final explicit placement contract so generic storage-card rules cannot detach metadata into implicit rows.
+
+## 2026-07-24 - Consolidate Responsive Shell And Dark Explorer States
+
+- Added one final responsive shell contract to override conflicting historical media-query layers: desktop keeps the sidebar fixed beside the workspace, while tablet and phone keep the app bar fixed without disabling page scrolling or covering the workspace.
+- Standardized dark explorer rows and metadata cells so filenames, dates, sizes, and selected states remain readable across Vault, Media Library, Reviews, Past Reviews, and study navigation.
+- Prevented hover rules from replacing the gold active/selected treatment with competing teal or blue surfaces.
+- Kept this change at the shared CSS layer; routes, Supabase state, media links, AI workflows, and stored data contracts are unchanged.

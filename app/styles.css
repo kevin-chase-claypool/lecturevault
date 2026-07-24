@@ -11004,3 +11004,140 @@ summary:focus-visible {
   visibility: visible !important;
   opacity: 1 !important;
 }
+
+/* Final responsive shell contract.
+   Earlier responsive layers support historical layouts; these rules are the
+   single source of truth for the shell geometry that users interact with. */
+@media (min-width: 1121px) {
+  .app-shell {
+    display: grid !important;
+    grid-template-columns: 252px minmax(0, 1fr) !important;
+    min-height: 100dvh !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    z-index: 60 !important;
+    width: 252px !important;
+    min-width: 0 !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .workspace {
+    grid-column: 2 !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    overflow-x: clip !important;
+  }
+}
+
+@media (max-width: 1120px) {
+  :root {
+    --responsive-header-height: 92px;
+  }
+
+  .app-shell {
+    display: block !important;
+    min-height: 100dvh !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .sidebar,
+  .sidebar.mobile-menu-open {
+    position: fixed !important;
+    inset: 0 0 auto 0 !important;
+    z-index: 60 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+  }
+
+  .sidebar:not(.mobile-menu-open) {
+    max-height: var(--responsive-header-height) !important;
+    overflow: hidden !important;
+  }
+
+  .sidebar.mobile-menu-open {
+    max-height: min(100dvh, 560px) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+  }
+
+  .workspace {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding-top: calc(var(--responsive-header-height) + 12px) !important;
+    overflow-x: clip !important;
+  }
+}
+
+/* Keep active states legible in both themes and prevent hover rules from
+   replacing the gold selection treatment with a competing blue or teal. */
+.lecture-list-row.explorer-row.selected:hover,
+.storage-row.explorer-row.selected:hover,
+.lecture-study-list > button.selected:hover,
+.storage-folder-button.active:hover,
+.review-scope-row.selected:hover,
+.review-file-row.active:hover,
+.review-viewer-list-row.selected:hover,
+.explorer-item.selected:hover,
+.archive-folder-tree summary.active:hover,
+.archive-folder-tree button.active:hover,
+.review-folder-tree summary.active:hover,
+.review-folder-tree button.active:hover {
+  border-color: var(--selection-border) !important;
+  background: var(--selection-bg) !important;
+  color: var(--selection-text) !important;
+  box-shadow: inset 3px 0 0 var(--selection-border) !important;
+}
+
+:root[data-theme="dark"] .storage-row.explorer-row,
+:root[data-theme="dark"] .storage-explorer-list,
+:root[data-theme="dark"] .lecture-list-row.explorer-row,
+:root[data-theme="dark"] .review-file-row,
+:root[data-theme="dark"] .review-viewer-list-row {
+  background: #1b2a38 !important;
+  border-color: #3b5366 !important;
+  color: #edf5fa !important;
+}
+
+:root[data-theme="dark"] .storage-row.explorer-row:not(.selected):hover,
+:root[data-theme="dark"] .lecture-list-row.explorer-row:not(.selected):hover,
+:root[data-theme="dark"] .review-file-row:not(.active):hover,
+:root[data-theme="dark"] .review-viewer-list-row:not(.selected):hover {
+  background: #243847 !important;
+  color: #ffffff !important;
+}
+
+:root[data-theme="dark"] .storage-row.explorer-row > time,
+:root[data-theme="dark"] .storage-row.explorer-row > span,
+:root[data-theme="dark"] .lecture-list-row.explorer-row > time,
+:root[data-theme="dark"] .review-file-row > time,
+:root[data-theme="dark"] .review-viewer-list-row > time {
+  color: #cbdbe6 !important;
+}
+
+:root[data-theme="dark"] .storage-row.explorer-row.selected > time,
+:root[data-theme="dark"] .storage-row.explorer-row.selected > span,
+:root[data-theme="dark"] .lecture-list-row.explorer-row.selected > time,
+:root[data-theme="dark"] .review-file-row.active > time,
+:root[data-theme="dark"] .review-viewer-list-row.selected > time {
+  color: var(--selection-text) !important;
+}
+
+.status-toast {
+  max-width: min(560px, calc(100vw - 24px)) !important;
+  overflow-wrap: anywhere;
+}
