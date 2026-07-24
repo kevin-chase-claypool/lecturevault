@@ -1342,6 +1342,20 @@ https://production-sfo.browserless.io/pdf
 - Added a tablet-only responsive override for the expanded three-column navigation.
 - Explicitly centered the tablet brand mark, brand text, menu control, icons, and navigation labels without changing the phone layout or active gold selection treatment.
 
+## 2026-07-24 - Approved Ontoly Sharp Build
+
+- Recorded the explicit approval for Ontoly's Sharp dependency build script in `pnpm-workspace.yaml` so local architecture analysis can complete without changing application runtime behavior.
+
+## 2026-07-24 - Added Ontoly CLI For Audit Evidence
+
+- Added `@0xsarwagya/ontoly-cli` as a development dependency so architecture, dependency, route, and coverage reports can be regenerated from this repository during product-quality audits.
+
+## 2026-07-24 - Repaired Responsive Shell And Added UI Guardrails
+
+- Fixed the narrow responsive shell retaining the desktop sidebar grid column after the sidebar becomes fixed, which was shifting and clipping every page below the desktop breakpoint.
+- Added shared responsive guardrails for minimum-width handling, text wrapping, media bounds, math overflow, toast containment, and narrow-workspace sizing.
+- Standardized dark-mode active selections to use the gold selection treatment consistently while retaining blue for supporting actions.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.

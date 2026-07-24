@@ -22,6 +22,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@0xsarwagya/ontoly-cli": "0.1.0-alpha.19",
     "@types/node": "^22.15.32",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",

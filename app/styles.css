@@ -10379,6 +10379,17 @@ summary:focus-visible {
     --responsive-header-height: 80px;
   }
 
+  /* The sidebar is a fixed responsive header at this width. The shell must
+     stop reserving the desktop column or every page is shifted and clipped. */
+  .app-shell {
+    display: block;
+  }
+
+  .workspace {
+    width: 100%;
+    min-width: 0;
+  }
+
   .nav.mobile-open .mobile-app-summary .mobile-theme-toggle {
     display: inline-flex;
     width: 100%;
@@ -10387,6 +10398,126 @@ summary:focus-visible {
 
   .workspace {
     padding-top: calc(var(--responsive-header-height) + 8px);
+  }
+}
+
+/* Product-quality guardrails: keep dense workbench layouts readable at every
+   width without changing the underlying archive or review workflows. */
+.workspace,
+.workspace > *,
+.content-grid,
+.archive-organizer,
+.review-library-layout,
+.review-viewer-layout,
+.builder-sidebar-stack,
+.exam-explorer-column,
+.topbar,
+.topbar > *,
+.topbar-actions,
+.panel,
+.metric,
+.action-panel,
+.lecture-list-row,
+.storage-row,
+.review-file-row,
+.review-draft-source-row,
+.review-scope-row {
+  min-width: 0;
+}
+
+.workspace h1,
+.workspace h2,
+.workspace h3,
+.workspace h4,
+.workspace p,
+.workspace strong,
+.workspace span,
+.workspace time,
+.workspace a,
+.workspace label {
+  overflow-wrap: anywhere;
+}
+
+.workspace button,
+.workspace .button-like {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.workspace img,
+.workspace video,
+.workspace iframe {
+  max-width: 100%;
+}
+
+.math-block,
+.math-document-preview,
+.review-generated-output,
+.guide-rendered {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-wrap: anywhere;
+}
+
+.status.status-toast {
+  max-width: min(520px, calc(100vw - 32px));
+  overflow-wrap: anywhere;
+}
+
+/* Gold is reserved for selection and active navigation so blue remains a
+   supporting action color instead of competing with the primary state. */
+:root[data-theme="dark"] .nav .active,
+:root[data-theme="dark"] .lecture-list-row.explorer-row.selected,
+:root[data-theme="dark"] .storage-row.explorer-row.selected,
+:root[data-theme="dark"] .lecture-study-list > button.selected,
+:root[data-theme="dark"] .storage-folder-button.active,
+:root[data-theme="dark"] .review-scope-row.selected,
+:root[data-theme="dark"] .review-file-row.selected {
+  border-color: rgba(231, 190, 73, 0.72) !important;
+  box-shadow: inset 3px 0 0 #e7be49;
+}
+
+@media (min-width: 1121px) {
+  .sidebar {
+    min-width: 0;
+  }
+
+  .workspace {
+    overflow-x: clip;
+  }
+}
+
+@media (max-width: 1120px) {
+  .workspace {
+    overflow-x: hidden;
+  }
+
+  .topbar,
+  .topbar-actions,
+  .workflow-diagram,
+  .content-grid,
+  .archive-organizer,
+  .review-library-layout,
+  .review-viewer-layout {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace {
+    padding-inline: 10px;
+  }
+
+  .workspace .topbar {
+    width: 100%;
+  }
+
+  .workspace .topbar-actions button,
+  .workspace .topbar-actions .button-like {
+    min-width: 0;
   }
 }
 
