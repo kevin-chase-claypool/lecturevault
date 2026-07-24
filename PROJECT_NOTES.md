@@ -53,6 +53,11 @@ Read this section before changing the project.
 
 ## Latest Changes
 
+### 2026-07-24 - Keep Mobile Toast Fully In View
+
+- Corrected the mobile status toast so it no longer inherits the desktop `translateX(-50%)` centering transform after being anchored with both left and right insets.
+- The toast now uses safe-area-aware bottom and side insets, automatic width, and a vertical-only entrance animation, keeping feedback fully visible above Android system controls.
+
 ### 2026-07-24 - Mobile Layout Consolidation
 
 - Replaced the guessed-height fixed responsive header with a normal-flow sticky app bar. Opening or closing the mobile navigation no longer overlays workspace content or leaves a reserved blank gap.

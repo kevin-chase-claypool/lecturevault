@@ -9669,11 +9669,19 @@ summary:focus-visible {
   }
 
   .status.status-toast {
-    right: 12px;
-    bottom: 12px;
-    left: 12px;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    width: auto;
     max-width: none;
     line-height: 1.35;
+    transform: none;
+    animation: status-toast-enter-mobile 160ms ease-out;
+  }
+
+  @keyframes status-toast-enter-mobile {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   /* Keep class-record setup readable on a phone; never preserve desktop columns. */
