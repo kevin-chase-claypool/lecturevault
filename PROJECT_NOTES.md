@@ -4,6 +4,10 @@
 
 Update this file after every code change. Keep it current with what changed, why it changed, how to verify it, and what remains unresolved.
 
+## 2026-07-24 - Normalize Explorer Readability and Selection States
+
+Added a final shared explorer styling layer for Vault, Media Library, Reviews, Past Reviews, and study navigation. Compact rows now keep date, size, and metadata columns vertically aligned and readable at narrow widths, while selected rows and active folders use one gold treatment in both themes. Blue remains available for actions and hover states.
+
 ## 2026-07-24 - Signed Media References for AI Visual Inputs
 
 Stored images and OneNote PDFs now use short-lived Supabase signed URLs when passed to OpenAI visual inputs. Inline data URLs remain supported for newly attached local files, and audio transcription continues using the existing MP3 chunking path. This avoids expanding every stored visual source into a large base64 request payload while preserving private storage and the one-upload workflow. Textbook page visual verification still uses small extracted page PDFs because those pages are generated from the indexed source and require bounded page-level inspection.
@@ -1440,3 +1444,7 @@ For archive organization changes, manually verify:
 - Added width-safe behavior for shared controls, grids, explorer rows, long study text, audio players, range controls, and status toasts across desktop, split-screen, tablet, and phone widths.
 - Added a coherent dark-mode surface layer for review viewers, explorers, source inspectors, course cards, media cards, generated review content, transcript/math panels, and form controls to prevent late light-theme rules from producing white islands or low-contrast copy.
 - Kept all routes, state behavior, Supabase links, AI workflows, media references, and existing feature controls unchanged.
+## 2026-07-24 - Unified Selection Highlight Across Explorers
+
+- Added a final shared selection contract so Vault, Media Library, Reviews, Past Reviews, study navigation, and folder explorers use one gold active/selected treatment instead of mixing gold borders with teal-blue selected backgrounds.
+- Kept blue available for actions, links, and hover feedback; dark-mode selected text and checkbox accents now remain readable against the gold-tinted selection surface.

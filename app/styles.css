@@ -10825,3 +10825,92 @@ summary:focus-visible {
     line-height: 1.12;
   }
 }
+
+/* Final explorer contract: rows stay readable at narrow widths and gold is the
+   only selected/active treatment across archive-like interfaces. */
+:root {
+  --selection-border: #d7a92f;
+  --selection-bg: #fff8df;
+  --selection-text: #513b05;
+}
+
+.lecture-list-row.explorer-row.selected,
+.storage-row.explorer-row.selected,
+.lecture-study-list > button.selected,
+.storage-folder-button.active,
+.review-scope-row.selected,
+.review-file-row.active,
+.review-viewer-list-row.selected,
+.explorer-item.selected,
+.archive-folder-tree summary.active,
+.archive-folder-tree button.active,
+.review-folder-tree summary.active,
+.review-folder-tree button.active {
+  border-color: var(--selection-border) !important;
+  background: var(--selection-bg) !important;
+  color: var(--selection-text) !important;
+  box-shadow: inset 3px 0 0 var(--selection-border) !important;
+}
+
+.lecture-list-row.explorer-row.selected > *,
+.storage-row.explorer-row.selected > *,
+.review-file-row.active > *,
+.lecture-list-row.explorer-row.selected strong,
+.storage-row.explorer-row.selected strong,
+.review-file-row.active strong,
+.review-viewer-list-row.selected strong,
+.explorer-item.selected strong,
+.archive-folder-tree summary.active,
+.archive-folder-tree button.active,
+.review-folder-tree summary.active,
+.review-folder-tree button.active {
+  color: var(--selection-text) !important;
+}
+
+.storage-row.explorer-row > *,
+.lecture-list-row.explorer-row > *,
+.review-file-row > *,
+.review-viewer-list-row > * {
+  min-width: 0;
+  min-height: 48px;
+  align-items: center;
+  line-height: 1.25;
+}
+
+.storage-row.explorer-row > time,
+.storage-row.explorer-row > span:not(.storage-check span),
+.lecture-list-row.explorer-row > time,
+.review-file-row > time,
+.review-viewer-list-row > time {
+  display: flex;
+  overflow: hidden;
+  color: #536879;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-theme="dark"] {
+  --selection-border: #e7be49;
+  --selection-bg: #3a321f;
+  --selection-text: #fff1b8;
+}
+
+:root[data-theme="dark"] .storage-row.explorer-row > *,
+:root[data-theme="dark"] .lecture-list-row.explorer-row > *,
+:root[data-theme="dark"] .review-file-row > *,
+:root[data-theme="dark"] .review-viewer-list-row > * {
+  color: #d6e4ed !important;
+}
+
+:root[data-theme="dark"] .storage-row.explorer-row.selected > *,
+:root[data-theme="dark"] .lecture-list-row.explorer-row.selected > *,
+:root[data-theme="dark"] .review-file-row.active > *,
+:root[data-theme="dark"] .review-viewer-list-row.selected > * {
+  color: var(--selection-text) !important;
+  background: transparent !important;
+}
+
+:root[data-theme="dark"] input[type="checkbox"] {
+  accent-color: var(--selection-border);
+}
