@@ -1365,3 +1365,10 @@ For archive organization changes, manually verify:
 - This prevents an OpenAI provider credential from becoming the session-signing key while keeping existing deployments functional without an immediate environment-variable migration.
 - Production should set a dedicated high-entropy `LECTUREVAULT_AUTH_SECRET`; changing from the old OpenAI fallback may require users to sign in again.
 - Verification: Ontoly coverage/stats/architecture/dependency reports, `npm run typecheck`, `npm run build`, and production deployment completed after this change.
+
+## 2026-07-24 - Isolate Conflict Merge Policy
+
+- Ontoly graph hash `15jhjcc` identified `app/page.tsx` as the highest-degree module with 134 relationships.
+- Moved the three-way collection merge algorithm into `lib/state-sync.ts`; the Supabase conflict behavior is unchanged, but synchronization policy is now independently testable and easier to audit.
+- `app/page.tsx` retains only the state collection list and normalization boundary.
+- Verification: Ontoly stats/impact/trace queries and `npm run typecheck` completed after this change.
