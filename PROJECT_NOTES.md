@@ -1307,6 +1307,11 @@ https://production-sfo.browserless.io/pdf
 - Bounded the expanded menu with its own internal scroll, preventing the archive/usage summary from pushing the Dashboard far below the header or leaving a large blank region after the menu closes.
 - Kept the workspace offset stable for phone, tablet, and narrow split-screen desktop layouts, while preserving the existing navigation and menu contents.
 
+## 2026-07-24 - Fixed Desktop Sidebar Scroll Position
+
+- Fixed the wide-screen sidebar to the viewport so navigation, archive counts, and usage status remain visible while the workspace scrolls.
+- Preserved the existing reserved grid column and separate responsive drawer behavior for tablet, phone, and narrow split-screen layouts.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.

@@ -3474,6 +3474,22 @@ button.review-draft-button:disabled {
   }
 }
 
+/* Desktop navigation is persistent chrome. Keep it fixed while the study
+   workspace scrolls independently through the document. */
+@media (min-width: 1121px) {
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    width: 252px;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
 /* Product-quality shell pass: keep every workspace dense, readable, and width-safe
    across wide desktop, split-screen, tablet, and phone layouts. */
 :root {
