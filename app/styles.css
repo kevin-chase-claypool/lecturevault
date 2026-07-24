@@ -10914,3 +10914,33 @@ summary:focus-visible {
 :root[data-theme="dark"] input[type="checkbox"] {
   accent-color: var(--selection-border);
 }
+
+/* The generic mobile storage card layout makes its checkbox span the full
+   grid. Compact explorer rows must keep all three file columns on one row. */
+@media (max-width: 840px) {
+  .storage-row.explorer-row {
+    grid-template-columns: minmax(0, 1fr) 78px 64px !important;
+  }
+
+  .storage-row.explorer-row .storage-check,
+  .storage-row.explorer-row > time,
+  .storage-row.explorer-row > span {
+    grid-column: auto !important;
+  }
+}
+
+@media (max-width: 620px) {
+  .storage-row.explorer-row {
+    grid-template-columns: minmax(0, 1fr) 70px 58px !important;
+  }
+
+  .storage-row.explorer-row > * {
+    padding-right: 6px;
+    padding-left: 6px;
+    font-size: 0.66rem;
+  }
+
+  .storage-row.explorer-row .storage-check span {
+    font-size: 0.72rem;
+  }
+}

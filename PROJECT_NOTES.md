@@ -8,6 +8,8 @@ Update this file after every code change. Keep it current with what changed, why
 
 Added a final shared explorer styling layer for Vault, Media Library, Reviews, Past Reviews, and study navigation. Compact rows now keep date, size, and metadata columns vertically aligned and readable at narrow widths, while selected rows and active folders use one gold treatment in both themes. Blue remains available for actions and hover states.
 
+Follow-up: corrected the mobile storage-card override that was forcing Media Library checkboxes onto a full-width grid row. Storage explorer rows now keep filename, date, and size in aligned columns on phone and tablet widths.
+
 ## 2026-07-24 - Signed Media References for AI Visual Inputs
 
 Stored images and OneNote PDFs now use short-lived Supabase signed URLs when passed to OpenAI visual inputs. Inline data URLs remain supported for newly attached local files, and audio transcription continues using the existing MP3 chunking path. This avoids expanding every stored visual source into a large base64 request payload while preserving private storage and the one-upload workflow. Textbook page visual verification still uses small extracted page PDFs because those pages are generated from the indexed source and require bounded page-level inspection.
