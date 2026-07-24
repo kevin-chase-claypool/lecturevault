@@ -1,7 +1,10 @@
 import OpenAI from "openai";
 import type { ResponseInputMessageContentList } from "openai/resources/responses/responses";
 import { requireAuthenticatedRequest } from "../../../lib/auth";
-import { storageObjectToDataUrl } from "../../../lib/supabase-server";
+import {
+  storageObjectToDataUrl,
+  storageObjectToSignedUrl
+} from "../../../lib/supabase-server";
 import {
   textbookPageEvidence,
   type TextbookPageRequest,
@@ -135,6 +138,21 @@ async function dataUrlForMedia(item: ExamReviewMediaItem) {
   );
 }
 
+async function visualReferenceForMedia(item: ExamReviewMediaItem) {
+  const inline = cleanString(item.dataUrl);
+
+  if (inline) {
+    return inline;
+  }
+
+  return (
+    (await storageObjectToSignedUrl({
+      bucket: cleanString(item.storageBucket),
+      path: cleanString(item.storagePath)
+    })) || undefined
+  );
+}
+
 async function buildFigures(
   lectures: ExamReviewLecture[],
   mediaItems: ExamReviewMediaItem[]
@@ -151,7 +169,7 @@ async function buildFigures(
       lectureTitle: cleanString(lecture?.title) || "Untitled lecture",
       name: cleanString(item.name) || `Board image ${index}`,
       sourceCaption: cleanString(item.sourceCaption) || undefined,
-      dataUrl: await dataUrlForMedia(item),
+      dataUrl: await visualReferenceForMedia(item),
       mimeType: cleanString(item.mimeType) || undefined,
       storageBucket: cleanString(item.storageBucket) || undefined,
       storagePath: cleanString(item.storagePath) || undefined
@@ -382,7 +400,10 @@ export async function POST(request: Request) {
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const imageInputs = figures
-      .filter((figure) => cleanString(figure.dataUrl).startsWith("data:image/"))
+      .filter((figure) => {
+        const reference = cleanString(figure.dataUrl);
+        return /^data:image\//.test(reference) || /^https:\/\//.test(reference);
+      })
       .slice(0, MAX_IMAGE_INPUTS);
     const canonicalTextbookEvidence = await canonicalTextbookPageEvidence({
       courseId: cleanString(body.courseId),

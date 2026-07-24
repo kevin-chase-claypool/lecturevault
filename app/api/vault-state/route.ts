@@ -6,6 +6,23 @@ export const runtime = "nodejs";
 const TABLE_NAME = "lecturevault_state";
 const ROW_ID = process.env.LECTUREVAULT_STATE_ID?.trim() || "default";
 
+async function readCurrentState(client: NonNullable<ReturnType<typeof supabaseServerClient>>) {
+  const { data, error } = await client
+    .from(TABLE_NAME)
+    .select("data, updated_at")
+    .eq("id", ROW_ID)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return {
+    state: data?.data || null,
+    updatedAt: data?.updated_at || null
+  };
+}
+
 export async function GET(request: Request) {
   const unauthorized = requireAuthenticatedRequest(request);
 
@@ -23,21 +40,16 @@ export async function GET(request: Request) {
     });
   }
 
-  const { data, error } = await client
-    .from(TABLE_NAME)
-    .select("data, updated_at")
-    .eq("id", ROW_ID)
-    .maybeSingle();
+  try {
+    const current = await readCurrentState(client);
 
-  if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ configured: true, ...current });
+  } catch (error) {
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Could not read archive state." },
+      { status: 500 }
+    );
   }
-
-  return Response.json({
-    configured: true,
-    state: data?.data || null,
-    updatedAt: data?.updated_at || null
-  });
 }
 
 export async function PUT(request: Request) {
@@ -56,31 +68,65 @@ export async function PUT(request: Request) {
     );
   }
 
-  const body = (await request.json()) as { state?: unknown };
+  const body = (await request.json()) as {
+    expectedUpdatedAt?: string | null;
+    state?: unknown;
+  };
 
   if (!body || typeof body.state !== "object" || body.state === null) {
     return Response.json({ error: "State payload is required." }, { status: 400 });
   }
 
-  const { data, error } = await client
-    .from(TABLE_NAME)
-    .upsert(
+  const expectedUpdatedAt = body.expectedUpdatedAt ?? null;
+  const updatedAt = new Date().toISOString();
+
+  try {
+    if (expectedUpdatedAt) {
+      const { data, error } = await client
+        .from(TABLE_NAME)
+        .update({ data: body.state, updated_at: updatedAt })
+        .eq("id", ROW_ID)
+        .eq("updated_at", expectedUpdatedAt)
+        .select("updated_at")
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data) {
+        return Response.json({ configured: true, updatedAt: data.updated_at });
+      }
+    } else {
+      const { data, error } = await client
+        .from(TABLE_NAME)
+        .insert({ data: body.state, id: ROW_ID, updated_at: updatedAt })
+        .select("updated_at")
+        .maybeSingle();
+
+      if (!error && data) {
+        return Response.json({ configured: true, updatedAt: data.updated_at });
+      }
+
+      if (error && !/duplicate|unique/i.test(error.message)) {
+        throw new Error(error.message);
+      }
+    }
+
+    const current = await readCurrentState(client);
+    return Response.json(
       {
-        data: body.state,
-        id: ROW_ID,
-        updated_at: new Date().toISOString()
+        conflict: true,
+        configured: true,
+        error: "Archive changed on another device. Your local changes were not discarded.",
+        ...current
       },
-      { onConflict: "id" }
-    )
-    .select("updated_at")
-    .single();
-
-  if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+      { status: 409 }
+    );
+  } catch (error) {
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Could not save archive state." },
+      { status: 500 }
+    );
   }
-
-  return Response.json({
-    configured: true,
-    updatedAt: data.updated_at
-  });
 }

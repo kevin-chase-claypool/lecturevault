@@ -1764,6 +1764,58 @@ function normalizeState(input: unknown): VaultState {
   );
 }
 
+const vaultStateCollections: Array<keyof VaultState> = [
+  "courses",
+  "archiveFolders",
+  "lectures",
+  "mediaItems",
+  "mediaLibraryFolders",
+  "mediaLibraryPlacements",
+  "textbooks",
+  "textbookChunks",
+  "transcripts",
+  "concepts",
+  "exams",
+  "reviewFolders",
+  "examItems",
+  "studyGuides",
+  "reconstructionDrafts"
+];
+
+function mergeCloudState(base: VaultState, local: VaultState, remote: VaultState) {
+  const merged = { ...remote } as Record<keyof VaultState, unknown>;
+
+  for (const key of vaultStateCollections) {
+    const baseItems = base[key] as Array<{ id?: string }>;
+    const localItems = local[key] as Array<{ id?: string }>;
+    const remoteItems = remote[key] as Array<{ id?: string }>;
+    const baseById = new Map(baseItems.map((item) => [item.id, item]));
+    const localById = new Map(localItems.map((item) => [item.id, item]));
+    const remoteById = new Map(remoteItems.map((item) => [item.id, item]));
+    const ids = [
+      ...remoteItems.map((item) => item.id),
+      ...localItems.map((item) => item.id).filter((id) => !remoteById.has(id))
+    ];
+
+    merged[key] = ids
+      .filter((id): id is string => Boolean(id))
+      .map((id) => {
+        const baseItem = baseById.get(id);
+        const localItem = localById.get(id);
+        const remoteItem = remoteById.get(id);
+        const localChanged = JSON.stringify(localItem) !== JSON.stringify(baseItem);
+        const remoteChanged = JSON.stringify(remoteItem) !== JSON.stringify(baseItem);
+
+        if (localChanged && !remoteChanged) return localItem;
+        if (!localChanged && remoteChanged) return remoteItem;
+        return localItem ?? remoteItem;
+      })
+      .filter((item): item is { id?: string } => Boolean(item));
+  }
+
+  return normalizeState(merged as unknown as VaultState);
+}
+
 function stateHasUserData(state: VaultState) {
   return Boolean(
     state.courses.length ||
@@ -1874,6 +1926,7 @@ export default function LectureVaultApp() {
   const [storageFolderName, setStorageFolderName] = useState("");
   const [isStorageLoading, setIsStorageLoading] = useState(false);
   const stateJsonRef = useRef(JSON.stringify(state));
+  const cloudBaseStateRef = useRef<VaultState>(state);
   const skipNextCloudSaveRef = useRef(false);
   const cloudSavePendingRef = useRef(false);
   const draftUploadsRef = useRef(new Set<string>());
@@ -2082,6 +2135,7 @@ export default function LectureVaultApp() {
 
         if (data.state) {
           const nextState = normalizeState(data.state);
+          cloudBaseStateRef.current = nextState;
           skipNextCloudSaveRef.current = true;
           setState(nextState);
           setStatus("Archive synced from Supabase.");
@@ -2144,7 +2198,10 @@ export default function LectureVaultApp() {
     const timeoutId = window.setTimeout(async () => {
       try {
         const response = await fetch("/api/vault-state", {
-          body: JSON.stringify({ state }),
+          body: JSON.stringify({
+            expectedUpdatedAt: cloudUpdatedAt || null,
+            state
+          }),
           credentials: "include",
           headers: {
             "content-type": "application/json"
@@ -2152,14 +2209,31 @@ export default function LectureVaultApp() {
           method: "PUT"
         });
         const data = (await response.json()) as {
+          state?: unknown;
+          conflict?: boolean;
           updatedAt?: string;
           error?: string;
         };
+
+        if (response.status === 409 && data.state) {
+          const remoteState = normalizeState(data.state);
+          const mergedState = mergeCloudState(
+            cloudBaseStateRef.current,
+            state,
+            remoteState
+          );
+          cloudBaseStateRef.current = remoteState;
+          setCloudUpdatedAt(data.updatedAt || "");
+          setState(mergedState);
+          setStatus("Archive changed on another device. Local changes were merged.");
+          return;
+        }
 
         if (!response.ok) {
           throw new Error(data.error || "Could not save Supabase archive state.");
         }
 
+        cloudBaseStateRef.current = state;
         setCloudUpdatedAt(data.updatedAt || "");
       } catch (error) {
         const message =
@@ -2207,6 +2281,7 @@ export default function LectureVaultApp() {
         const nextState = normalizeState(data.state);
         const nextJson = JSON.stringify(nextState);
 
+        cloudBaseStateRef.current = nextState;
         setCloudUpdatedAt(data.updatedAt || "");
 
         if (nextJson !== stateJsonRef.current) {
@@ -5068,7 +5143,7 @@ export default function LectureVaultApp() {
     }
 
     const confirmed = window.confirm(
-      `Delete ${selectedStoragePaths.length} file${selectedStoragePaths.length === 1 ? "" : "s"} from Supabase Storage? This does not remove lecture records that reference them.`
+      `Delete ${selectedStoragePaths.length} file${selectedStoragePaths.length === 1 ? "" : "s"} from Supabase Storage? LectureVault will protect files still referenced by a lecture, textbook, syllabus, or active reconstruction.`
     );
 
     if (!confirmed) {

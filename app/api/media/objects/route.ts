@@ -17,6 +17,47 @@ type StorageEntry = {
   updated_at?: string;
 };
 
+type StorageReference = {
+  label: string;
+  path: string;
+};
+
+function collectStorageReferences(
+  value: unknown,
+  bucketName: string,
+  references: StorageReference[],
+  fallbackLabel = "Saved LectureVault record"
+) {
+  if (Array.isArray(value)) {
+    value.forEach((item) =>
+      collectStorageReferences(item, bucketName, references, fallbackLabel)
+    );
+    return;
+  }
+
+  if (!value || typeof value !== "object") {
+    return;
+  }
+
+  const record = value as Record<string, unknown>;
+  const label =
+    (typeof record.title === "string" && record.title.trim()) ||
+    (typeof record.name === "string" && record.name.trim()) ||
+    fallbackLabel;
+  const storagePath = typeof record.storagePath === "string" ? record.storagePath : "";
+  const storageBucket =
+    typeof record.storageBucket === "string" ? record.storageBucket : bucketName;
+
+  if (storagePath && storageBucket === bucketName) {
+    references.push({ label, path: storagePath });
+  }
+
+  Object.entries(record).forEach(([key, child]) => {
+    if (key === "storagePath" || key === "storageBucket") return;
+    collectStorageReferences(child, bucketName, references, label);
+  });
+}
+
 async function listFolder(
   bucket: ReturnType<NonNullable<ReturnType<typeof supabaseServerClient>>["storage"]["from"]>,
   prefix = ""
@@ -115,6 +156,42 @@ export async function DELETE(request: Request) {
 
   if (!paths.length) {
     return Response.json({ error: "Select at least one media object." }, { status: 400 });
+  }
+
+  const { data: stateRow, error: stateError } = await client
+    .from("lecturevault_state")
+    .select("data")
+    .eq("id", process.env.LECTUREVAULT_STATE_ID?.trim() || "default")
+    .maybeSingle();
+
+  if (stateError) {
+    return Response.json(
+      { error: "Could not verify media references before deletion." },
+      { status: 503 }
+    );
+  }
+
+  const references: StorageReference[] = [];
+  collectStorageReferences(
+    stateRow?.data || null,
+    SUPABASE_MEDIA_BUCKET,
+    references
+  );
+  const referencesByPath = new Map<string, StorageReference>();
+  references.forEach((reference) => referencesByPath.set(reference.path, reference));
+  const protectedReferences = paths
+    .map((path) => referencesByPath.get(path))
+    .filter((reference): reference is StorageReference => Boolean(reference));
+
+  if (protectedReferences.length) {
+    return Response.json(
+      {
+        error:
+          "One or more selected files are still referenced by LectureVault records. Remove those records first, or keep the files in the Media Library.",
+        protected: protectedReferences.map(({ label, path }) => ({ label, path }))
+      },
+      { status: 409 }
+    );
   }
 
   const { data, error } = await client.storage

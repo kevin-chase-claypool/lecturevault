@@ -71,6 +71,32 @@ export async function storageObjectToDataUrl({
   return `data:${type};base64,${buffer.toString("base64")}`;
 }
 
+export async function storageObjectToSignedUrl({
+  bucket,
+  path,
+  expiresIn = 60 * 60
+}: {
+  bucket?: string;
+  path?: string;
+  expiresIn?: number;
+}) {
+  if (!path) {
+    return null;
+  }
+
+  const client = supabaseServerClient();
+
+  if (!client) {
+    return null;
+  }
+
+  const { data, error } = await client.storage
+    .from(bucket || SUPABASE_MEDIA_BUCKET)
+    .createSignedUrl(path, expiresIn);
+
+  return error || !data?.signedUrl ? null : data.signedUrl;
+}
+
 export async function storageObjectToBuffer({
   bucket,
   path

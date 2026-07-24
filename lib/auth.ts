@@ -11,7 +11,6 @@ function signingSecret() {
   return (
     process.env.LECTUREVAULT_AUTH_SECRET?.trim() ||
     process.env.NEXTAUTH_SECRET?.trim() ||
-    process.env.OPENAI_API_KEY?.trim() ||
     appPassword()
   );
 }

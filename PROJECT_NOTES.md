@@ -4,6 +4,10 @@
 
 Update this file after every code change. Keep it current with what changed, why it changed, how to verify it, and what remains unresolved.
 
+## 2026-07-24 - Signed Media References for AI Visual Inputs
+
+Stored images and OneNote PDFs now use short-lived Supabase signed URLs when passed to OpenAI visual inputs. Inline data URLs remain supported for newly attached local files, and audio transcription continues using the existing MP3 chunking path. This avoids expanding every stored visual source into a large base64 request payload while preserving private storage and the one-upload workflow. Textbook page visual verification still uses small extracted page PDFs because those pages are generated from the indexed source and require bounded page-level inspection.
+
 ## Product Goal
 
 LectureVault is a source-grounded class reconstruction archive with exam reviews. The intended workflow is:
@@ -1289,10 +1293,18 @@ https://production-sfo.browserless.io/pdf
 
 - Made saved review rows draggable into Past Reviews folders or Unfiled. Folder moves only change the review's organizational placement, preserving its saved sources, generated content, and exports.
 
+### 2026-07-24 - Conflict-Aware Supabase State Sync
+
+- Replaced unconditional whole-state Supabase upserts with compare-and-swap writes using the existing `lecturevault_state.updated_at` value.
+- A stale desktop, phone, or tablet write now receives the current cloud snapshot instead of overwriting it.
+- The client performs a three-way merge across independent state collections, preserving local additions and remote additions when devices changed different records, then retries the merged snapshot against the latest timestamp.
+- Existing deployments require no schema migration because the protocol uses the existing `id`, `data`, and `updated_at` columns. The deployed client must be refreshed after deployment so all devices send `expectedUpdatedAt`.
+- Same-record concurrent edits still resolve in favor of the local device during reconciliation; the UI reports that a merge occurred so this limitation is visible.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.
-- Supabase sync currently stores the whole app state as one JSON row with last-write-wins semantics.
+- Supabase sync still stores the whole app state as one JSON row, but writes are now guarded by `updated_at` compare-and-swap and independent collection records are three-way merged on conflicts.
 - Browser `localStorage` remains a fallback/cache and can diverge if Supabase is unavailable.
 - Existing media records that only contain metadata cannot recover original image pixels. Users must re-upload those images after the image embedding fix.
 - PDF image embedding uses stored image data returned by review generation when available; existing metadata-only image records still cannot render pixels.
@@ -1339,3 +1351,17 @@ For archive organization changes, manually verify:
 - Add explicit image upload/re-upload controls for archive items.
 - Add formula audit or uncertainty section for advanced engineering/math courses.
 - Add project-level test coverage for API routes and PDF HTML generation.
+## 2026-07-24 - Reference-Safe Media Deletion
+
+- Added a server-side guard to `app/api/media/objects/route.ts` so Media Library deletion checks the canonical Supabase state before removing storage objects.
+- Files referenced by lectures, textbooks, syllabi, reconstruction drafts, or other saved records now return a clear `409` response instead of being deleted and leaving broken links.
+- Updated the Media Library confirmation copy to explain the protection behavior.
+- Verification: `npm run typecheck`, `npm run build`, and production deployment completed after this change.
+
+## 2026-07-24 - Decouple Session Signing from OpenAI Credentials
+
+- Ontoly graph hash `15jhjcc` identified `app/api/exam-review/pdf/route.ts -> lib/auth.ts -> signingSecret()` as the longest authentication path.
+- Removed the `OPENAI_API_KEY` fallback from `lib/auth.ts`. Session cookies now use `LECTUREVAULT_AUTH_SECRET`, `NEXTAUTH_SECRET`, or the existing app password fallback, in that order.
+- This prevents an OpenAI provider credential from becoming the session-signing key while keeping existing deployments functional without an immediate environment-variable migration.
+- Production should set a dedicated high-entropy `LECTUREVAULT_AUTH_SECRET`; changing from the old OpenAI fallback may require users to sign in again.
+- Verification: Ontoly coverage/stats/architecture/dependency reports, `npm run typecheck`, `npm run build`, and production deployment completed after this change.

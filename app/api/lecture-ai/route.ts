@@ -8,6 +8,7 @@ import {
 } from "../../../lib/lecture-ai-context";
 import {
   storageObjectToDataUrl,
+  storageObjectToSignedUrl,
   supabaseServerClient
 } from "../../../lib/supabase-server";
 import {
@@ -318,6 +319,21 @@ async function mediaDataUrl(media: LectureMediaItem) {
     (await storageObjectToDataUrl({
       bucket: cleanString(media.storageBucket),
       mimeType: cleanString(media.mimeType),
+      path: cleanString(media.storagePath)
+    })) || ""
+  );
+}
+
+async function mediaVisualReference(media: LectureMediaItem) {
+  const inline = cleanString(media.dataUrl);
+
+  if (inline) {
+    return inline;
+  }
+
+  return (
+    (await storageObjectToSignedUrl({
+      bucket: cleanString(media.storageBucket),
       path: cleanString(media.storagePath)
     })) || ""
   );
@@ -661,11 +677,11 @@ export async function POST(request: Request) {
           .filter((item) => item.kind === "image")
           .slice(0, MAX_IMAGE_INPUTS)
           .map(async (item) => ({
-            dataUrl: await mediaDataUrl(item),
+            dataUrl: await mediaVisualReference(item),
             item
           }))
       )
-    ).filter(({ dataUrl }) => dataUrl.startsWith("data:image/"));
+    ).filter(({ dataUrl }) => /^data:image\//.test(dataUrl) || /^https:\/\//.test(dataUrl));
     const documentInputs = (
       await Promise.all(
         mediaItems
@@ -675,9 +691,9 @@ export async function POST(request: Request) {
               (cleanString(item.mimeType).includes("pdf") || cleanString(item.name).toLowerCase().endsWith(".pdf"))
           )
           .slice(0, MAX_DOCUMENT_INPUTS)
-          .map(async (item) => ({ dataUrl: await mediaDataUrl(item), item }))
+          .map(async (item) => ({ dataUrl: await mediaVisualReference(item), item }))
       )
-    ).filter(({ dataUrl }) => dataUrl.startsWith("data:application/pdf"));
+    ).filter(({ dataUrl }) => /^data:application\/pdf/.test(dataUrl) || /^https:\/\//.test(dataUrl));
     const figureCatalog = mediaItems
       .filter((item) => item.kind === "image" && cleanString(item.id))
       .map(
@@ -863,7 +879,9 @@ export async function POST(request: Request) {
       ...documentInputs.map(({ dataUrl, item }) => ({
         type: "input_file" as const,
         detail: "high" as const,
-        file_data: dataUrl,
+        ...(dataUrl.startsWith("https://")
+          ? { file_url: dataUrl }
+          : { file_data: dataUrl }),
         filename: cleanString(item.name) || "onenote-page.pdf"
       })),
       ...textbookVisualPages.map((page) => ({
