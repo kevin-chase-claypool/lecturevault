@@ -1332,6 +1332,8 @@ For archive organization changes, manually verify:
 
 ## Next Priorities
 
+- The New Review course reconstruction selector uses a compact phone-specific list treatment: mobile hides desktop table headers/source-size, retains title/date, and preserves the existing sort and selection behavior.
+
 - Add resilient background or resumable indexing for exceptionally large scanned textbooks if production uploads approach the hosting runtime limit; retain the current single-upload, no-manual-step workflow.
 - Replace single-row Supabase JSON state with relational tables and conflict-aware sync if multi-user editing becomes important.
 - Add explicit image upload/re-upload controls for archive items.

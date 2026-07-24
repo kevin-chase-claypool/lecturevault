@@ -6605,7 +6605,7 @@ export default function LectureVaultApp() {
                   {basketCount ? `${basketCount} in review draft` : "Select sources to review"}
                 </span>
               </div>
-              <div className="lecture-list explorer-list" aria-label="Course reconstructions">
+              <div className="lecture-list explorer-list builder-reconstruction-list" aria-label="Course reconstructions">
                 <div className="lecture-list-header">
                   {([
                     ["name", "Name"],
