@@ -10917,11 +10917,11 @@ summary:focus-visible {
 
 /* The generic mobile storage card layout makes its checkbox span the full
    grid. Compact explorer rows must keep all three file columns on one row. */
-@media (max-width: 840px) {
+@media (max-width: 1120px) {
   .storage-row.explorer-row {
     display: grid !important;
     grid-auto-flow: column !important;
-    grid-template-columns: minmax(0, 1fr) 78px 64px !important;
+    grid-template-columns: minmax(0, 1fr) 88px 78px !important;
     grid-template-rows: minmax(48px, auto) !important;
     align-items: stretch !important;
   }
@@ -10949,6 +10949,12 @@ summary:focus-visible {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+}
+
+@media (max-width: 840px) {
+  .storage-row.explorer-row {
+    grid-template-columns: minmax(0, 1fr) 78px 64px !important;
   }
 }
 

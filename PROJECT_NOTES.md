@@ -1456,3 +1456,4 @@ For archive organization changes, manually verify:
 - Locked compact Media Library rows to explicit filename, date, and size grid columns at narrow widths.
 - Prevented the generic mobile storage-card rules from moving the checkbox, date, or file size into separate implicit rows, which caused metadata to appear detached at the bottom of the list.
 - Kept the explorer horizontally contained with ellipsis-safe date and size cells.
+- Applied the placement guard through the tablet breakpoint as well; device pixel width can be narrower than its CSS viewport, so phone-only breakpoints were insufficient.
