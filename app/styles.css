@@ -3432,6 +3432,48 @@ button.review-draft-button:disabled {
   }
 }
 
+/* Responsive shell guard: the app bar is viewport chrome, not page content.
+   Keeping the expanded menu inside a bounded fixed surface prevents it from
+   pushing the dashboard down or scrolling away with the document. */
+@media (max-width: 1120px) {
+  html,
+  body {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .app-shell {
+    display: block;
+    min-height: 100dvh;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    inset: 0 0 auto !important;
+    z-index: 60;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    max-height: min(100dvh, 520px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .sidebar .brand {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: inherit;
+  }
+
+  .workspace {
+    min-height: 100dvh;
+    margin: 0;
+    padding-top: calc(var(--responsive-header-height, 80px) + 8px);
+  }
+}
+
 /* Product-quality shell pass: keep every workspace dense, readable, and width-safe
    across wide desktop, split-screen, tablet, and phone layouts. */
 :root {

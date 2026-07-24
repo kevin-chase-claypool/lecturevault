@@ -1301,6 +1301,12 @@ https://production-sfo.browserless.io/pdf
 - Existing deployments require no schema migration because the protocol uses the existing `id`, `data`, and `updated_at` columns. The deployed client must be refreshed after deployment so all devices send `expectedUpdatedAt`.
 - Same-record concurrent edits still resolve in favor of the local device during reconciliation; the UI reports that a merge occurred so this limitation is visible.
 
+## 2026-07-24 - Fixed Responsive App Bar and Dashboard Flow
+
+- Fixed the narrow responsive shell so the LectureVault menu remains fixed to the viewport while the document scrolls naturally beneath it.
+- Bounded the expanded menu with its own internal scroll, preventing the archive/usage summary from pushing the Dashboard far below the header or leaving a large blank region after the menu closes.
+- Kept the workspace offset stable for phone, tablet, and narrow split-screen desktop layouts, while preserving the existing navigation and menu contents.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.
