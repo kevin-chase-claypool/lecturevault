@@ -4026,6 +4026,57 @@ input[type="range"] {
   }
 }
 
+/* Keep the responsive app bar content optically centered in both its
+   collapsed brand row and expanded navigation rows. */
+@media (max-width: 1120px) {
+  .sidebar {
+    box-sizing: border-box;
+  }
+
+  .brand-button {
+    box-sizing: border-box;
+    align-items: center;
+  }
+
+  .brand-button > .mark,
+  .brand-button > div,
+  .brand-button > .mobile-menu-cue {
+    align-self: center;
+  }
+
+  .brand-button > div {
+    align-content: center;
+  }
+
+  .mobile-menu-cue {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    line-height: 1;
+  }
+
+  .nav.mobile-open {
+    align-items: stretch;
+  }
+
+  .nav.mobile-open .nav-group {
+    align-content: start;
+    gap: 5px;
+  }
+
+  .nav.mobile-open button {
+    box-sizing: border-box;
+    align-items: center;
+    min-height: 40px;
+    line-height: 1.1;
+  }
+
+  .nav.mobile-open .nav-button-icon {
+    align-self: center;
+  }
+}
+
 @media (max-width: 430px) {
   .topbar-actions {
     grid-template-columns: 1fr;

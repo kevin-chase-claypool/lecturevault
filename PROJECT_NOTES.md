@@ -1332,6 +1332,11 @@ https://production-sfo.browserless.io/pdf
 - Added a dedicated 761-1120px tablet layout that keeps the title and actions on one row, places the workflow beneath it, and reduces metric, action-panel, and recent-item height.
 - Preserved the desktop two-column information architecture while removing tablet-scale vertical waste.
 
+## 2026-07-24 - Centered Responsive App Bar Content
+
+- Made the responsive brand row, menu control, navigation icons, labels, and active-state rows explicitly center-aligned within their controls.
+- Preserved the gold active outline while removing inconsistent vertical alignment caused by competing responsive rules.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.
