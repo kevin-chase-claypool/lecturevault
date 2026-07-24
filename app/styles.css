@@ -3897,6 +3897,82 @@ input[type="range"] {
   }
 }
 
+/* Tablet app-bar alignment: the tablet menu has its own three-column layout,
+   so keep each control centered after the expanded navigation is inserted. */
+@media (min-width: 761px) and (max-width: 1120px) {
+  .sidebar,
+  .sidebar.mobile-menu-open {
+    box-sizing: border-box;
+    align-items: stretch;
+  }
+
+  .brand,
+  .brand-button {
+    min-height: 56px;
+  }
+
+  .brand-button {
+    box-sizing: border-box;
+    align-items: center;
+    line-height: 1;
+  }
+
+  .brand-button > .mark,
+  .brand-button > div,
+  .brand-button > .mobile-menu-cue {
+    align-self: center;
+  }
+
+  .brand-button > div {
+    display: grid;
+    align-content: center;
+    gap: 2px;
+  }
+
+  .brand h1,
+  .brand p {
+    margin-block: 0;
+  }
+
+  .brand h1 {
+    line-height: 1.08;
+  }
+
+  .brand p {
+    line-height: 1.15;
+  }
+
+  .mobile-menu-cue {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    line-height: 1;
+  }
+
+  .nav.mobile-open {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    align-content: start;
+    gap: 8px;
+  }
+
+  .nav.mobile-open button {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+    line-height: 1.1;
+  }
+
+  .nav.mobile-open .nav-button-icon {
+    display: grid;
+    align-self: center;
+    place-items: center;
+  }
+}
+
 /* Tablet density pass: keep the desktop two-column workspace while removing
    the large mobile-like vertical gaps at portrait tablet widths. */
 @media (min-width: 761px) and (max-width: 1120px) {

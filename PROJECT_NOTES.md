@@ -1337,6 +1337,11 @@ https://production-sfo.browserless.io/pdf
 - Made the responsive brand row, menu control, navigation icons, labels, and active-state rows explicitly center-aligned within their controls.
 - Preserved the gold active outline while removing inconsistent vertical alignment caused by competing responsive rules.
 
+## 2026-07-24 - Centered Tablet App Bar Content
+
+- Added a tablet-only responsive override for the expanded three-column navigation.
+- Explicitly centered the tablet brand mark, brand text, menu control, icons, and navigation labels without changing the phone layout or active gold selection treatment.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.
