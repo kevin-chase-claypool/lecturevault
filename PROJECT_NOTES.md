@@ -1327,6 +1327,11 @@ https://production-sfo.browserless.io/pdf
 - Reduced mobile Dashboard header, workflow, metric, action-panel, and recent-item spacing without removing any information or actions.
 - Kept the workflow diagram and metric labels intact while lowering minimum heights, font sizes, and internal padding so more study content is visible per screen.
 
+## 2026-07-24 - Compacted Tablet Dashboard Content
+
+- Added a dedicated 761-1120px tablet layout that keeps the title and actions on one row, places the workflow beneath it, and reduces metric, action-panel, and recent-item height.
+- Preserved the desktop two-column information architecture while removing tablet-scale vertical waste.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.

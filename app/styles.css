@@ -3897,6 +3897,135 @@ input[type="range"] {
   }
 }
 
+/* Tablet density pass: keep the desktop two-column workspace while removing
+   the large mobile-like vertical gaps at portrait tablet widths. */
+@media (min-width: 761px) and (max-width: 1120px) {
+  .workspace .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 16px;
+    min-height: 0;
+    padding: 12px 16px;
+  }
+
+  .workspace .topbar > div:first-child {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 0;
+  }
+
+  .workspace .topbar .topbar-actions {
+    grid-column: 2;
+    grid-row: 1;
+    gap: 8px;
+  }
+
+  .workspace .topbar .workflow-diagram {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    padding: 2px 0 0;
+  }
+
+  .workspace .topbar h2 {
+    font-size: 1.62rem;
+  }
+
+  .workspace .topbar .workflow-diagram li {
+    gap: 5px;
+    padding: 0 5px;
+  }
+
+  .workspace .topbar .workflow-diagram-number {
+    width: 26px;
+    height: 26px;
+    font-size: 0.7rem;
+  }
+
+  .workspace .topbar .workflow-diagram li:not(:last-child)::after {
+    top: 13px;
+    width: 6px;
+  }
+
+  .workspace .topbar .workflow-diagram strong {
+    font-size: 0.7rem;
+  }
+
+  .workspace .topbar .workflow-diagram small {
+    font-size: 0.58rem;
+    line-height: 1.1;
+  }
+
+  .workspace .dashboard {
+    gap: 10px;
+  }
+
+  .workspace .dashboard .metric-grid {
+    gap: 8px;
+  }
+
+  .workspace .dashboard .metric {
+    min-height: 64px;
+    padding: 10px 13px;
+  }
+
+  .workspace .dashboard .metric strong {
+    font-size: 1.52rem;
+  }
+
+  .workspace .dashboard .metric span {
+    font-size: 0.76rem;
+  }
+
+  .workspace .dashboard-grid,
+  .workspace .content-grid {
+    gap: 10px;
+  }
+
+  .workspace .dashboard .action-panel {
+    min-height: 0;
+    gap: 7px;
+    padding: 13px 14px;
+  }
+
+  .workspace .dashboard .action-panel h3 {
+    margin-top: 2px;
+    font-size: 1.04rem;
+  }
+
+  .workspace .dashboard .action-panel p {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.35;
+  }
+
+  .workspace .dashboard .list-panel {
+    padding: 13px;
+  }
+
+  .workspace .dashboard .list-panel .section-heading {
+    margin-bottom: 8px;
+  }
+
+  .workspace .dashboard .row-button {
+    min-height: 62px;
+    gap: 3px;
+    padding: 10px 11px;
+  }
+
+  .workspace .dashboard .row-button strong {
+    font-size: 0.82rem;
+    line-height: 1.18;
+  }
+
+  .workspace .dashboard .row-button span,
+  .workspace .dashboard .row-button small {
+    font-size: 0.72rem;
+  }
+}
+
 @media (max-width: 430px) {
   .topbar-actions {
     grid-template-columns: 1fr;
