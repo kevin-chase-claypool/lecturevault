@@ -1450,3 +1450,9 @@ For archive organization changes, manually verify:
 
 - Added a final shared selection contract so Vault, Media Library, Reviews, Past Reviews, study navigation, and folder explorers use one gold active/selected treatment instead of mixing gold borders with teal-blue selected backgrounds.
 - Kept blue available for actions, links, and hover feedback; dark-mode selected text and checkbox accents now remain readable against the gold-tinted selection surface.
+
+## 2026-07-24 - Keep Mobile Media Explorer Metadata In Row
+
+- Locked compact Media Library rows to explicit filename, date, and size grid columns at narrow widths.
+- Prevented the generic mobile storage-card rules from moving the checkbox, date, or file size into separate implicit rows, which caused metadata to appear detached at the bottom of the list.
+- Kept the explorer horizontally contained with ellipsis-safe date and size cells.

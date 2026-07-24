@@ -10919,13 +10919,36 @@ summary:focus-visible {
    grid. Compact explorer rows must keep all three file columns on one row. */
 @media (max-width: 840px) {
   .storage-row.explorer-row {
+    display: grid !important;
+    grid-auto-flow: column !important;
     grid-template-columns: minmax(0, 1fr) 78px 64px !important;
+    grid-template-rows: minmax(48px, auto) !important;
+    align-items: stretch !important;
   }
 
-  .storage-row.explorer-row .storage-check,
+  .storage-row.explorer-row > .storage-check {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    display: grid !important;
+  }
+
+  .storage-row.explorer-row > time {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    display: flex !important;
+  }
+
+  .storage-row.explorer-row > span {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    display: flex !important;
+  }
+
   .storage-row.explorer-row > time,
   .storage-row.explorer-row > span {
-    grid-column: auto !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
