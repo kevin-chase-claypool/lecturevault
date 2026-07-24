@@ -5218,7 +5218,7 @@ export default function LectureVaultApp() {
 
   return (
     <main className="app-shell">
-      <aside className="sidebar">
+      <aside className={isMobileMenuOpen ? "sidebar mobile-menu-open" : "sidebar"}>
         <button
           className="brand brand-button"
           type="button"

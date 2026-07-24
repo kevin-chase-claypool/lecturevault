@@ -53,6 +53,13 @@ Read this section before changing the project.
 
 ## Latest Changes
 
+### 2026-07-24 - Mobile Layout Consolidation
+
+- Replaced the guessed-height fixed responsive header with a normal-flow sticky app bar. Opening or closing the mobile navigation no longer overlays workspace content or leaves a reserved blank gap.
+- Consolidated phone layouts around bounded explorer lists, stacked detail panels, compact review rows, and touch-sized controls. Desktop retains its multi-column explorer layouts while mobile keeps the same actions and data in a smaller presentation.
+- Mobile archive, media, review, and study lists now constrain their own scrolling areas instead of widening the document. Figure and formula surfaces stay contained within the available device width.
+- Verification required: run `npm run typecheck`, `npm run build`, then check the closed and open mobile menu, Vault selection, Media Library, New Review, Past Reviews, and reconstruction study detail in both light and dark themes.
+
 ### 2026-07-23 - Dedicated Past Reviews Explorer
 
 - Split the Study navigation into `New Review` and `Past Reviews`. The New Review workspace now focuses only on selecting reconstructions and creating a review set; saved review sets no longer expand the narrow draft panel.

@@ -3432,6 +3432,304 @@ button.review-draft-button:disabled {
   }
 }
 
+/* Responsive experience contract: keep the compact app bar in document flow
+   and reduce desktop explorers to scannable phone-sized views. */
+@media (max-width: 1120px) {
+  .app-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: min-content;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .sidebar,
+  .sidebar.mobile-menu-open {
+    position: sticky;
+    top: 0;
+    inset: auto;
+    z-index: 60;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    align-self: start;
+    overflow: visible;
+  }
+
+  .workspace {
+    min-height: auto;
+    overflow: visible;
+    padding-top: 16px;
+  }
+
+  .lecture-study-explorer,
+  .storage-browser-panel {
+    position: static;
+    top: auto;
+    max-height: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .sidebar,
+  .sidebar.mobile-menu-open {
+    gap: 0;
+    padding: 8px 12px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    background: #13212e;
+    box-shadow: 0 8px 22px rgba(8, 18, 28, 0.22);
+  }
+
+  .brand,
+  .brand-button {
+    min-height: 56px;
+  }
+
+  .brand-button {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 9px 7px 7px;
+  }
+
+  .brand-button > .mark,
+  .brand-button > div,
+  .brand-button > .mobile-menu-cue {
+    align-self: center;
+    transform: none;
+  }
+
+  .brand-button > div {
+    display: grid;
+    align-content: center;
+    gap: 2px;
+  }
+
+  .brand h1,
+  .brand p {
+    margin: 0;
+  }
+
+  .brand h1 {
+    line-height: 1.08;
+  }
+
+  .brand p {
+    line-height: 1.15;
+  }
+
+  .nav.mobile-open {
+    gap: 7px;
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+
+  .nav.mobile-open button {
+    min-height: 38px;
+    padding-block: 8px;
+  }
+
+  .workspace {
+    padding: 12px 12px 28px;
+  }
+
+  .topbar {
+    gap: 12px;
+    padding: 13px;
+  }
+
+  .topbar-actions {
+    gap: 7px;
+  }
+
+  .topbar-actions button {
+    min-height: 36px;
+    padding: 7px;
+    font-size: 0.78rem;
+  }
+
+  .panel,
+  .action-panel {
+    padding: 13px;
+  }
+
+  .toolbar,
+  .archive-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .toolbar > button,
+  .archive-toolbar > button {
+    width: 100%;
+  }
+
+  .archive-organizer,
+  .storage-layout,
+  .exam-builder-layout,
+  .review-library-layout,
+  .lecture-study-layout,
+  .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .builder-sidebar-stack {
+    order: 2;
+  }
+
+  .archive-list-panel {
+    order: 1;
+  }
+
+  .archive-folder-panel,
+  .review-folder-panel,
+  .storage-browser-panel,
+  .lecture-study-explorer {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .archive-folder-tree,
+  .storage-folder-tree,
+  .review-folder-tree {
+    max-height: min(36dvh, 280px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .lecture-list,
+  .storage-explorer-list,
+  .review-file-list,
+  .review-viewer-list,
+  .lecture-study-list {
+    max-height: min(42dvh, 330px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .lecture-list.explorer-list,
+  .storage-explorer-list,
+  .review-file-list {
+    overflow-x: hidden;
+  }
+
+  .review-file-header,
+  .review-file-row {
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) 88px;
+  }
+
+  .review-file-header > :nth-child(2),
+  .review-file-header > :nth-child(4),
+  .review-file-row > :nth-child(2),
+  .review-file-row > :nth-child(4) {
+    display: none;
+  }
+
+  .review-file-header .sort-header,
+  .review-file-row > * {
+    min-height: 46px;
+    padding: 8px 9px;
+    font-size: 0.74rem;
+  }
+
+  .review-file-row strong {
+    font-size: 0.8rem;
+  }
+
+  .lecture-list-header.with-selection,
+  .lecture-list-row.explorer-row.has-selection {
+    grid-template-columns: 34px minmax(0, 1fr) 72px 62px;
+  }
+
+  .lecture-list-header,
+  .lecture-list-row.explorer-row {
+    grid-template-columns: minmax(0, 1fr) 76px 62px;
+  }
+
+  .lecture-list-row.explorer-row > *,
+  .storage-row.explorer-row > * {
+    padding: 8px 7px;
+    font-size: 0.7rem;
+  }
+
+  .lecture-list-row.explorer-row .explorer-row-name,
+  .storage-row.explorer-row .explorer-row-name {
+    font-size: 0.76rem;
+  }
+
+  .review-draft-panel,
+  .builder-source-preview,
+  .review-inspector,
+  .source-inspector {
+    grid-column: auto;
+    min-width: 0;
+  }
+
+  .review-coverage {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .review-draft-source-list,
+  .review-scope-list {
+    max-height: min(34dvh, 260px);
+  }
+
+  .study-browser-content,
+  .lecture-study-tree-content {
+    max-height: min(34dvh, 280px);
+  }
+
+  .source-transcript-list {
+    max-height: min(44dvh, 380px);
+  }
+
+  .math-block {
+    overflow-x: auto;
+    padding: 12px 10px;
+  }
+
+  .figure-reference img,
+  .media-item img,
+  .selected-source-media img {
+    max-height: 260px;
+    object-fit: contain;
+  }
+}
+
+@media (max-width: 430px) {
+  .topbar-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .topbar-actions .install-button {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+
+  .lecture-list-header.with-selection,
+  .lecture-list-row.explorer-row.has-selection {
+    grid-template-columns: 32px minmax(0, 1fr) 68px 0;
+  }
+
+  .lecture-list-header.with-selection > :last-child,
+  .lecture-list-row.explorer-row.has-selection > :last-child,
+  .lecture-list-header > :last-child,
+  .lecture-list-row.explorer-row > :last-child {
+    display: none;
+  }
+
+  .lecture-list-header,
+  .lecture-list-row.explorer-row {
+    grid-template-columns: minmax(0, 1fr) 72px 0;
+  }
+}
+
 /* Decision points: make evidence coverage explicit before an AI build, without
    turning either workflow into a dashboard of its own. */
 .reconstruction-build-summary {
