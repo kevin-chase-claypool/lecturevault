@@ -1372,3 +1372,10 @@ For archive organization changes, manually verify:
 - Moved the three-way collection merge algorithm into `lib/state-sync.ts`; the Supabase conflict behavior is unchanged, but synchronization policy is now independently testable and easier to audit.
 - `app/page.tsx` retains only the state collection list and normalization boundary.
 - Verification: Ontoly stats/impact/trace queries and `npm run typecheck` completed after this change.
+
+## 2026-07-24 - Remove Ambiguous Supabase Service-Key Fallback
+
+- Ontoly graph hash `1u3o3sb` identified `lib/supabase-server.ts` as the shared server boundary for Supabase credentials, while its configuration scan showed both `SUPABASE_SERVICE_ROLE_KEY` and the undocumented `SUPABASE_SERVICE_KEY` being accepted.
+- Removed the legacy `SUPABASE_SERVICE_KEY` fallback. Server access now requires the documented `SUPABASE_SERVICE_ROLE_KEY`, preventing a stale or misnamed secret from being selected silently.
+- No Vercel configuration change is required because Production and Preview already use `SUPABASE_SERVICE_ROLE_KEY`.
+- Verification: Ontoly coverage/stats/architecture/configuration queries completed before the change; typecheck and production build completed after the change.
