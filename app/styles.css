@@ -10284,6 +10284,7 @@ summary:focus-visible {
     gap: 8px;
     align-items: center;
     padding: 12px 14px;
+    min-height: 0;
   }
 
   .workspace .topbar > div:first-child,
@@ -10299,7 +10300,41 @@ summary:focus-visible {
 
   .workspace .topbar .workflow-diagram {
     grid-row: 2;
-    padding: 6px 0;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    padding: 2px 0 0;
+  }
+
+  .workspace .topbar h2 {
+    font-size: 1.42rem;
+    line-height: 1.08;
+  }
+
+  .workspace .topbar .workflow-diagram li {
+    gap: 4px;
+    padding: 0 3px;
+  }
+
+  .workspace .topbar .workflow-diagram-number {
+    width: 25px;
+    height: 25px;
+    font-size: 0.68rem;
+  }
+
+  .workspace .topbar .workflow-diagram li:not(:last-child)::after {
+    top: 12px;
+    right: -1px;
+    width: 5px;
+  }
+
+  .workspace .topbar .workflow-diagram strong {
+    font-size: 0.68rem;
+  }
+
+  .workspace .topbar .workflow-diagram small {
+    font-size: 0.55rem;
+    line-height: 1.08;
   }
 
   .workspace .topbar .topbar-actions {
@@ -10311,5 +10346,95 @@ summary:focus-visible {
 
   .workspace .topbar .topbar-actions .install-button {
     grid-column: 1 / -1;
+  }
+
+  .workspace .dashboard {
+    gap: 9px;
+  }
+
+  .workspace .dashboard .metric-grid {
+    gap: 8px;
+  }
+
+  .workspace .dashboard .metric {
+    min-height: 58px;
+    padding: 9px 11px;
+    gap: 7px;
+  }
+
+  .workspace .dashboard .metric strong {
+    font-size: 1.38rem;
+  }
+
+  .workspace .dashboard .metric span {
+    font-size: 0.72rem;
+    line-height: 1.1;
+  }
+
+  .workspace .dashboard-grid,
+  .workspace .content-grid {
+    gap: 9px;
+  }
+
+  .workspace .dashboard .action-panel {
+    min-height: 0;
+    gap: 6px;
+    padding: 12px 14px;
+  }
+
+  .workspace .dashboard .action-panel h3 {
+    margin-top: 2px;
+    font-size: 1rem;
+    line-height: 1.18;
+  }
+
+  .workspace .dashboard .action-panel p {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.32;
+  }
+
+  .workspace .dashboard .action-panel .section-heading {
+    gap: 8px;
+  }
+
+  .workspace .dashboard .action-panel .section-heading button {
+    padding: 7px 10px;
+    font-size: 0.76rem;
+  }
+
+  .workspace .dashboard .list-panel {
+    padding: 12px;
+  }
+
+  .workspace .dashboard .list-panel .section-heading {
+    margin-bottom: 7px;
+  }
+
+  .workspace .dashboard .list-panel .section-heading h3 {
+    margin-bottom: 3px;
+    font-size: 0.98rem;
+  }
+
+  .workspace .dashboard .list-panel .section-note {
+    font-size: 0.72rem;
+    line-height: 1.2;
+  }
+
+  .workspace .dashboard .row-button {
+    min-height: 58px;
+    gap: 3px;
+    padding: 9px 10px;
+  }
+
+  .workspace .dashboard .row-button strong {
+    font-size: 0.78rem;
+    line-height: 1.16;
+  }
+
+  .workspace .dashboard .row-button span,
+  .workspace .dashboard .row-button small {
+    font-size: 0.68rem;
+    line-height: 1.12;
   }
 }

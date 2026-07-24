@@ -1322,6 +1322,11 @@ https://production-sfo.browserless.io/pdf
 - Reworked the narrow Dashboard topbar into an explicit compact vertical grid: title, workflow steps, then actions.
 - Reduced excess padding and forced Review Draft and Log out into a balanced two-column action row, preserving the complete workflow diagram without the large empty band.
 
+## 2026-07-24 - Compacted Mobile Dashboard Content
+
+- Reduced mobile Dashboard header, workflow, metric, action-panel, and recent-item spacing without removing any information or actions.
+- Kept the workflow diagram and metric labels intact while lowering minimum heights, font sizes, and internal padding so more study content is visible per screen.
+
 ## Known Limitations
 
 - Lecture media uses direct browser-to-Supabase signed uploads. The reconstruction server still downloads source objects to create AI requests, so unusually large source bundles can take longer to process.
