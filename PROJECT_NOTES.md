@@ -1,5 +1,16 @@
 # LectureVault Project Notes
 
+## 2026-07-28 - Use Dedicated Flow for Full Transcript Math
+
+- Added a dedicated rendered-content wrapper inside Reconstruction Detail transcript rows so plain text and display equations flow vertically without overlapping adjacent source passages.
+- Kept the existing transcript selection, search, audio cue, and KaTeX behavior unchanged.
+
+## 2026-07-28 - Contain KaTeX in Full Transcript Rows
+
+- Strengthened the Reconstruction Detail full-transcript list so rows size to their content instead of allowing display equations to paint over adjacent source passages.
+- Added explicit content sizing, overflow, and KaTeX containment rules for wide and narrow layouts.
+- Preserved transcript selection, search, and audio cue behavior.
+
 ## 2026-07-28 - Prevent Math Overlap in Source Transcript Rows
 
 - Changed full transcript rows to use a block-level text container so rendered KaTeX/display equations participate in the row height correctly.

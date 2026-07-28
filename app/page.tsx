@@ -9048,9 +9048,11 @@ function LectureDetail({
                       <time>
                         {hasAudioCue ? formatSeconds(segment.startSeconds) : "Source"}
                       </time>
-                      <div className="source-transcript-text">
-                        <MathPreview text={segment.text} />
-                      </div>
+        <div className="source-transcript-text">
+          <div className="source-transcript-rendered">
+            <MathPreview text={segment.text} />
+          </div>
+        </div>
                       {hasAudioCue ? <small>Play audio</small> : null}
                     </button>
                   );

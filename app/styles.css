@@ -2751,9 +2751,12 @@ button.review-draft-button:disabled {
 .source-transcript-list > button {
   display: grid;
   grid-template-columns: 58px minmax(0, 1fr) auto;
+  grid-auto-rows: max-content;
   gap: 10px;
   align-items: start;
-  height: auto;
+  align-content: start;
+  height: auto !important;
+  max-height: none !important;
   min-height: 54px;
   border: 0;
   border-bottom: 1px solid var(--border);
@@ -2763,6 +2766,7 @@ button.review-draft-button:disabled {
   color: var(--text);
   text-align: left;
   box-shadow: none;
+  overflow: visible !important;
 }
 
 .source-transcript-list > button:last-of-type {
@@ -2787,26 +2791,70 @@ button.review-draft-button:disabled {
   display: block;
   min-width: 0;
   max-width: 100%;
+  height: auto !important;
+  max-height: none !important;
   overflow-wrap: anywhere;
+  overflow: visible !important;
   word-break: break-word;
   color: var(--text);
   font-size: 0.82rem;
   line-height: 1.48;
 }
 
-.source-transcript-text .math-block {
-  clear: both;
+.source-transcript-rendered {
+  display: block;
+  min-width: 0;
   max-width: 100%;
+  white-space: normal;
+  line-height: inherit;
+}
+
+.source-transcript-rendered > .math-block {
+  display: block !important;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  clear: both;
+  margin: 8px 0;
+  overflow: visible;
+}
+
+.source-transcript-rendered > .math-inline {
+  display: inline;
+}
+
+.source-transcript-text .math-block {
+  display: block !important;
+  position: relative;
+  box-sizing: border-box;
+  clear: both;
+  width: 100%;
+  max-width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
   margin: 8px 0;
   line-height: 1.25;
 }
 
 .source-transcript-text .katex-display {
+  display: block !important;
+  position: relative;
+  box-sizing: border-box;
   max-width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
   margin: 0;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 2px 0;
+}
+
+.source-transcript-text .katex-display > .katex {
+  position: relative;
+  display: inline-block;
+  height: auto;
+  min-height: 0;
+  white-space: nowrap;
 }
 
 .source-transcript-list small {
