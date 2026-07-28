@@ -82,6 +82,23 @@ function requiresVisualVerification(text: string) {
   );
 }
 
+function hasMathVisualRisk(text: string) {
+  const normalized = normalizeText(text);
+  const latexSignals = normalized.match(/\\(?:frac|sqrt|sum|int|oint|lim|partial|nabla|vec|mathrm|text)\b/g) || [];
+  const operatorSignals = normalized.match(/[=<>≤≥≈≠±×÷∫∑√∞∂∇→←]/g) || [];
+  const indexedVariableSignals = normalized.match(/\b[A-Za-z]{1,4}\s*[_^]\s*[A-Za-z0-9{(]/g) || [];
+  const equationLines = normalized
+    .split(/\n+/)
+    .filter((line) => /[A-Za-z0-9)]\s*=\s*[A-Za-z0-9(\\]/.test(line)).length;
+
+  return (
+    latexSignals.length >= 1 ||
+    operatorSignals.length >= 3 ||
+    indexedVariableSignals.length >= 2 ||
+    equationLines >= 2
+  );
+}
+
 async function visuallyIndexPage({
   client,
   pageBytes,
@@ -195,7 +212,10 @@ export async function POST(request: Request) {
     const nativeTextPageCount = pages.filter(
       (page) => normalizeText(page.text || "").length >= 80
     ).length;
-    const visuallyDependentPageCount = Math.max(0, pages.length - nativeTextPageCount);
+    const visuallyDependentPageCount = pages.filter((page) => {
+      const nativePageText = normalizeText(page.text || "");
+      return nativePageText.length < 80 || hasMathVisualRisk(nativePageText);
+    }).length;
     const wholeDocumentText = parsed.text;
 
     for (const page of pages) {
@@ -206,7 +226,7 @@ export async function POST(request: Request) {
           course_id: courseId,
           evidence_text: nativePageText,
           page_number: page.num,
-          requires_visual_verification: false,
+          requires_visual_verification: hasMathVisualRisk(nativePageText),
           source_kind: "native_text",
           textbook_id: textbookId,
           textbook_name: name || "Course textbook",
@@ -278,7 +298,8 @@ export async function POST(request: Request) {
         const sourcePdf = await PDFDocument.load(buffer, { ignoreEncryption: true });
 
         for (const page of pages) {
-          if (normalizeText(page.text || "").length >= 80) {
+          const nativePageText = normalizeText(page.text || "");
+          if (nativePageText.length >= 80 && !hasMathVisualRisk(nativePageText)) {
             continue;
           }
 
@@ -309,16 +330,24 @@ export async function POST(request: Request) {
           }
 
           if (visualRecord.text) {
-            pageEvidence.push({
+            const visualEvidence = {
               course_id: courseId,
               evidence_text: visualRecord.text,
               page_number: page.num,
               requires_visual_verification: requiresVisualVerification(visualRecord.text),
-              source_kind: "visual_index",
+              source_kind: "visual_index" as const,
               textbook_id: textbookId,
               textbook_name: name || "Course textbook",
               updated_at: new Date().toISOString()
-            });
+            };
+            const existingEvidenceIndex = pageEvidence.findIndex(
+              (evidence) => evidence.page_number === page.num
+            );
+            if (existingEvidenceIndex >= 0) {
+              pageEvidence[existingEvidenceIndex] = visualEvidence;
+            } else {
+              pageEvidence.push(visualEvidence);
+            }
           }
 
           embeddingUsage = {

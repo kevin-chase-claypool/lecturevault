@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-07-28 - Visually Verify Math-Risk Textbook Pages Once
+
+- Strengthened textbook ingestion for mathematics-heavy courses with a conservative math-risk detector that recognizes LaTeX commands, equation operators, indexed variables, and multiple equation-like lines.
+- Native-text pages that trigger the detector now receive one-time page-level vision indexing during upload/reindex, while ordinary text pages remain on the lower-cost native extraction path.
+- The visual record replaces the provisional native page evidence for that page instead of creating duplicate citation records. Future reconstructions and reviews reuse the saved evidence and only attach original pages that still require verification.
+- The user workflow remains one textbook upload; no per-reconstruction full-PDF reprocessing was introduced.
+
 ## 2026-07-28 - Unify Explorer Selection Contrast
 
 - Ontoly/source inspection and the responsive UI audit found a CSS cascade conflict: later dark-mode explorer surface rules could override the gold selected-state treatment used by Vault, Media Library, Reviews, and Past Reviews.
