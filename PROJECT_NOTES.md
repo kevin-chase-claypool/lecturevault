@@ -18,6 +18,12 @@
 - The final responsive header contract is now the only rule responsible for compact header padding and vertical alignment, reducing cascade ambiguity across tablet, phone, and split-screen widths.
 - Navigation behavior, menu expansion, workspace spacing, and data flows are unchanged.
 
+## 2026-07-28 - Align Mobile Media Explorer Columns
+
+- Added compact tablet/phone grid definitions for Media Library rows and headers so filename, date, and size remain aligned within one readable row.
+- Added a narrower phone variant for long media names without removing searchable or sortable metadata.
+- This is a presentation-only correction; Supabase objects, media links, selection state, and file-management behavior are unchanged.
+
 ## Working Rule
 
 Update this file after every code change. Keep it current with what changed, why it changed, how to verify it, and what remains unresolved.

@@ -4387,6 +4387,13 @@ input[type="range"] {
     grid-template-columns: minmax(0, 1fr) 76px 62px;
   }
 
+  /* Media Library keeps name, date, and size aligned as one compact row on
+     touch screens instead of inheriting the wider desktop columns. */
+  .storage-explorer-header,
+  .storage-row.explorer-row {
+    grid-template-columns: minmax(0, 1fr) 76px 72px;
+  }
+
   .lecture-list-row.explorer-row > *,
   .storage-row.explorer-row > * {
     padding: 8px 7px;
@@ -4462,6 +4469,15 @@ input[type="range"] {
   .lecture-list-header,
   .lecture-list-row.explorer-row {
     grid-template-columns: minmax(0, 1fr) 72px 0;
+  }
+
+  .storage-explorer-header,
+  .storage-row.explorer-row {
+    grid-template-columns: minmax(0, 1fr) 66px 62px;
+  }
+
+  .storage-row.explorer-row .storage-check span {
+    font-size: 0.72rem;
   }
 }
 
