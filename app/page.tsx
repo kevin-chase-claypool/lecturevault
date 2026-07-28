@@ -34,7 +34,7 @@ import {
   LECTURE_AI_OUTPUT_CONTRACT,
   TEXTBOOK_REFERENCE_POLICY
 } from "../lib/lecture-ai-context";
-import { mergeCollectionState } from "../lib/state-sync";
+import { mergeCollectionState, stableSerialize } from "../lib/state-sync";
 
 type Screen =
   | "dashboard"
@@ -1892,10 +1892,12 @@ export default function LectureVaultApp() {
   const [selectedStorageFolderId, setSelectedStorageFolderId] = useState("all");
   const [storageFolderName, setStorageFolderName] = useState("");
   const [isStorageLoading, setIsStorageLoading] = useState(false);
-  const stateJsonRef = useRef(JSON.stringify(state));
+  const stateJsonRef = useRef(stableSerialize(state));
   const cloudBaseStateRef = useRef<VaultState>(state);
   const skipNextCloudSaveRef = useRef(false);
-  const cloudSavePendingRef = useRef(false);
+  const cloudSaveQueuedRef = useRef(false);
+  const cloudSaveInFlightRef = useRef(0);
+  const cloudSaveGenerationRef = useRef(0);
   const draftUploadsRef = useRef(new Set<string>());
   const loadedDraftVersionRef = useRef("");
   const suppressDraftSaveRef = useRef(false);
@@ -2134,7 +2136,7 @@ export default function LectureVaultApp() {
   }, [authStatus]);
 
   useEffect(() => {
-    stateJsonRef.current = JSON.stringify(state);
+    stateJsonRef.current = stableSerialize(state);
   }, [state]);
 
   useEffect(() => {
@@ -2159,10 +2161,18 @@ export default function LectureVaultApp() {
       return;
     }
 
-    // Do not let the background poll replace this in-memory state with a snapshot from
-    // before the local change has reached Supabase.
-    cloudSavePendingRef.current = true;
+    // Track queued and in-flight writes separately. A debounced timer can be
+    // cancelled while an older request is still running, and an older response
+    // must never move the client back to an obsolete remote revision.
+    const generation = cloudSaveGenerationRef.current + 1;
+    cloudSaveGenerationRef.current = generation;
+    cloudSaveQueuedRef.current = true;
     const timeoutId = window.setTimeout(async () => {
+      if (generation !== cloudSaveGenerationRef.current) return;
+
+      cloudSaveQueuedRef.current = false;
+      cloudSaveInFlightRef.current += 1;
+
       try {
         const response = await fetch("/api/vault-state", {
           body: JSON.stringify({
@@ -2181,6 +2191,10 @@ export default function LectureVaultApp() {
           updatedAt?: string;
           error?: string;
         };
+
+        // A newer local edit has already scheduled or completed another save.
+        // Ignore this response rather than replacing its revision or status.
+        if (generation !== cloudSaveGenerationRef.current) return;
 
         if (response.status === 409 && data.state) {
           const remoteState = normalizeState(data.state);
@@ -2205,15 +2219,22 @@ export default function LectureVaultApp() {
         cloudBaseStateRef.current = state;
         setCloudUpdatedAt(data.updatedAt || "");
       } catch (error) {
+        if (generation !== cloudSaveGenerationRef.current) return;
         const message =
           error instanceof Error ? error.message : "Could not save Supabase archive state.";
         setStatus(`Supabase save failed: ${message}`);
       } finally {
-        cloudSavePendingRef.current = false;
+        cloudSaveInFlightRef.current = Math.max(0, cloudSaveInFlightRef.current - 1);
       }
     }, 700);
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (generation === cloudSaveGenerationRef.current) {
+        cloudSaveGenerationRef.current += 1;
+        cloudSaveQueuedRef.current = false;
+      }
+    };
   }, [authStatus, cloudStateLoaded, cloudSyncEnabled, state]);
 
   useEffect(() => {
@@ -2225,7 +2246,7 @@ export default function LectureVaultApp() {
 
     async function pullLatestCloudState() {
       try {
-        if (cloudSavePendingRef.current) return;
+        if (cloudSaveQueuedRef.current || cloudSaveInFlightRef.current > 0) return;
         const response = await fetch("/api/vault-state", {
           credentials: "include",
           headers: {
@@ -2239,7 +2260,14 @@ export default function LectureVaultApp() {
           error?: string;
         };
 
-        if (!active || cloudSavePendingRef.current || !response.ok || !data.configured || !data.state) {
+        if (
+          !active ||
+          cloudSaveQueuedRef.current ||
+          cloudSaveInFlightRef.current > 0 ||
+          !response.ok ||
+          !data.configured ||
+          !data.state
+        ) {
           return;
         }
 
@@ -2248,7 +2276,7 @@ export default function LectureVaultApp() {
         }
 
         const nextState = normalizeState(data.state);
-        const nextJson = JSON.stringify(nextState);
+        const nextJson = stableSerialize(nextState);
 
         cloudBaseStateRef.current = nextState;
         setCloudUpdatedAt(data.updatedAt || "");

@@ -1472,4 +1472,13 @@ For archive organization changes, manually verify:
 - Collection comparisons now use stable object-key ordering, avoiding false conflicts caused only by JSON property order.
 - When both devices changed the same record and one side deleted it, the deletion now wins instead of falling back to the other device's stale record. This prevents deleted lectures, media references, folders, courses, or reviews from unexpectedly reappearing after a cross-device conflict.
 - Concurrent edit/edit conflicts retain the existing local-preference behavior; unrelated additions and changes still merge by record ID.
+- Verification: Ontoly coverage/stats/architecture re-check, production build, typecheck, and `git diff --check` passed. Commit, push, and production deployment follow this note update.
+
+## 2026-07-28 - Prevent Stale Cloud Save Responses
+
+- Hardened the client Supabase synchronization effects in `app/page.tsx` after reviewing the current whole-state compare-and-swap flow.
+- Debounced writes now distinguish queued saves from in-flight requests and use a generation guard, so a cancelled or older request cannot overwrite the current cloud revision, merged state, or user-facing status after a newer edit.
+- Background polling now pauses while either a save is queued or any save request is in flight, preventing an intermediate remote snapshot from replacing local changes during the save window.
+- Exported and reused `stableSerialize` from `lib/state-sync.ts` for client state comparisons, eliminating false pull updates caused only by object-key ordering.
+- The underlying single-row JSON state and CAS API remain unchanged; this reduces client-side race risk without requiring a schema migration.
 - Verification pending: typecheck, production build, Ontoly re-check, commit, push, and production deployment.
