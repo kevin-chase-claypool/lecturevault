@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     .from(SUPABASE_MEDIA_BUCKET)
     .upload(path, file, {
       contentType: file.type || "application/octet-stream",
-      upsert: true
+      upsert: false
     });
 
   if (error) {

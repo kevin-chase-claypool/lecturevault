@@ -1536,4 +1536,10 @@ For archive organization changes, manually verify:
 
 - Ontoly impact analysis showed that `lib/supabase-server.ts` is also called directly by AI and PDF-generation routes, bypassing the HTTP media read guards.
 - The shared data URL, signed URL, and buffer helpers now accept only the configured `SUPABASE_MEDIA_BUCKET`; an unexpected client-provided bucket returns no object instead of allowing a service-role read from another bucket.
-- Existing media paths, default bucket behavior, signed links, figures, audio references, and PDF workflows remain unchanged for valid LectureVault media records.
+  - Existing media paths, default bucket behavior, signed links, figures, audio references, and PDF workflows remain unchanged for valid LectureVault media records.
+
+## 2026-07-28 - Prevent Silent Media Overwrites
+
+- Ontoly/source inspection showed that both direct signed uploads and the legacy server-routed upload accepted client-derived paths with `upsert: true`.
+- Uploads now use create-only semantics, so a path collision fails explicitly instead of replacing an existing audio, image, PDF, syllabus, or textbook object that may still be referenced by archived records.
+- Existing callers already generate fresh media, syllabus, and textbook IDs for each new upload; normal uploads and cross-device references are unchanged.

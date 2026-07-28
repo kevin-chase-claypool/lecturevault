@@ -60,7 +60,7 @@ export async function POST(request: Request) {
   const path = `lectures/${lectureId}/${mediaId}-${fileName}`;
   const { data, error } = await client.storage
     .from(SUPABASE_MEDIA_BUCKET)
-    .createSignedUploadUrl(path, { upsert: true });
+    .createSignedUploadUrl(path, { upsert: false });
 
   if (error || !data) {
     return Response.json(
