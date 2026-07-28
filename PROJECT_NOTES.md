@@ -1531,3 +1531,9 @@ For archive organization changes, manually verify:
 - Ontoly impact analysis identified `lib/supabase-server.ts` as a shared boundary for all media and document routes. The media read and signed-read endpoints now enforce the configured `SUPABASE_MEDIA_BUCKET` instead of accepting arbitrary bucket names from authenticated requests.
 - Signed-read requests now reject malformed JSON and non-object payloads with clear `400` responses, and invalid individual objects are ignored safely.
 - Valid media links, signed URL paths, authentication, and the existing seven-day URL lifetime are unchanged.
+
+## 2026-07-28 - Constrain Shared Storage Helper Access
+
+- Ontoly impact analysis showed that `lib/supabase-server.ts` is also called directly by AI and PDF-generation routes, bypassing the HTTP media read guards.
+- The shared data URL, signed URL, and buffer helpers now accept only the configured `SUPABASE_MEDIA_BUCKET`; an unexpected client-provided bucket returns no object instead of allowing a service-role read from another bucket.
+- Existing media paths, default bucket behavior, signed links, figures, audio references, and PDF workflows remain unchanged for valid LectureVault media records.

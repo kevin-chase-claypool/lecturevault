@@ -3,6 +3,14 @@ import { createClient } from "@supabase/supabase-js";
 export const SUPABASE_MEDIA_BUCKET =
   process.env.SUPABASE_MEDIA_BUCKET?.trim() || "lecturevault-media";
 
+function configuredMediaBucket(bucket?: string) {
+  const requestedBucket = bucket?.trim();
+
+  return !requestedBucket || requestedBucket === SUPABASE_MEDIA_BUCKET
+    ? SUPABASE_MEDIA_BUCKET
+    : null;
+}
+
 export function supabaseServerClient() {
   const url = process.env.SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -49,6 +57,12 @@ export async function storageObjectToDataUrl({
     return null;
   }
 
+  const targetBucket = configuredMediaBucket(bucket);
+
+  if (!targetBucket) {
+    return null;
+  }
+
   const client = supabaseServerClient();
 
   if (!client) {
@@ -56,7 +70,7 @@ export async function storageObjectToDataUrl({
   }
 
   const { data, error } = await client.storage
-    .from(bucket || SUPABASE_MEDIA_BUCKET)
+    .from(targetBucket)
     .download(path);
 
   if (error || !data) {
@@ -82,6 +96,12 @@ export async function storageObjectToSignedUrl({
     return null;
   }
 
+  const targetBucket = configuredMediaBucket(bucket);
+
+  if (!targetBucket) {
+    return null;
+  }
+
   const client = supabaseServerClient();
 
   if (!client) {
@@ -89,7 +109,7 @@ export async function storageObjectToSignedUrl({
   }
 
   const { data, error } = await client.storage
-    .from(bucket || SUPABASE_MEDIA_BUCKET)
+    .from(targetBucket)
     .createSignedUrl(path, expiresIn);
 
   return error || !data?.signedUrl ? null : data.signedUrl;
@@ -106,6 +126,12 @@ export async function storageObjectToBuffer({
     return null;
   }
 
+  const targetBucket = configuredMediaBucket(bucket);
+
+  if (!targetBucket) {
+    return null;
+  }
+
   const client = supabaseServerClient();
 
   if (!client) {
@@ -113,7 +139,7 @@ export async function storageObjectToBuffer({
   }
 
   const { data, error } = await client.storage
-    .from(bucket || SUPABASE_MEDIA_BUCKET)
+    .from(targetBucket)
     .download(path);
 
   if (error || !data) {
