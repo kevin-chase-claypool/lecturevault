@@ -11227,3 +11227,59 @@ input[type="range"] {
     padding-inline: 12px !important;
   }
 }
+
+/* Final explorer surface contract. Every file/review explorer uses the same
+   dark-mode surface hierarchy so headers, rows, and metadata remain readable
+   even when an older component-specific rule appears later in the cascade. */
+:root[data-theme="dark"] .lecture-list-header,
+:root[data-theme="dark"] .storage-explorer-header,
+:root[data-theme="dark"] .review-file-header,
+:root[data-theme="dark"] .review-viewer-list,
+:root[data-theme="dark"] .review-draft-source-heading,
+:root[data-theme="dark"] .review-scope-group-heading {
+  border-color: #3b5366 !important;
+  background: #1d2c3a !important;
+  color: #edf5fa !important;
+}
+
+:root[data-theme="dark"] .lecture-list-header .sort-header,
+:root[data-theme="dark"] .storage-explorer-header .sort-header,
+:root[data-theme="dark"] .review-file-header .sort-header {
+  background: transparent !important;
+  color: #cbdbe6 !important;
+}
+
+:root[data-theme="dark"] .lecture-list-header .sort-header.active,
+:root[data-theme="dark"] .storage-explorer-header .sort-header.active,
+:root[data-theme="dark"] .review-file-header .sort-header.active,
+:root[data-theme="dark"] .lecture-list-header .sort-header:hover:not(:disabled),
+:root[data-theme="dark"] .storage-explorer-header .sort-header:hover:not(:disabled),
+:root[data-theme="dark"] .review-file-header .sort-header:hover:not(:disabled) {
+  background: #263d4d !important;
+  color: #fff1b8 !important;
+}
+
+:root[data-theme="dark"] .review-viewer-list-row,
+:root[data-theme="dark"] .review-draft-source-list,
+:root[data-theme="dark"] .review-scope-list {
+  border-color: #3b5366 !important;
+  background: #172330 !important;
+  color: #edf5fa !important;
+}
+
+:root[data-theme="dark"] .review-viewer-list-row strong,
+:root[data-theme="dark"] .review-viewer-list-row small,
+:root[data-theme="dark"] .review-viewer-list-row time,
+:root[data-theme="dark"] .review-draft-source-list strong,
+:root[data-theme="dark"] .review-draft-source-list time,
+:root[data-theme="dark"] .review-scope-list strong,
+:root[data-theme="dark"] .review-scope-list small,
+:root[data-theme="dark"] .review-scope-list time {
+  color: #edf5fa !important;
+}
+
+:root[data-theme="dark"] .review-viewer-list-row:not(.selected):hover,
+:root[data-theme="dark"] .review-draft-source-list > *:hover,
+:root[data-theme="dark"] .review-scope-list > *:hover {
+  background: #243847 !important;
+}

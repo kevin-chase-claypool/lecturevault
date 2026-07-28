@@ -1573,3 +1573,10 @@ For archive organization changes, manually verify:
 - Ontoly/source inspection showed that both direct signed uploads and the legacy server-routed upload accepted client-derived paths with `upsert: true`.
 - Uploads now use create-only semantics, so a path collision fails explicitly instead of replacing an existing audio, image, PDF, syllabus, or textbook object that may still be referenced by archived records.
 - Existing callers already generate fresh media, syllabus, and textbook IDs for each new upload; normal uploads and cross-device references are unchanged.
+
+## 2026-07-28 - Normalize Dark Explorer Surfaces
+
+- Added a final shared dark-mode contract for Vault, Media Library, Reviews, Past Reviews, and reconstruction explorer headers and rows.
+- Explorer metadata, sort controls, review lists, and hover states now use consistent readable dark surfaces and light text while preserving gold active selections.
+- No routes, persistence behavior, media links, AI workflows, or archive data contracts changed.
+- Verification: Ontoly coverage/stats/dependency inspection, typecheck, production build, and `git diff --check` completed after this CSS-only change.
