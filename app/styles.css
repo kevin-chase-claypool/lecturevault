@@ -8958,20 +8958,12 @@ summary:focus-visible {
   /* These responsive values must follow the desktop visual pass. */
   .sidebar {
     gap: 0;
-    /* Both tablet and phone use the compact header: center its single visible row. */
-    padding: 16px 16px 4px;
   }
 
   .panel > .section-heading:first-child {
     padding-bottom: 8px;
   }
 
-  /* Optical centering: the compact header's visible content sits lower than its line boxes. */
-  .brand-button > div,
-  .brand-button > .mark,
-  .brand-button > .mobile-menu-cue {
-    transform: translateY(5px);
-  }
 }
 
 @media (max-width: 760px) {
@@ -8980,8 +8972,7 @@ summary:focus-visible {
   }
 
   .sidebar {
-    /* Keep the single closed-header row visually centered in the dark mobile rail. */
-    padding: 16px 12px 4px;
+    gap: 0;
   }
 
   /* Keep the compact header's icon, brand copy, and menu on one visual centerline. */

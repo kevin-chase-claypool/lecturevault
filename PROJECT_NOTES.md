@@ -10,7 +10,13 @@
 
 - The responsive stylesheet contained a late `translateY(5px)` adjustment and asymmetric sidebar padding that shifted the mobile/tablet brand row and menu control away from the header centerline.
 - Added a final responsive header contract that uses balanced rail padding, flex alignment, and no transform offset at widths below 1120px.
-- Navigation behavior, menu expansion, and workspace spacing are unchanged; this is a layout-only correction for tablet, phone, and split-screen widths.
+  - Navigation behavior, menu expansion, and workspace spacing are unchanged; this is a layout-only correction for tablet, phone, and split-screen widths.
+
+## 2026-07-28 - Remove Conflicting Responsive Header Rules
+
+- Removed the obsolete responsive `translateY(5px)` brand-row adjustment and duplicate asymmetric sidebar padding that remained earlier in `app/styles.css` after the header alignment fix.
+- The final responsive header contract is now the only rule responsible for compact header padding and vertical alignment, reducing cascade ambiguity across tablet, phone, and split-screen widths.
+- Navigation behavior, menu expansion, workspace spacing, and data flows are unchanged.
 
 ## Working Rule
 
