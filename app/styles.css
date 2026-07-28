@@ -11283,3 +11283,35 @@ input[type="range"] {
 :root[data-theme="dark"] .review-scope-list > *:hover {
   background: #243847 !important;
 }
+
+/* Final toast geometry contract. Keep transient status messages inside the
+   visible workspace and safe-area gutters at every responsive width. */
+.status.status-toast {
+  box-sizing: border-box !important;
+  max-width: min(680px, calc(100vw - 32px)) !important;
+}
+
+@media (min-width: 1121px) {
+  .status.status-toast {
+    left: calc(252px + (100vw - 252px) / 2) !important;
+    width: min(680px, calc(100vw - 284px)) !important;
+  }
+}
+
+@media (max-width: 1120px) {
+  .status.status-toast {
+    right: 16px !important;
+    bottom: max(12px, env(safe-area-inset-bottom)) !important;
+    left: 16px !important;
+    width: auto !important;
+    max-width: none !important;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .status.status-toast {
+    right: max(12px, env(safe-area-inset-right)) !important;
+    left: max(12px, env(safe-area-inset-left)) !important;
+  }
+}

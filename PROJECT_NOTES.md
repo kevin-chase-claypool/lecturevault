@@ -1580,3 +1580,9 @@ For archive organization changes, manually verify:
 - Explorer metadata, sort controls, review lists, and hover states now use consistent readable dark surfaces and light text while preserving gold active selections.
 - No routes, persistence behavior, media links, AI workflows, or archive data contracts changed.
 - Verification: Ontoly coverage/stats/dependency inspection, typecheck, production build, and `git diff --check` completed after this CSS-only change.
+
+## 2026-07-28 - Keep Status Toasts Inside Responsive Gutters
+
+- Added a final shared toast geometry contract so transient status messages remain fully visible instead of clipping at the viewport edge.
+- Desktop toasts center within the workspace column beside the fixed sidebar; tablet and phone toasts use safe-area-aware gutters and no horizontal transform.
+- Toast timing, messages, persistence, navigation, and API behavior are unchanged.
