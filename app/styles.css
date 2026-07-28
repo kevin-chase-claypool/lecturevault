@@ -10142,6 +10142,18 @@ body {
   white-space: nowrap;
 }
 
+/* Source-record passages may contain incomplete delimiters split across
+   timestamped rows. Keep their math inline and searchable instead of
+   creating display boxes that can dominate a compact row. */
+.source-transcript-markup .math-inline {
+  display: inline;
+  white-space: normal;
+}
+
+.source-transcript-markup .katex {
+  white-space: normal;
+}
+
 @media (max-width: 600px) {
   .source-transcript-list > button > time {
     flex-basis: 50px;

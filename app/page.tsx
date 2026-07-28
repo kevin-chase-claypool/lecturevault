@@ -657,7 +657,7 @@ function transcriptUsageLabel(transcript?: Transcript) {
   return "No AI reconstruction usage recorded. Text was pasted or saved manually.";
 }
 
-function renderMathMarkup(text: string) {
+function renderMathMarkup(text: string, inlineOnly = false) {
   const parts: Array<{ content: string; display: boolean; math: boolean }> = [];
   const pattern = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\$[^$\n]+?\$|\\\([\s\S]*?\\\))/g;
   const normalizedText = normalizeLatexEscapes(text);
@@ -686,10 +686,10 @@ function renderMathMarkup(text: string) {
     try {
       parts.push({
         content: katex.renderToString(content.trim(), {
-          displayMode: display,
+          displayMode: inlineOnly ? false : display,
           throwOnError: false
         }),
-        display,
+        display: inlineOnly ? false : display,
         math: true
       });
     } catch {
@@ -733,7 +733,7 @@ function MathPreview({ text }: { text: string }) {
 function SourceTranscriptMathPreview({ text }: { text: string }) {
   return (
     <div className="source-transcript-markup">
-      {renderMathMarkup(text).map((part, index) =>
+      {renderMathMarkup(text, true).map((part, index) =>
         part.math ? (
           part.display ? (
             <div
