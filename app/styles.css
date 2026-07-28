@@ -2753,6 +2753,7 @@ button.review-draft-button:disabled {
   grid-template-columns: 58px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: start;
+  height: auto;
   min-height: 54px;
   border: 0;
   border-bottom: 1px solid var(--border);
@@ -2782,11 +2783,30 @@ button.review-draft-button:disabled {
   font-weight: 900;
 }
 
-.source-transcript-list > button > span {
+.source-transcript-list > button > .source-transcript-text {
+  display: block;
   min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   color: var(--text);
   font-size: 0.82rem;
   line-height: 1.48;
+}
+
+.source-transcript-text .math-block {
+  clear: both;
+  max-width: 100%;
+  margin: 8px 0;
+  line-height: 1.25;
+}
+
+.source-transcript-text .katex-display {
+  max-width: 100%;
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
 }
 
 .source-transcript-list small {

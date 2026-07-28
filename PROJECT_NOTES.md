@@ -1,5 +1,11 @@
 # LectureVault Project Notes
 
+## 2026-07-28 - Prevent Math Overlap in Source Transcript Rows
+
+- Changed full transcript rows to use a block-level text container so rendered KaTeX/display equations participate in the row height correctly.
+- Added wrapping and equation overflow rules scoped to transcript rows, preventing long formulas and source passages from drawing over neighboring rows.
+- Preserved transcript selection, search, and audio cue behavior.
+
 ## 2026-07-28 - Align Source Disclosure Status Badges
 
 - Changed reconstruction source/context disclosure summaries from a flexible space-between row to a fixed three-column grid.
