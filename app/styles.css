@@ -11184,3 +11184,36 @@ input[type="range"] {
   background: transparent !important;
   color: var(--selection-text) !important;
 }
+
+/* Final responsive header contract: the compact brand row is centered by its
+   flex layout. Do not apply the older optical offset or uneven rail padding. */
+@media (max-width: 1120px) {
+  .sidebar,
+  .sidebar.mobile-menu-open {
+    align-items: stretch !important;
+    padding: 10px 16px !important;
+  }
+
+  .brand,
+  .brand-button {
+    align-items: center !important;
+  }
+
+  .brand-button {
+    min-height: 54px !important;
+    padding-block: 0 !important;
+  }
+
+  .brand-button > div,
+  .brand-button > .mark,
+  .brand-button > .mobile-menu-cue {
+    transform: none !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .sidebar,
+  .sidebar.mobile-menu-open {
+    padding-inline: 12px !important;
+  }
+}

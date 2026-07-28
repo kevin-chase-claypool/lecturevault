@@ -6,6 +6,12 @@
 - Added a final theme-layer override so selected rows, folders, review sources, and explorer items consistently use the gold border/background/text treatment in dark mode.
 - Native text selection, checkboxes, and audio range controls now use the same gold selection accent. This changes presentation only; archive selection and data behavior are unchanged.
 
+## 2026-07-28 - Normalize Responsive Header Alignment
+
+- The responsive stylesheet contained a late `translateY(5px)` adjustment and asymmetric sidebar padding that shifted the mobile/tablet brand row and menu control away from the header centerline.
+- Added a final responsive header contract that uses balanced rail padding, flex alignment, and no transform offset at widths below 1120px.
+- Navigation behavior, menu expansion, and workspace spacing are unchanged; this is a layout-only correction for tablet, phone, and split-screen widths.
+
 ## Working Rule
 
 Update this file after every code change. Keep it current with what changed, why it changed, how to verify it, and what remains unresolved.
