@@ -149,10 +149,18 @@ export async function DELETE(request: Request) {
     );
   }
 
-  const body = (await request.json()) as { paths?: string[] };
-  const paths = Array.isArray(body.paths)
-    ? body.paths.filter((path) => typeof path === "string" && path.trim())
-    : [];
+  let body: unknown;
+
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Delete payload must be valid JSON." }, { status: 400 });
+  }
+
+  const paths =
+    body && typeof body === "object" && !Array.isArray(body) && "paths" in body && Array.isArray(body.paths)
+      ? body.paths.filter((path): path is string => typeof path === "string" && path.trim().length > 0)
+      : [];
 
   if (!paths.length) {
     return Response.json({ error: "Select at least one media object." }, { status: 400 });

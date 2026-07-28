@@ -16,6 +16,10 @@ function safeName(value: string) {
   );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
 export async function POST(request: Request) {
   const unauthorized = requireAuthenticatedRequest(request);
 
@@ -36,14 +40,23 @@ export async function POST(request: Request) {
     return Response.json({ error: bucketError }, { status: 500 });
   }
 
-  const body = (await request.json()) as {
-    fileName?: string;
-    lectureId?: string;
-    mediaId?: string;
-  };
-  const lectureId = safeName(body.lectureId || "lecture");
-  const mediaId = safeName(body.mediaId || crypto.randomUUID());
-  const fileName = safeName(body.fileName || "media");
+  let body: Record<string, unknown>;
+
+  try {
+    const parsed = await request.json();
+
+    if (!isRecord(parsed)) {
+      return Response.json({ error: "Upload payload must be an object." }, { status: 400 });
+    }
+
+    body = parsed;
+  } catch {
+    return Response.json({ error: "Upload payload must be valid JSON." }, { status: 400 });
+  }
+
+  const lectureId = safeName(typeof body.lectureId === "string" ? body.lectureId : "lecture");
+  const mediaId = safeName(typeof body.mediaId === "string" ? body.mediaId : crypto.randomUUID());
+  const fileName = safeName(typeof body.fileName === "string" ? body.fileName : "media");
   const path = `lectures/${lectureId}/${mediaId}-${fileName}`;
   const { data, error } = await client.storage
     .from(SUPABASE_MEDIA_BUCKET)

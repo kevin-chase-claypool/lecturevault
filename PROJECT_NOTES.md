@@ -1518,3 +1518,10 @@ For archive organization changes, manually verify:
 - This prevents arbitrary top-level payload fields from entering the shared Supabase state row on the initial legacy insert path, reducing schema drift and accidental persistence of unsupported data.
 - Added validation for `expectedUpdatedAt`; malformed or empty optimistic-concurrency timestamps now receive a clear `400` response instead of reaching the database filter.
 - The route still accepts the existing full-state client contract, but stores only supported collection arrays. Patch-based writes remain the preferred path.
+
+## 2026-07-28 - Harden Media Request Parsing
+
+- Hardened `app/api/media/signed-upload/route.ts` so malformed JSON, non-object payloads, and non-string upload identifiers return clear `400` responses or safe defaults instead of causing runtime exceptions.
+- Hardened `app/api/media/objects/route.ts` deletion parsing so malformed JSON is rejected explicitly before reference checks or Storage operations run.
+- Upload behavior, Supabase paths, signed URLs, and reference-protected deletion behavior are unchanged for valid requests.
+- Verification also covers strict TypeScript narrowing for filtered deletion paths.
