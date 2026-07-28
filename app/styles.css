@@ -5028,9 +5028,9 @@ input[type="range"] {
 }
 
 .capture-disclosure > summary {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 12px;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   min-height: 54px;
   padding: 10px 12px;
@@ -5044,7 +5044,8 @@ input[type="range"] {
 
 .capture-disclosure > summary::after {
   content: "+";
-  flex: 0 0 auto;
+  grid-column: 3;
+  justify-self: end;
   color: var(--primary-dark);
   font-size: 1.1rem;
   font-weight: 900;
@@ -5081,7 +5082,8 @@ input[type="range"] {
 }
 
 .disclosure-state {
-  flex: 0 0 auto;
+  grid-column: 2;
+  justify-self: center;
   border: 1px solid #c5dae9;
   border-radius: 999px;
   padding: 4px 7px;

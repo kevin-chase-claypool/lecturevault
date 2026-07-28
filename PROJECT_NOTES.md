@@ -1,5 +1,11 @@
 # LectureVault Project Notes
 
+## 2026-07-28 - Align Source Disclosure Status Badges
+
+- Changed reconstruction source/context disclosure summaries from a flexible space-between row to a fixed three-column grid.
+- Optional/Added status badges now share one aligned column across Android sharing, typed notes, and AI instruction panels, while the expand control remains at the far edge.
+- No workflow, state, data, or responsive behavior was changed beyond the row alignment.
+
 ## 2026-07-28 - Visually Verify Math-Risk Textbook Pages Once
 
 - Strengthened textbook ingestion for mathematics-heavy courses with a conservative math-risk detector that recognizes LaTeX commands, equation operators, indexed variables, and multiple equation-like lines.
