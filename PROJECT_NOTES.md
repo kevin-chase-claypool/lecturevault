@@ -24,6 +24,12 @@
 - Added a narrower phone variant for long media names without removing searchable or sortable metadata.
 - This is a presentation-only correction; Supabase objects, media links, selection state, and file-management behavior are unchanged.
 
+## 2026-07-28 - Align Media Explorer Headers With Rows
+
+- Added the same final responsive grid contract to the Media Library header and body rows at tablet, phone, and narrow-phone widths.
+- Date and size headings now remain aligned with their corresponding file metadata instead of retaining desktop column widths.
+- Search, sorting, selection, drag-and-drop, Supabase links, and file-management behavior are unchanged.
+
 ## Working Rule
 
 Update this file after every code change. Keep it current with what changed, why it changed, how to verify it, and what remains unresolved.
