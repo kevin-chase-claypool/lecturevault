@@ -11314,4 +11314,48 @@ input[type="range"] {
     right: max(12px, env(safe-area-inset-right)) !important;
     left: max(12px, env(safe-area-inset-left)) !important;
   }
+
+  /* Keep every explorer row inside its panel on phone and tablet widths. */
+  .lecture-list.explorer-list,
+  .storage-explorer-list,
+  .review-file-list,
+  .review-viewer-list {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  .lecture-list-header,
+  .lecture-list-row.explorer-row,
+  .storage-explorer-header,
+  .storage-row.explorer-row,
+  .review-file-header,
+  .review-file-row,
+  .review-viewer-list-row {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .lecture-list-row.explorer-row > *,
+  .storage-row.explorer-row > *,
+  .review-file-row > *,
+  .review-viewer-list-row > * {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .lecture-list-row.explorer-row .explorer-row-name,
+  .storage-row.explorer-row .storage-check span,
+  .review-file-row strong,
+  .review-viewer-list-row strong,
+  .review-viewer-list-row small,
+  .review-viewer-list-row time {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
 }

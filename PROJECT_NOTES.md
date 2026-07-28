@@ -1586,3 +1586,9 @@ For archive organization changes, manually verify:
 - Added a final shared toast geometry contract so transient status messages remain fully visible instead of clipping at the viewport edge.
 - Desktop toasts center within the workspace column beside the fixed sidebar; tablet and phone toasts use safe-area-aware gutters and no horizontal transform.
 - Toast timing, messages, persistence, navigation, and API behavior are unchanged.
+
+## 2026-07-28 - Keep Narrow Explorer Rows Readable
+
+- Added a final shared narrow-screen contract for Vault, Media Library, Reviews, Past Reviews, and study navigation explorers.
+- Explorer lists now suppress horizontal spill, constrain every cell to its panel, and apply predictable ellipsis to long names and metadata without removing date or size information.
+- No archive selection, sorting, drag-and-drop, folder, media, review, or persistence behavior changed.
