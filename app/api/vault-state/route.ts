@@ -1,5 +1,6 @@
 import { requireAuthenticatedRequest } from "../../../lib/auth";
 import { supabaseServerClient } from "../../../lib/supabase-server";
+import { stableSerialize } from "../../../lib/state-sync";
 
 export const runtime = "nodejs";
 
@@ -57,7 +58,7 @@ function legacyStatePatch(currentState: unknown, nextState: unknown): StatePatch
     const nextItems = next[key];
     if (!nextItems) continue;
 
-    if (JSON.stringify(current[key] ?? []) !== JSON.stringify(nextItems)) {
+    if (stableSerialize(current[key] ?? []) !== stableSerialize(nextItems)) {
       patch[key] = nextItems;
     }
   }
@@ -127,11 +128,23 @@ export async function PUT(request: Request) {
     );
   }
 
-  const body = (await request.json()) as {
+  let body: {
     expectedUpdatedAt?: string | null;
     state?: unknown;
     patch?: unknown;
   };
+
+  try {
+    const parsed = await request.json();
+
+    if (!isRecord(parsed)) {
+      return Response.json({ error: "State payload must be an object." }, { status: 400 });
+    }
+
+    body = parsed as typeof body;
+  } catch {
+    return Response.json({ error: "State payload must be valid JSON." }, { status: 400 });
+  }
 
   if (!body) {
     return Response.json({ error: "State payload is required." }, { status: 400 });

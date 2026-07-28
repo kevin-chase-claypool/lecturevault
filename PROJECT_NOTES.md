@@ -1497,3 +1497,10 @@ For archive organization changes, manually verify:
 - When a legacy request includes `expectedUpdatedAt`, the API now compares the known collection arrays against the current server row, derives a collection-scoped patch, and merges only those changed collections under the existing compare-and-swap check.
 - This preserves unrelated changes made on another device and makes the compatibility path follow the same collection-level safety contract as the current client.
 - Verification: Ontoly route/dependency reports, `git diff --check`, `npm run typecheck`, and `npm run build` completed. Commit `7b6d10b` was pushed to `main`; Vercel production deployment `dpl_DnJHPA8oaT3mb4xEtzXvyKhb4bYL` is ready and aliased to `https://l3cturevault.vercel.app`.
+
+## 2026-07-28 - Harden State Request Parsing
+
+- Reused the canonical stable serializer in the legacy full-state compatibility path, so object-key ordering cannot create false collection changes during a cross-device save.
+- `/api/vault-state` now rejects malformed JSON and non-object request bodies with a clear `400` response instead of allowing parsing failures to become an opaque server error.
+- The state schema, compare-and-swap behavior, collection patch contract, and client workflow are unchanged.
+- Verification: Ontoly coverage/stats/architecture reports, `git diff --check`, `npm run typecheck`, and `npm run build` completed; production deployment and endpoint checks follow this note update.
