@@ -1900,6 +1900,7 @@ export default function LectureVaultApp() {
   const [selectedStorageFolderId, setSelectedStorageFolderId] = useState("all");
   const [storageFolderName, setStorageFolderName] = useState("");
   const [isStorageLoading, setIsStorageLoading] = useState(false);
+  const stateRef = useRef(state);
   const stateJsonRef = useRef(stableSerialize(state));
   const cloudBaseStateRef = useRef<VaultState>(state);
   const skipNextCloudSaveRef = useRef(false);
@@ -2079,6 +2080,8 @@ export default function LectureVaultApp() {
     }
 
     let active = true;
+    const localStateAtLoadStart = stateRef.current;
+    const localStateJsonAtLoadStart = stableSerialize(localStateAtLoadStart);
 
     async function loadCloudState() {
       try {
@@ -2111,11 +2114,28 @@ export default function LectureVaultApp() {
         setCloudUpdatedAt(data.updatedAt || "");
 
         if (data.state) {
-          const nextState = normalizeState(data.state);
-          cloudBaseStateRef.current = nextState;
-          skipNextCloudSaveRef.current = true;
-          setState(nextState);
-          setStatus("Archive synced from Supabase.");
+          const remoteState = normalizeState(data.state);
+          const currentLocalState = stateRef.current;
+          const localChangedDuringLoad =
+            stableSerialize(currentLocalState) !== localStateJsonAtLoadStart;
+
+          if (localChangedDuringLoad) {
+            const mergedState = mergeCollectionState(
+              localStateAtLoadStart,
+              currentLocalState,
+              remoteState,
+              vaultStateCollections,
+              normalizeState
+            );
+            cloudBaseStateRef.current = remoteState;
+            setState(mergedState);
+            setStatus("Archive loaded. Local changes were merged and will sync.");
+          } else {
+            cloudBaseStateRef.current = remoteState;
+            skipNextCloudSaveRef.current = true;
+            setState(remoteState);
+            setStatus("Archive synced from Supabase.");
+          }
         } else if (stateHasUserData(state)) {
           setStatus("Supabase archive is empty. Uploading this browser's archive.");
         } else {
@@ -2144,6 +2164,7 @@ export default function LectureVaultApp() {
   }, [authStatus]);
 
   useEffect(() => {
+    stateRef.current = state;
     stateJsonRef.current = stableSerialize(state);
   }, [state]);
 

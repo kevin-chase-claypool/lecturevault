@@ -1504,3 +1504,11 @@ For archive organization changes, manually verify:
 - `/api/vault-state` now rejects malformed JSON and non-object request bodies with a clear `400` response instead of allowing parsing failures to become an opaque server error.
 - The state schema, compare-and-swap behavior, collection patch contract, and client workflow are unchanged.
 - Verification: Ontoly coverage/stats/architecture reports, `git diff --check`, `npm run typecheck`, and `npm run build` completed; production deployment and endpoint checks follow this note update.
+
+## 2026-07-28 - Preserve Edits During Initial Cloud Load
+
+- Hardened the initial Supabase load in `app/page.tsx` against a cross-device startup race.
+- If a user changes the local archive while the first cloud-state request is still in flight, the returned remote snapshot is now three-way merged with those local edits instead of replacing them.
+- Unchanged local startup state still adopts the remote snapshot directly, while merged local edits remain eligible for the normal collection-scoped save path.
+- The storage schema, media links, AI workflows, and existing conflict behavior are unchanged.
+- Verification: Ontoly coverage/stats/dependency reports, `git diff --check`, typecheck, production build, commit/push, and Vercel deployment follow this note update.
