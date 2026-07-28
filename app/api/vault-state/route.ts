@@ -5,6 +5,48 @@ export const runtime = "nodejs";
 
 const TABLE_NAME = "lecturevault_state";
 const ROW_ID = process.env.LECTUREVAULT_STATE_ID?.trim() || "default";
+const STATE_COLLECTION_KEYS = [
+  "courses",
+  "archiveFolders",
+  "lectures",
+  "mediaItems",
+  "mediaLibraryFolders",
+  "mediaLibraryPlacements",
+  "textbooks",
+  "textbookChunks",
+  "transcripts",
+  "concepts",
+  "exams",
+  "reviewFolders",
+  "examItems",
+  "studyGuides",
+  "reconstructionDrafts"
+] as const;
+
+type StatePatch = Partial<Record<(typeof STATE_COLLECTION_KEYS)[number], unknown[]>>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function sanitizeStatePatch(input: unknown): StatePatch {
+  if (!isRecord(input)) return {};
+
+  const patch: StatePatch = {};
+  for (const key of STATE_COLLECTION_KEYS) {
+    if (Array.isArray(input[key])) {
+      patch[key] = input[key];
+    }
+  }
+  return patch;
+}
+
+function mergeStatePatch(currentState: unknown, patch: StatePatch) {
+  return {
+    ...(isRecord(currentState) ? currentState : {}),
+    ...patch
+  };
+}
 
 async function readCurrentState(client: NonNullable<ReturnType<typeof supabaseServerClient>>) {
   const { data, error } = await client
@@ -71,9 +113,18 @@ export async function PUT(request: Request) {
   const body = (await request.json()) as {
     expectedUpdatedAt?: string | null;
     state?: unknown;
+    patch?: unknown;
   };
 
-  if (!body || typeof body.state !== "object" || body.state === null) {
+  if (!body) {
+    return Response.json({ error: "State payload is required." }, { status: 400 });
+  }
+
+  const patch = sanitizeStatePatch(body.patch);
+  const hasPatch = Object.keys(patch).length > 0;
+  const hasFullState = isRecord(body.state);
+
+  if (!hasPatch && !hasFullState) {
     return Response.json({ error: "State payload is required." }, { status: 400 });
   }
 
@@ -82,9 +133,13 @@ export async function PUT(request: Request) {
 
   try {
     if (expectedUpdatedAt) {
+      const current = hasPatch ? await readCurrentState(client) : null;
+      const nextState = hasPatch
+        ? mergeStatePatch(current?.state, patch)
+        : body.state;
       const { data, error } = await client
         .from(TABLE_NAME)
-        .update({ data: body.state, updated_at: updatedAt })
+        .update({ data: nextState, updated_at: updatedAt })
         .eq("id", ROW_ID)
         .eq("updated_at", expectedUpdatedAt)
         .select("updated_at")
@@ -98,9 +153,10 @@ export async function PUT(request: Request) {
         return Response.json({ configured: true, updatedAt: data.updated_at });
       }
     } else {
+      const initialState = hasPatch ? patch : body.state;
       const { data, error } = await client
         .from(TABLE_NAME)
-        .insert({ data: body.state, id: ROW_ID, updated_at: updatedAt })
+        .insert({ data: initialState, id: ROW_ID, updated_at: updatedAt })
         .select("updated_at")
         .maybeSingle();
 

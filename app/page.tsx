@@ -1802,6 +1802,14 @@ function stateHasUserData(state: VaultState) {
   );
 }
 
+function statePatchFrom(base: VaultState, current: VaultState) {
+  return Object.fromEntries(
+    vaultStateCollections
+      .filter((key) => stableSerialize(base[key]) !== stableSerialize(current[key]))
+      .map((key) => [key, current[key]])
+  ) as Partial<VaultState>;
+}
+
 export default function LectureVaultApp() {
   const [state, setState] = useState<VaultState>(() => loadState());
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -2161,6 +2169,11 @@ export default function LectureVaultApp() {
       return;
     }
 
+    const patch = statePatchFrom(cloudBaseStateRef.current, state);
+    if (Object.keys(patch).length === 0) {
+      return;
+    }
+
     // Track queued and in-flight writes separately. A debounced timer can be
     // cancelled while an older request is still running, and an older response
     // must never move the client back to an obsolete remote revision.
@@ -2177,7 +2190,7 @@ export default function LectureVaultApp() {
         const response = await fetch("/api/vault-state", {
           body: JSON.stringify({
             expectedUpdatedAt: cloudUpdatedAt || null,
-            state
+            patch
           }),
           credentials: "include",
           headers: {

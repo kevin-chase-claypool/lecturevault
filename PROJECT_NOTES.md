@@ -1481,4 +1481,12 @@ For archive organization changes, manually verify:
 - Background polling now pauses while either a save is queued or any save request is in flight, preventing an intermediate remote snapshot from replacing local changes during the save window.
 - Exported and reused `stableSerialize` from `lib/state-sync.ts` for client state comparisons, eliminating false pull updates caused only by object-key ordering.
 - The underlying single-row JSON state and CAS API remain unchanged; this reduces client-side race risk without requiring a schema migration.
-- Verification pending: typecheck, production build, Ontoly re-check, commit, push, and production deployment.
+- Verification: the client race fix was verified with Ontoly coverage/stats/architecture, typecheck, production build, and `git diff --check`. Commit, push, and production deployment completed.
+
+## 2026-07-28 - Send Collection-Scoped Cloud Patches
+
+- Ontoly graph `1lefn2z` confirmed that `app/page.tsx` remains the highest-degree module and that `/api/vault-state` is the shared persistence boundary.
+- Added a backward-compatible `patch` payload to `/api/vault-state`. It accepts only known VaultState collection arrays and merges them into the current row under the existing compare-and-swap timestamp, so one device no longer replaces unrelated collections changed by another device.
+- The client now compares local state with its last cloud baseline and sends only changed collections. Existing full `state` payloads remain supported for compatibility and the database schema is unchanged.
+- This reduces the blast radius of concurrent course, lecture, media, folder, textbook, reconstruction, and review edits while retaining the existing conflict merge behavior.
+- Verification: Ontoly coverage/stats/architecture re-check, `npm run build`, `npm run typecheck`, and `git diff --check` passed. Commit, push, and production deployment are next.
