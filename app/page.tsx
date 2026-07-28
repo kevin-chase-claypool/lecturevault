@@ -730,6 +730,32 @@ function MathPreview({ text }: { text: string }) {
   );
 }
 
+function SourceTranscriptMathPreview({ text }: { text: string }) {
+  return (
+    <div className="source-transcript-markup">
+      {renderMathMarkup(text).map((part, index) =>
+        part.math ? (
+          part.display ? (
+            <div
+              className="source-transcript-equation"
+              dangerouslySetInnerHTML={{ __html: part.content }}
+              key={`${part.content}-${index}`}
+            />
+          ) : (
+            <span
+              className="math-inline"
+              dangerouslySetInnerHTML={{ __html: part.content }}
+              key={`${part.content}-${index}`}
+            />
+          )
+        ) : (
+          <span key={`${part.content}-${index}`}>{part.content}</span>
+        )
+      )}
+    </div>
+  );
+}
+
 function normalizeLatexEscapes(text: string) {
   return text
     .replace(/\\\\(?=[()[\]])/g, "\\")
@@ -9048,11 +9074,9 @@ function LectureDetail({
                       <time>
                         {hasAudioCue ? formatSeconds(segment.startSeconds) : "Source"}
                       </time>
-        <div className="source-transcript-text">
-          <div className="source-transcript-rendered">
-            <MathPreview text={segment.text} />
-          </div>
-        </div>
+                      <div className="source-transcript-text">
+                        <SourceTranscriptMathPreview text={segment.text} />
+                      </div>
                       {hasAudioCue ? <small>Play audio</small> : null}
                     </button>
                   );

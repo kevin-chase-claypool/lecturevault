@@ -1,5 +1,11 @@
 # LectureVault Project Notes
 
+## 2026-07-28 - Isolate Full Transcript Equation Flow
+
+- Added a dedicated source-transcript math renderer that uses real block elements for display equations instead of relying on inline spans inside grid buttons.
+- Reworked full-transcript rows into a wrapping flex layout with bounded equation overflow, preventing KaTeX from painting across adjacent source passages on mobile and narrow screens.
+- Kept the general `MathPreview` renderer unchanged so reconstruction, review, and other KaTeX surfaces retain their existing behavior.
+
 ## 2026-07-28 - Use Dedicated Flow for Full Transcript Math
 
 - Added a dedicated rendered-content wrapper inside Reconstruction Detail transcript rows so plain text and display equations flow vertically without overlapping adjacent source passages.

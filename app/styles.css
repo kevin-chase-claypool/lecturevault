@@ -10059,6 +10059,101 @@ body {
   border-color: #31495b;
 }
 
+/* Full transcripts can contain long display equations. Keep each source row
+   in normal document flow so KaTeX cannot paint across neighboring rows. */
+.source-transcript-list > button {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  min-width: 0;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.source-transcript-list > button > time {
+  flex: 0 0 58px;
+  width: 58px;
+  min-width: 0;
+}
+
+.source-transcript-list > button > .source-transcript-text {
+  flex: 1 1 calc(100% - 68px);
+  width: auto;
+  min-width: 0;
+  max-width: calc(100% - 68px);
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.source-transcript-markup {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.source-transcript-markup > .source-transcript-equation {
+  display: block !important;
+  position: relative !important;
+  float: none !important;
+  clear: both;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 8px 0;
+  padding: 8px 10px;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.source-transcript-markup > .source-transcript-equation .katex-display {
+  display: block !important;
+  position: static !important;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0;
+  overflow: visible !important;
+}
+
+.source-transcript-markup > .source-transcript-equation .katex-display > .katex {
+  display: inline-block;
+  position: static !important;
+  height: auto !important;
+  min-height: 0 !important;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .source-transcript-list > button > time {
+    flex-basis: 50px;
+    width: 50px;
+  }
+
+  .source-transcript-list > button > .source-transcript-text {
+    flex-basis: calc(100% - 60px);
+    max-width: calc(100% - 60px);
+  }
+}
+
 :root[data-theme="dark"] .review-figure,
 :root[data-theme="dark"] .review-figure-content > a,
 :root[data-theme="dark"] .review-figure-missing {
