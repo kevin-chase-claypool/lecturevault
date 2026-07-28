@@ -735,19 +735,11 @@ function SourceTranscriptMathPreview({ text }: { text: string }) {
     <div className="source-transcript-markup">
       {renderMathMarkup(text, true).map((part, index) =>
         part.math ? (
-          part.display ? (
-            <div
-              className="source-transcript-equation"
-              dangerouslySetInnerHTML={{ __html: part.content }}
-              key={`${part.content}-${index}`}
-            />
-          ) : (
-            <span
-              className="math-inline"
-              dangerouslySetInnerHTML={{ __html: part.content }}
-              key={`${part.content}-${index}`}
-            />
-          )
+          <span
+            className="math-inline"
+            dangerouslySetInnerHTML={{ __html: part.content }}
+            key={`${part.content}-${index}`}
+          />
         ) : (
           <span key={`${part.content}-${index}`}>{part.content}</span>
         )

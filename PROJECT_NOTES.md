@@ -11,6 +11,11 @@
 - Changed only the compact Full Transcript source-record list to render recognized formulas inline, preventing incomplete or split delimiters from producing oversized KaTeX display boxes that overlap neighboring passages.
 - Preserved display-mode KaTeX for reconstruction artifacts, review output, and other study views where complete equations are available.
 
+## 2026-07-28 - Prevent Source Transcript Display Fragments
+
+- Removed the remaining display-equation branch from compact Full Transcript rows so split or incomplete source delimiters cannot create block-level equation containers inside neighboring passages.
+- Reconstruction and review artifact rendering still retain their existing display-equation behavior.
+
 ## 2026-07-28 - Use Dedicated Flow for Full Transcript Math
 
 - Added a dedicated rendered-content wrapper inside Reconstruction Detail transcript rows so plain text and display equations flow vertically without overlapping adjacent source passages.
