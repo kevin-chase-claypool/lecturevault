@@ -48,6 +48,23 @@ function mergeStatePatch(currentState: unknown, patch: StatePatch) {
   };
 }
 
+function legacyStatePatch(currentState: unknown, nextState: unknown): StatePatch {
+  const current = isRecord(currentState) ? currentState : {};
+  const next = sanitizeStatePatch(nextState);
+  const patch: StatePatch = {};
+
+  for (const key of STATE_COLLECTION_KEYS) {
+    const nextItems = next[key];
+    if (!nextItems) continue;
+
+    if (JSON.stringify(current[key] ?? []) !== JSON.stringify(nextItems)) {
+      patch[key] = nextItems;
+    }
+  }
+
+  return patch;
+}
+
 async function readCurrentState(client: NonNullable<ReturnType<typeof supabaseServerClient>>) {
   const { data, error } = await client
     .from(TABLE_NAME)
@@ -133,10 +150,11 @@ export async function PUT(request: Request) {
 
   try {
     if (expectedUpdatedAt) {
-      const current = hasPatch ? await readCurrentState(client) : null;
-      const nextState = hasPatch
-        ? mergeStatePatch(current?.state, patch)
-        : body.state;
+      const current = await readCurrentState(client);
+      const effectivePatch = hasPatch
+        ? patch
+        : legacyStatePatch(current.state, body.state);
+      const nextState = mergeStatePatch(current.state, effectivePatch);
       const { data, error } = await client
         .from(TABLE_NAME)
         .update({ data: nextState, updated_at: updatedAt })

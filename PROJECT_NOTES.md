@@ -1490,3 +1490,10 @@ For archive organization changes, manually verify:
 - The client now compares local state with its last cloud baseline and sends only changed collections. Existing full `state` payloads remain supported for compatibility and the database schema is unchanged.
 - This reduces the blast radius of concurrent course, lecture, media, folder, textbook, reconstruction, and review edits while retaining the existing conflict merge behavior.
 - Verification: Ontoly coverage/stats/architecture re-check, `npm run build`, `npm run typecheck`, and `git diff --check` passed. Commit `eeca04a` was pushed to `main`, and the production deployment completed successfully.
+
+## 2026-07-28 - Make Legacy State Writes Collection-Safe
+
+- Kept backward compatibility for older open/PWA clients that still send a full `state` payload to `/api/vault-state`, but stopped treating that payload as a wholesale replacement.
+- When a legacy request includes `expectedUpdatedAt`, the API now compares the known collection arrays against the current server row, derives a collection-scoped patch, and merges only those changed collections under the existing compare-and-swap check.
+- This preserves unrelated changes made on another device and makes the compatibility path follow the same collection-level safety contract as the current client.
+- Verification: Ontoly route/dependency reports, `git diff --check`, `npm run typecheck`, and `npm run build` completed for this change. Commit and production deployment follow this note update.
