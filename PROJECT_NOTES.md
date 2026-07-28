@@ -1465,3 +1465,11 @@ For archive organization changes, manually verify:
 - Standardized dark explorer rows and metadata cells so filenames, dates, sizes, and selected states remain readable across Vault, Media Library, Reviews, Past Reviews, and study navigation.
 - Prevented hover rules from replacing the gold active/selected treatment with competing teal or blue surfaces.
 - Kept this change at the shared CSS layer; routes, Supabase state, media links, AI workflows, and stored data contracts are unchanged.
+
+## 2026-07-28 - Make Concurrent Archive Deletions Non-Resurrecting
+
+- Hardened `lib/state-sync.ts`, the shared three-way merge boundary used when Supabase compare-and-swap reports a concurrent update.
+- Collection comparisons now use stable object-key ordering, avoiding false conflicts caused only by JSON property order.
+- When both devices changed the same record and one side deleted it, the deletion now wins instead of falling back to the other device's stale record. This prevents deleted lectures, media references, folders, courses, or reviews from unexpectedly reappearing after a cross-device conflict.
+- Concurrent edit/edit conflicts retain the existing local-preference behavior; unrelated additions and changes still merge by record ID.
+- Verification pending: typecheck, production build, Ontoly re-check, commit, push, and production deployment.
