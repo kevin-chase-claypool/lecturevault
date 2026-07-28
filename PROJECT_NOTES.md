@@ -1525,3 +1525,9 @@ For archive organization changes, manually verify:
 - Hardened `app/api/media/objects/route.ts` deletion parsing so malformed JSON is rejected explicitly before reference checks or Storage operations run.
 - Upload behavior, Supabase paths, signed URLs, and reference-protected deletion behavior are unchanged for valid requests.
 - Verification also covers strict TypeScript narrowing for filtered deletion paths.
+
+## 2026-07-28 - Constrain Media Read Bucket Access
+
+- Ontoly impact analysis identified `lib/supabase-server.ts` as a shared boundary for all media and document routes. The media read and signed-read endpoints now enforce the configured `SUPABASE_MEDIA_BUCKET` instead of accepting arbitrary bucket names from authenticated requests.
+- Signed-read requests now reject malformed JSON and non-object payloads with clear `400` responses, and invalid individual objects are ignored safely.
+- Valid media links, signed URL paths, authentication, and the existing seven-day URL lifetime are unchanged.

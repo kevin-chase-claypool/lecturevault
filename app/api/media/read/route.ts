@@ -15,7 +15,16 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const path = url.searchParams.get("path")?.trim();
-  const bucket = url.searchParams.get("bucket")?.trim() || SUPABASE_MEDIA_BUCKET;
+  const requestedBucket = url.searchParams.get("bucket")?.trim();
+
+  if (requestedBucket && requestedBucket !== SUPABASE_MEDIA_BUCKET) {
+    return Response.json(
+      { error: "Only the configured LectureVault media bucket is available." },
+      { status: 400 }
+    );
+  }
+
+  const bucket = SUPABASE_MEDIA_BUCKET;
 
   if (!path) {
     return Response.json({ error: "Media path is required." }, { status: 400 });

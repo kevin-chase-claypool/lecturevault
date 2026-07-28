@@ -38,14 +38,38 @@ export async function POST(request: Request) {
     );
   }
 
+  let body: unknown;
+
   try {
-    const body = (await request.json()) as { objects?: StorageObjectRequest[] };
-    const objects = Array.isArray(body.objects) ? body.objects.slice(0, MAX_OBJECTS_PER_REQUEST) : [];
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Source-link payload must be valid JSON." }, { status: 400 });
+  }
+
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return Response.json({ error: "Source-link payload must be an object." }, { status: 400 });
+  }
+
+  try {
+    const objects = Array.isArray((body as { objects?: unknown }).objects)
+      ? (body as { objects: unknown[] }).objects.slice(0, MAX_OBJECTS_PER_REQUEST)
+      : [];
     const urls: Record<string, string> = {};
 
     for (const object of objects) {
-      const path = cleanString(object.path);
-      const bucket = cleanString(object.bucket) || SUPABASE_MEDIA_BUCKET;
+      if (!object || typeof object !== "object" || Array.isArray(object)) {
+        continue;
+      }
+
+      const record = object as StorageObjectRequest;
+      const path = cleanString(record.path);
+      const requestedBucket = cleanString(record.bucket);
+
+      if (requestedBucket && requestedBucket !== SUPABASE_MEDIA_BUCKET) {
+        continue;
+      }
+
+      const bucket = SUPABASE_MEDIA_BUCKET;
 
       if (!path) {
         continue;
