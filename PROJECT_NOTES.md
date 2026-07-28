@@ -1,5 +1,11 @@
 # LectureVault Project Notes
 
+## 2026-07-28 - Unify Explorer Selection Contrast
+
+- Ontoly/source inspection and the responsive UI audit found a CSS cascade conflict: later dark-mode explorer surface rules could override the gold selected-state treatment used by Vault, Media Library, Reviews, and Past Reviews.
+- Added a final theme-layer override so selected rows, folders, review sources, and explorer items consistently use the gold border/background/text treatment in dark mode.
+- Native text selection, checkboxes, and audio range controls now use the same gold selection accent. This changes presentation only; archive selection and data behavior are unchanged.
+
 ## Working Rule
 
 Update this file after every code change. Keep it current with what changed, why it changed, how to verify it, and what remains unresolved.

@@ -11141,3 +11141,46 @@ summary:focus-visible {
   max-width: min(560px, calc(100vw - 24px)) !important;
   overflow-wrap: anywhere;
 }
+
+/* The final theme layer owns selected rows. Earlier dark explorer surfaces
+   intentionally set a neutral base background, but must not override an
+   active gold selection. */
+::selection {
+  background: rgba(215, 169, 47, 0.28);
+  color: var(--selection-text);
+}
+
+input[type="checkbox"],
+input[type="range"] {
+  accent-color: var(--selection-border);
+}
+
+:root[data-theme="dark"] .storage-row.explorer-row.selected,
+:root[data-theme="dark"] .lecture-list-row.explorer-row.selected,
+:root[data-theme="dark"] .review-file-row.active,
+:root[data-theme="dark"] .review-viewer-list-row.selected,
+:root[data-theme="dark"] .lecture-study-list > button.selected,
+:root[data-theme="dark"] .storage-folder-button.active,
+:root[data-theme="dark"] .review-scope-row.selected,
+:root[data-theme="dark"] .explorer-item.selected,
+:root[data-theme="dark"] .archive-folder-tree summary.active,
+:root[data-theme="dark"] .archive-folder-tree button.active,
+:root[data-theme="dark"] .review-folder-tree summary.active,
+:root[data-theme="dark"] .review-folder-tree button.active {
+  background: var(--selection-bg) !important;
+  border-color: var(--selection-border) !important;
+  color: var(--selection-text) !important;
+  box-shadow: inset 3px 0 0 var(--selection-border) !important;
+}
+
+:root[data-theme="dark"] .storage-row.explorer-row.selected > *,
+:root[data-theme="dark"] .lecture-list-row.explorer-row.selected > *,
+:root[data-theme="dark"] .review-file-row.active > *,
+:root[data-theme="dark"] .review-viewer-list-row.selected > *,
+:root[data-theme="dark"] .lecture-study-list > button.selected > *,
+:root[data-theme="dark"] .storage-folder-button.active > *,
+:root[data-theme="dark"] .review-scope-row.selected > *,
+:root[data-theme="dark"] .explorer-item.selected > * {
+  background: transparent !important;
+  color: var(--selection-text) !important;
+}
