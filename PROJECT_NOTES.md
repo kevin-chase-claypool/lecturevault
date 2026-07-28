@@ -1512,3 +1512,9 @@ For archive organization changes, manually verify:
 - Unchanged local startup state still adopts the remote snapshot directly, while merged local edits remain eligible for the normal collection-scoped save path.
 - The storage schema, media links, AI workflows, and existing conflict behavior are unchanged.
 - Verification: Ontoly coverage/stats/dependency reports, `git diff --check`, typecheck, production build, commit/push, and Vercel deployment follow this note update.
+## 2026-07-28 - Constrain Legacy State Payloads
+
+- Hardened `app/api/vault-state/route.ts` so legacy full-state requests are sanitized to the same known collection keys as patch requests before either insert or update.
+- This prevents arbitrary top-level payload fields from entering the shared Supabase state row on the initial legacy insert path, reducing schema drift and accidental persistence of unsupported data.
+- Added validation for `expectedUpdatedAt`; malformed or empty optimistic-concurrency timestamps now receive a clear `400` response instead of reaching the database filter.
+- The route still accepts the existing full-state client contract, but stores only supported collection arrays. Patch-based writes remain the preferred path.

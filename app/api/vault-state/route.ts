@@ -42,6 +42,11 @@ function sanitizeStatePatch(input: unknown): StatePatch {
   return patch;
 }
 
+function isValidExpectedUpdatedAt(value: unknown): value is string | null | undefined {
+  if (value === undefined || value === null) return true;
+  return typeof value === "string" && value.length > 0 && !Number.isNaN(Date.parse(value));
+}
+
 function mergeStatePatch(currentState: unknown, patch: StatePatch) {
   return {
     ...(isRecord(currentState) ? currentState : {}),
@@ -150,9 +155,14 @@ export async function PUT(request: Request) {
     return Response.json({ error: "State payload is required." }, { status: 400 });
   }
 
+  if (!isValidExpectedUpdatedAt(body.expectedUpdatedAt)) {
+    return Response.json({ error: "expectedUpdatedAt must be a valid timestamp or null." }, { status: 400 });
+  }
+
   const patch = sanitizeStatePatch(body.patch);
+  const sanitizedState = sanitizeStatePatch(body.state);
   const hasPatch = Object.keys(patch).length > 0;
-  const hasFullState = isRecord(body.state);
+  const hasFullState = Object.keys(sanitizedState).length > 0;
 
   if (!hasPatch && !hasFullState) {
     return Response.json({ error: "State payload is required." }, { status: 400 });
@@ -166,7 +176,7 @@ export async function PUT(request: Request) {
       const current = await readCurrentState(client);
       const effectivePatch = hasPatch
         ? patch
-        : legacyStatePatch(current.state, body.state);
+        : legacyStatePatch(current.state, sanitizedState);
       const nextState = mergeStatePatch(current.state, effectivePatch);
       const { data, error } = await client
         .from(TABLE_NAME)
@@ -184,7 +194,7 @@ export async function PUT(request: Request) {
         return Response.json({ configured: true, updatedAt: data.updated_at });
       }
     } else {
-      const initialState = hasPatch ? patch : body.state;
+      const initialState = hasPatch ? patch : sanitizedState;
       const { data, error } = await client
         .from(TABLE_NAME)
         .insert({ data: initialState, id: ROW_ID, updated_at: updatedAt })
