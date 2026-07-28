@@ -1489,4 +1489,4 @@ For archive organization changes, manually verify:
 - Added a backward-compatible `patch` payload to `/api/vault-state`. It accepts only known VaultState collection arrays and merges them into the current row under the existing compare-and-swap timestamp, so one device no longer replaces unrelated collections changed by another device.
 - The client now compares local state with its last cloud baseline and sends only changed collections. Existing full `state` payloads remain supported for compatibility and the database schema is unchanged.
 - This reduces the blast radius of concurrent course, lecture, media, folder, textbook, reconstruction, and review edits while retaining the existing conflict merge behavior.
-- Verification: Ontoly coverage/stats/architecture re-check, `npm run build`, `npm run typecheck`, and `git diff --check` passed. Commit, push, and production deployment are next.
+- Verification: Ontoly coverage/stats/architecture re-check, `npm run build`, `npm run typecheck`, and `git diff --check` passed. Commit `eeca04a` was pushed to `main`, and the production deployment completed successfully.
