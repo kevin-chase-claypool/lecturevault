@@ -1496,4 +1496,4 @@ For archive organization changes, manually verify:
 - Kept backward compatibility for older open/PWA clients that still send a full `state` payload to `/api/vault-state`, but stopped treating that payload as a wholesale replacement.
 - When a legacy request includes `expectedUpdatedAt`, the API now compares the known collection arrays against the current server row, derives a collection-scoped patch, and merges only those changed collections under the existing compare-and-swap check.
 - This preserves unrelated changes made on another device and makes the compatibility path follow the same collection-level safety contract as the current client.
-- Verification: Ontoly route/dependency reports, `git diff --check`, `npm run typecheck`, and `npm run build` completed for this change. Commit and production deployment follow this note update.
+- Verification: Ontoly route/dependency reports, `git diff --check`, `npm run typecheck`, and `npm run build` completed. Commit `7b6d10b` was pushed to `main`; Vercel production deployment `dpl_DnJHPA8oaT3mb4xEtzXvyKhb4bYL` is ready and aliased to `https://l3cturevault.vercel.app`.
