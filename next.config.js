@@ -7,7 +7,8 @@ const nextConfig = {
   serverExternalPackages: ["@napi-rs/canvas", "pdf-parse", "pdfjs-dist"],
   outputFileTracingIncludes: {
     "/api/textbook/extract": [
-      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
+      "./node_modules/pdfjs-dist/legacy/build/**",
+      "./node_modules/.pnpm/pdfjs-dist@*/node_modules/pdfjs-dist/legacy/build/**"
     ]
   }
 };

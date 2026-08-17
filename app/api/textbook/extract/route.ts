@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { PDFDocument } from "pdf-lib";
 import { requireAuthenticatedRequest } from "../../../../lib/auth";
 import {
@@ -28,6 +30,18 @@ async function extractPdfText(buffer: Uint8Array) {
   runtime.Path2D ??= canvas.Path2D;
 
   const { PDFParse } = await import("pdf-parse");
+  // PDF.js defaults to a relative worker path. Under Vercel's pnpm layout that
+  // path can point at an untraced nested package location, so target the
+  // explicitly traced dependency-root worker instead.
+  const workerPath = path.join(
+    process.cwd(),
+    "node_modules",
+    "pdfjs-dist",
+    "legacy",
+    "build",
+    "pdf.worker.mjs"
+  );
+  PDFParse.setWorker(pathToFileURL(workerPath).href);
   const parser = new PDFParse({ data: buffer });
 
   try {

@@ -2,9 +2,12 @@
 
 ## 2026-08-16 - Trace PDF.js Worker in the Textbook Function
 
+- Expanded the Vercel trace to include the full legacy PDF.js build from both the regular dependency link and pnpm's physical package path. This covers the location used by Vercel's serverless pnpm runtime when `PDFParse` loads its worker.
+- The extraction route now targets the traced dependency-root worker path and passes its `file:` URL to `PDFParse.setWorker`, avoiding PDF.js's fragile relative worker lookup through Vercel's pnpm package links without requiring Next.js to statically parse `createRequire`.
 - Marked `pdf-parse` and `pdfjs-dist` as Next.js server-external packages alongside the native canvas dependency.
 - This keeps PDF.js and its adjacent `pdf.worker.mjs` together in Vercel's traced serverless function instead of bundling only the loader into a generated Next.js chunk. The worker is also explicitly included in the textbook route trace because PDF.js loads it dynamically.
-- Resolves the textbook-upload failure where PDF.js attempted to import a missing `/var/task/.next/server/chunks/pdf.worker.mjs` fake worker. The existing extraction, indexing, citation, and Supabase storage workflows are unchanged.
+- The extraction route now resolves that traced worker with Node's module resolver and passes its `file:` URL to `PDFParse.setWorker`, avoiding PDF.js's fragile relative worker lookup through Vercel's pnpm package links.
+- Resolves the textbook-upload failure where PDF.js attempted to import a missing fake worker. The existing extraction, indexing, citation, and Supabase storage workflows are unchanged.
 
 ## 2026-08-16 - Fix Server PDF Runtime Initialization
 
