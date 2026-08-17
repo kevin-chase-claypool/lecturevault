@@ -57,7 +57,9 @@ async function extractEmbeddedImages(pageBytes: Uint8Array, stem: string) {
     );
     const pdfjs = await loadPdfJsWithInlineWorker();
     const loadingTask = pdfjs.getDocument({
-      data: pageBytes,
+      // PDF.js transfers this buffer to its worker. Keep the original bytes
+      // intact because they are also the source of the OpenAI page attachment.
+      data: pageBytes.slice(),
       // Textbooks assembled by some scanners contain harmless malformed object
       // references. Keep parsing tolerant so one such reference cannot make
       // every visual crop disappear in a serverless runtime.
@@ -116,7 +118,9 @@ async function renderPageImage(pageBytes: Uint8Array) {
     globals.Path2D ||= Path2D;
     const pdfjs = await loadPdfJsWithInlineWorker();
     const pdf = await pdfjs.getDocument({
-      data: pageBytes,
+      // PDF.js transfers this buffer to its worker. Rendering must never
+      // detach the canonical one-page PDF that we attach to the model.
+      data: pageBytes.slice(),
       stopAtErrors: false
     }).promise;
     const page = await pdf.getPage(1);
@@ -256,9 +260,10 @@ export async function textbookPageEvidence({
         const textbookName = cleanString(source.name) || page.textbookName;
         const stem = `${safeFileStem(textbookName)}-p-${page.pageNumber}`;
 
+        const dataUrl = `data:application/pdf;base64,${Buffer.from(bytes).toString("base64")}`;
         const renderedPage = await renderPageImage(bytes);
         evidence.push({
-          dataUrl: `data:application/pdf;base64,${Buffer.from(bytes).toString("base64")}`,
+          dataUrl,
           filename: `${stem}.pdf`,
           pageNumber: page.pageNumber,
           textbookId,
