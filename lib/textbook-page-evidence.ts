@@ -49,7 +49,13 @@ async function extractEmbeddedImages(pageBytes: Uint8Array, stem: string) {
     const pdfjs = await import(
       /* webpackIgnore: true */ "pdfjs-dist/legacy/build/pdf.mjs"
     );
-    const loadingTask = pdfjs.getDocument({ data: pageBytes });
+    const loadingTask = pdfjs.getDocument({
+      data: pageBytes,
+      // Textbooks assembled by some scanners contain harmless malformed object
+      // references. Keep parsing tolerant so one such reference cannot make
+      // every visual crop disappear in a serverless runtime.
+      stopAtErrors: false
+    });
     const pdf = await loadingTask.promise;
     const page = await pdf.getPage(1);
     const objects = page.objs;
@@ -84,7 +90,10 @@ async function extractEmbeddedImages(pageBytes: Uint8Array, stem: string) {
     }
     await pdf.destroy();
     return images;
-  } catch {
+  } catch (error) {
+    console.warn("[textbook-page-evidence] embedded image extraction skipped", {
+      message: error instanceof Error ? error.message : String(error)
+    });
     return [];
   }
 }
@@ -101,7 +110,10 @@ async function renderPageImage(pageBytes: Uint8Array) {
     const pdfjs = await import(
       /* webpackIgnore: true */ "pdfjs-dist/legacy/build/pdf.mjs"
     );
-    const pdf = await pdfjs.getDocument({ data: pageBytes }).promise;
+    const pdf = await pdfjs.getDocument({
+      data: pageBytes,
+      stopAtErrors: false
+    }).promise;
     const page = await pdf.getPage(1);
     const baseViewport = page.getViewport({ scale: 1 });
     const scale = Math.min(2, 1600 / Math.max(baseViewport.width, baseViewport.height));
@@ -115,7 +127,10 @@ async function renderPageImage(pageBytes: Uint8Array) {
     const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
     await pdf.destroy();
     return { dataUrl, height: canvas.height, width: canvas.width };
-  } catch {
+  } catch (error) {
+    console.warn("[textbook-page-evidence] page rendering failed", {
+      message: error instanceof Error ? error.message : String(error)
+    });
     return null;
   }
 }
@@ -249,9 +264,13 @@ export async function textbookPageEvidence({
           pageImageWidth: renderedPage?.width
         });
       }
-    } catch {
+    } catch (error) {
       // Native text retrieval remains usable if a protected or malformed PDF page
       // cannot be isolated for visual verification.
+      console.warn("[textbook-page-evidence] source page extraction failed", {
+        message: error instanceof Error ? error.message : String(error),
+        textbookId
+      });
     }
   }
 
