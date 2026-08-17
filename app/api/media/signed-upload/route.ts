@@ -91,9 +91,8 @@ export async function POST(request: Request) {
   const dedupeKey = typeof body.dedupeKey === "string" && /^[a-f0-9]{64}$/i.test(body.dedupeKey)
     ? body.dedupeKey.toLowerCase()
     : "";
-  const extension = fileName.includes(".") ? `.${fileName.split(".").pop()}` : "";
   const path = dedupeKey
-    ? `textbooks/${dedupeKey}${extension}`
+    ? `textbooks/${dedupeKey}`
     : `lectures/${lectureId}/${mediaId}-${fileName}`;
   if (dedupeKey) {
     const { data: existing } = await client.storage
