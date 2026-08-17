@@ -1714,3 +1714,9 @@ For archive organization changes, manually verify:
 - This fixes textbook indexing failures that occurred before the extraction handler could run, where Vercel returned an HTTP 500 during PDF parsing.
 - The lockfile was regenerated so the existing Ontoly development dependency and the new native parser dependency are represented consistently.
 - The pnpm lockfile is also synchronized because Vercel uses frozen pnpm installs during production builds.
+
+## 2026-08-17 - Keep native canvas out of Vercel webpack
+
+- The first canvas-global fix still let webpack traverse `@napi-rs/canvas` and fail while parsing its platform-specific `.node` binary.
+- The extractor now uses a webpack-ignored runtime import; `serverExternalPackages` continues to make the native package available to the Node runtime while keeping the production bundle portable.
+- Verification: typecheck and production build pass locally after the import change.
