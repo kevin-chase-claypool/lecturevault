@@ -1731,3 +1731,8 @@ For archive organization changes, manually verify:
 
 - Supabase Storage returns downloaded files as Node `Buffer` instances through the server helper. The extraction route now converts those bytes at the storage boundary and reuses the normalized `Uint8Array` for PDF.js and visual-page PDF loading.
 - This closes the remaining runtime path that could reintroduce the Buffer validation error after a successful upload.
+
+## 2026-08-17 - Disable PDF.js workers in Node extraction
+
+- Disabled PDF.js workers for the server-side extractor. Vercel functions do not ship a browser worker module, so worker startup produced a fake-worker module-resolution error before page extraction.
+- Sequential in-process parsing remains the memory-safe path for large textbooks.

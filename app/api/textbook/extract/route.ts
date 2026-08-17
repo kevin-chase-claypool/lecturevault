@@ -36,12 +36,15 @@ async function extractPdfText(buffer: Uint8Array) {
     // PDF.js requires a plain Uint8Array here; passing Node's Buffer causes
     // the runtime validator to reject otherwise-valid textbook PDFs.
     data: buffer,
+    // Vercel's Node function has no bundled PDF.js worker file. Sequential
+    // in-process parsing is intentional here and avoids fake-worker startup.
+    disableWorker: true,
     disableAutoFetch: true,
     disableFontFace: true,
     disableStream: true,
     isEvalSupported: false,
     useWorkerFetch: false
-  }).promise;
+  } as Parameters<typeof pdfjs.getDocument>[0] & { disableWorker: boolean }).promise;
   const pages: Array<{ num: number; text: string }> = [];
 
   try {
