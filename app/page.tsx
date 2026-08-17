@@ -1495,6 +1495,7 @@ async function uploadMediaFile({
     method: "POST"
   });
   const signedData = (await signedResponse.json()) as {
+    apiKey?: string | null;
     bucket?: string;
     error?: string;
     path?: string;
@@ -1517,6 +1518,7 @@ async function uploadMediaFile({
           chunkSize: 6 * 1024 * 1024,
           endpoint: resumableEndpoint,
           headers: {
+            ...(signedData.apiKey ? { apikey: signedData.apiKey } : {}),
             "x-signature": signedUploadToken,
             "x-upsert": "false"
           },

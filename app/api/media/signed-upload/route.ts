@@ -41,6 +41,16 @@ function resumableUploadEndpoint() {
   }
 }
 
+function publicStorageApiKey() {
+  return (
+    process.env.SUPABASE_ANON_KEY?.trim() ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+    process.env.SUPABASE_PUBLISHABLE_KEY?.trim() ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
+    null
+  );
+}
+
 export async function POST(request: Request) {
   const unauthorized = requireAuthenticatedRequest(request);
 
@@ -93,6 +103,7 @@ export async function POST(request: Request) {
   return Response.json({
     bucket: SUPABASE_MEDIA_BUCKET,
     path: data.path,
+    apiKey: publicStorageApiKey(),
     resumableEndpoint: resumableUploadEndpoint(),
     signedUrl: data.signedUrl,
     token: data.token

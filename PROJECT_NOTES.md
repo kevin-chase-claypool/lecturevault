@@ -7,6 +7,11 @@
 - Textbooks retain the existing private Storage object, one-time canonical page evidence, embeddings, and page citations. Reconstruction and review generation therefore continue to retrieve only relevant saved pages/chunks rather than duplicating the textbook or repeatedly running full-book vision analysis.
 - Verification: run `npm run typecheck` and `npm run build` from `LectureVault`.
 
+## 2026-08-17 - Include Public API Key In TUS Uploads
+
+- Added the Supabase publishable/legacy anon key as the `apikey` header on resumable uploads, alongside the path-scoped signed upload token. Supabase's current TUS examples send both headers; the service-role key is never exposed to the browser.
+- Configure one of `SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_PUBLISHABLE_KEY`, or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in Vercel if the project does not already provide one.
+
 ## 2026-08-17 - Restore Vercel Textbook Deployment Lockfile
 
 - Regenerated `pnpm-lock.yaml` after adding `pdf2json`. Vercel uses pnpm because this repository includes a pnpm lockfile, and its frozen install rejected the prior production deployment because the new parser dependency was absent from that lockfile.
