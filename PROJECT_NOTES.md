@@ -1747,3 +1747,8 @@ For archive organization changes, manually verify:
 
 - Externalizing `pdfjs-dist` left its worker module out of Vercel's pnpm-traced function package, causing repeated fake-worker resolution failures.
 - PDF.js is now bundled by Next.js while only native `@napi-rs/canvas` remains external, so the worker module ships with the extraction function.
+
+## 2026-08-17 - Use pdf-parse's embedded worker for extraction
+
+- Replaced the direct PDF.js worker setup with `pdf-parse` v2's `PDFParse` API. Its Node build embeds the PDF.js worker as a data URL, eliminating both Vercel package-resolution failures and pnpm symlink tracing issues.
+- Page-wise text results and the existing downstream chunk/evidence/indexing contracts are preserved.

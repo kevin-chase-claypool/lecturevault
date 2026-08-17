@@ -17,61 +17,16 @@ const DEFAULT_VISUAL_INDEX_MODEL = "gpt-4.1-mini";
 const MAX_VISUAL_INDEX_PAGES = 64;
 
 async function extractPdfText(buffer: Uint8Array) {
-  // Process one page at a time. pdf2json asks PDF.js for every page at once,
-  // retaining all page render structures and exhausting serverless memory on
-  // large textbooks. PDF.js text extraction can release each page immediately.
-  // Its Node canvas globals must be installed before the PDF.js module loads.
-  // Keep this native dependency out of the webpack graph. Vercel's Node
-  // runtime can resolve it from the traced serverExternalPackages at runtime,
-  // while webpack cannot parse the platform-specific `.node` binary.
-  const { DOMMatrix, ImageData, Path2D } = await import(
-    /* webpackIgnore: true */ "@napi-rs/canvas"
-  );
-  const canvasGlobals = globalThis as unknown as Record<string, unknown>;
-  canvasGlobals.DOMMatrix ||= DOMMatrix;
-  canvasGlobals.ImageData ||= ImageData;
-  canvasGlobals.Path2D ||= Path2D;
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  pdfjs.GlobalWorkerOptions.workerSrc =
-    "pdfjs-dist/legacy/build/pdf.worker.mjs";
-  const document = await pdfjs.getDocument({
-    // PDF.js requires a plain Uint8Array here; passing Node's Buffer causes
-    // the runtime validator to reject otherwise-valid textbook PDFs.
-    data: buffer,
-    // Vercel's Node function has no bundled PDF.js worker file. Sequential
-    // in-process parsing is intentional here and avoids fake-worker startup.
-    disableWorker: true,
-    disableAutoFetch: true,
-    disableFontFace: true,
-    disableStream: true,
-    isEvalSupported: false,
-    useWorkerFetch: false
-  } as Parameters<typeof pdfjs.getDocument>[0] & { disableWorker: boolean }).promise;
-  const pages: Array<{ num: number; text: string }> = [];
-
+  // pdf-parse embeds its PDF.js worker as a data URL, avoiding Vercel's
+  // external-worker and pnpm symlink resolution problems while retaining
+  // page-wise text results for retrieval and evidence indexing.
+  const { PDFParse } = await import("pdf-parse");
+  const parser = new PDFParse({ data: buffer });
   try {
-    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-      const page = await document.getPage(pageNumber);
-      try {
-        const content = await page.getTextContent();
-        const text = content.items
-          .filter((item): item is typeof item & { str: string } =>
-            typeof item === "object" && item !== null && "str" in item
-          )
-          .map((item) => item.str)
-          .join("\n");
-        pages.push({ num: pageNumber, text });
-      } finally {
-        page.cleanup();
-      }
-    }
-
-    return {
-      pages,
-      text: pages.map((page) => page.text).join("\n\n")
-    };
+    const result = await parser.getText();
+    return { pages: result.pages, text: result.text };
   } finally {
-    await document.destroy();
+    await parser.destroy();
   }
 }
 
