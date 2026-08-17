@@ -26,8 +26,7 @@ type VisualSelectionResponse = {
       y?: unknown;
     } | null;
     inlineAnchor?: unknown;
-    pageNumber?: unknown;
-    textbookName?: unknown;
+    imageIndex?: unknown;
   }>;
 };
 
@@ -43,10 +42,9 @@ const TEXTBOOK_VISUAL_SELECTION_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["textbookName", "pageNumber", "description", "inlineAnchor", "imageCrop"],
+        required: ["imageIndex", "description", "inlineAnchor", "imageCrop"],
         properties: {
-          textbookName: { type: "string" },
-          pageNumber: { type: "number", minimum: 1 },
+          imageIndex: { type: "number", minimum: 1 },
           description: { type: "string" },
           inlineAnchor: { type: "string" },
           imageCrop: {
@@ -143,7 +141,7 @@ export async function selectTextbookVisualCitations({
         "Choose one to three supplied textbook diagrams, plots, tables, worked layouts, or textbook illustrations that directly improve intuitive understanding of the reconstruction. At least one source page was retrieved as relevant, so do not return an empty array.",
         "For every selected visual, return a tight normalized 0-1000 crop around the visual itself. Never crop an entire page, body prose, a book cover, or an equation alone. A crop may cover no more than 70% of the page.",
         "inlineAnchor must be an exact, distinctive phrase already present in the reconstruction, so the figure can be embedded immediately beside that explanation.",
-        "Use only the exact textbook names and page numbers in this manifest:\n" + pageManifest,
+        "Use the imageIndex from this manifest. The server, not you, will bind that index to the exact textbook and page:\n" + pageManifest,
         "Reconstruction:\n" + transcriptText.slice(0, 18000)
       ].join("\n\n")
     },
@@ -168,18 +166,14 @@ export async function selectTextbookVisualCitations({
     }
   });
   const selected = parseVisualSelection(response.output_text).textbookCitations || [];
-  const pageByKey = new Map(
-    usablePages.map((page) => [`${page.textbookName.toLowerCase()}:${page.pageNumber}`, page])
-  );
   const seen = new Set<string>();
   const citations = selected.flatMap((citation) => {
-    const textbookName = cleanString(citation.textbookName);
-    const pageNumber = Math.floor(Number(citation.pageNumber));
-    const key = `${textbookName.toLowerCase()}:${pageNumber}`;
+    const page = usablePages[Math.floor(Number(citation.imageIndex)) - 1];
+    const key = page ? `${page.textbookName.toLowerCase()}:${page.pageNumber}` : "";
     const crop = normalizedCrop(citation.imageCrop);
     const inlineAnchor = cleanString(citation.inlineAnchor);
 
-    if (!pageByKey.has(key) || !crop || !inlineAnchor || seen.has(key)) {
+    if (!page || !crop || !inlineAnchor || seen.has(key)) {
       return [];
     }
 
@@ -188,9 +182,9 @@ export async function selectTextbookVisualCitations({
       description: cleanString(citation.description) || "Textbook visual selected to clarify the nearby explanation.",
       imageCrop: crop,
       inlineAnchor,
-      pageEnd: pageNumber,
-      pageStart: pageNumber,
-      textbookName
+      pageEnd: page.pageNumber,
+      pageStart: page.pageNumber,
+      textbookName: page.textbookName
     }];
   });
 
