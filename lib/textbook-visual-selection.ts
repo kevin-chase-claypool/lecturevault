@@ -116,7 +116,10 @@ function inlineAnchorCandidates(transcriptText: string) {
     .split(/\n\s*\n/)
     .map((paragraph) => paragraph.replace(/^#{1,4}\s+/, "").replace(/\s+/g, " ").trim())
     .filter((paragraph) => paragraph.length >= 40 && paragraph.length <= 520)
-    .filter((paragraph) => !/^textbook visual:/i.test(paragraph));
+    .filter((paragraph) => !/^textbook visual:/i.test(paragraph))
+    // The renderer works line-by-line. A concise exact prefix is far more
+    // reliable than a full paragraph when placing a figure beside its source.
+    .map((paragraph) => paragraph.slice(0, 140).trim());
 
   return [...new Set(candidates)].slice(0, 24);
 }
@@ -213,8 +216,10 @@ export function ensureTextbookVisualAnchors(
   citations: TextbookVisualCitation[]
 ) {
   let nextText = transcriptText.trim();
+  const normalizeForAnchorMatch = (value: string) => value.replace(/\s+/g, " ").trim().toLowerCase();
+  const normalizedTranscript = normalizeForAnchorMatch(nextText);
   const missing = citations.filter((citation) =>
-    !citation.inlineAnchor || !nextText.toLowerCase().includes(citation.inlineAnchor.toLowerCase())
+    !citation.inlineAnchor || !normalizedTranscript.includes(normalizeForAnchorMatch(citation.inlineAnchor))
   );
 
   if (!missing.length) {
