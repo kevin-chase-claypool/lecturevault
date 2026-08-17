@@ -41,12 +41,21 @@ function safeFileStem(value: string) {
   );
 }
 
+async function loadPdfJsWithInlineWorker() {
+  // In a Node function PDF.js deliberately uses a fake worker. Loading the
+  // worker module first registers WorkerMessageHandler on globalThis, which
+  // keeps PDF.js in-process and avoids its otherwise unresolved relative
+  // "./pdf.worker.mjs" runtime import after Next.js bundles the function.
+  await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
+  return import("pdfjs-dist/legacy/build/pdf.mjs");
+}
+
 async function extractEmbeddedImages(pageBytes: Uint8Array, stem: string) {
   try {
     const { createCanvas, ImageData } = await import(
       /* webpackIgnore: true */ "@napi-rs/canvas"
     );
-    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const pdfjs = await loadPdfJsWithInlineWorker();
     const loadingTask = pdfjs.getDocument({
       data: pageBytes,
       // Textbooks assembled by some scanners contain harmless malformed object
@@ -105,7 +114,7 @@ async function renderPageImage(pageBytes: Uint8Array) {
     globals.DOMMatrix ||= DOMMatrix;
     globals.ImageData ||= ImageData;
     globals.Path2D ||= Path2D;
-    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const pdfjs = await loadPdfJsWithInlineWorker();
     const pdf = await pdfjs.getDocument({
       data: pageBytes,
       stopAtErrors: false
