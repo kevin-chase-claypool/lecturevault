@@ -12,6 +12,7 @@ import {
   supabaseServerClient
 } from "../../../lib/supabase-server";
 import {
+  cropTextbookFigure,
   textbookPageEvidence,
   type TextbookPageRequest,
   type TextbookPageSource
@@ -123,6 +124,7 @@ type ReconstructionEvidence = {
     description?: string;
     imageDataUrl?: string;
     imageFilename?: string;
+    imageCrop?: { x?: number; y?: number; width?: number; height?: number };
   }>;
 };
 
@@ -453,7 +455,7 @@ function cleanTimedSegments(value: unknown, mediaItemId: string): TimedAudioSegm
     .filter((segment): segment is TimedAudioSegment => Boolean(segment));
 }
 
-function normalizeEvidence(
+async function normalizeEvidence(
   evidence: ReconstructionEvidence | undefined,
   mediaItems: LectureMediaItem[],
   timedAudioSegments: TimedAudioSegment[],
@@ -462,6 +464,7 @@ function normalizeEvidence(
     textbookName: string;
     pageNumber: number;
     images?: Array<{ dataUrl: string; filename: string }>;
+    pageImageDataUrl?: string;
   }> = []
 ) {
   const figureSources = mediaItems
@@ -542,7 +545,8 @@ function normalizeEvidence(
         pageEnd: Math.max(pageStart, pageEnd),
         description: cleanString(citation.description),
         imageDataUrl: cleanString(citation.imageDataUrl) || undefined,
-        imageFilename: cleanString(citation.imageFilename) || undefined
+        imageFilename: cleanString(citation.imageFilename) || undefined,
+        imageCrop: citation.imageCrop
       };
     })
     .filter((citation): citation is NonNullable<typeof citation> => Boolean(citation));
@@ -558,7 +562,13 @@ function normalizeEvidence(
       `${citation.textbookName.toLowerCase()}:${citation.pageStart}`
     );
     const firstImage = visualPage?.images?.[0];
-    if (firstImage && !citation.imageDataUrl) {
+    if (citation.imageCrop && visualPage?.pageImageDataUrl && !citation.imageDataUrl) {
+      citation.imageDataUrl = await cropTextbookFigure({
+        crop: citation.imageCrop,
+        dataUrl: visualPage.pageImageDataUrl
+      }) || undefined;
+      citation.imageFilename = `textbook-figure-p-${citation.pageStart}.jpg`;
+    } else if (firstImage && !citation.imageDataUrl) {
       citation.imageDataUrl = firstImage.dataUrl;
       citation.imageFilename = firstImage.filename;
     }
@@ -584,7 +594,8 @@ function normalizeEvidence(
       pageEnd: pageNumber,
       description: "Textbook figure selected for intuitive visual context.",
       imageDataUrl: firstImage?.dataUrl,
-      imageFilename: firstImage?.filename
+      imageFilename: firstImage?.filename,
+      imageCrop: undefined
     });
   }
 
@@ -907,7 +918,7 @@ export async function POST(request: Request) {
     const textbookVisualPageManifest = textbookVisualPages
       .map(
         (page) =>
-          `Visual textbook page: ${page.textbookName}, p. ${page.pageNumber}. This original PDF page was selected because its equations, diagrams, units, layout, or visual explanation may improve intuition; use it when helpful and cite it only when the written explanation depends on it.`
+          `Visual textbook page: ${page.textbookName}, p. ${page.pageNumber}. A rendered image of this page is attached. If it contains a useful diagram, plot, table, or worked figure, return a tight imageCrop with normalized 0-1000 coordinates (x, y, width, height) around that visual so it can be embedded inline; use it only when it improves intuition.`
       )
       .join("\n");
     const content: ResponseInputMessageContentList = [
@@ -969,7 +980,10 @@ export async function POST(request: Request) {
         filename: page.filename
       })),
       ...textbookVisualPages.flatMap((page) =>
-        page.images.map((image) => ({
+        [
+          ...(page.pageImageDataUrl ? [{ dataUrl: page.pageImageDataUrl }] : []),
+          ...page.images
+        ].map((image) => ({
           type: "input_image" as const,
           image_url: image.dataUrl,
           detail: "high" as const
@@ -1009,7 +1023,7 @@ export async function POST(request: Request) {
 
     return Response.json({
       concepts: Array.isArray(artifact.concepts) ? artifact.concepts : [],
-      evidence: normalizeEvidence(
+      evidence: await normalizeEvidence(
         artifact.evidence,
         mediaItems,
         timedAudioSegments,
@@ -1017,7 +1031,8 @@ export async function POST(request: Request) {
         textbookVisualPages.map((page) => ({
           textbookName: page.textbookName,
           pageNumber: page.pageNumber,
-          images: page.images
+          images: page.images,
+          pageImageDataUrl: page.pageImageDataUrl
         }))
       ),
       generatedBy: "openai",

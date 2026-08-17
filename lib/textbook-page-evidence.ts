@@ -22,6 +22,9 @@ export type TextbookPageEvidence = {
   textbookId: string;
   textbookName: string;
   images: Array<{ dataUrl: string; filename: string; width: number; height: number }>;
+  pageImageDataUrl?: string;
+  pageImageHeight?: number;
+  pageImageWidth?: number;
 };
 
 function cleanString(value: unknown) {
@@ -83,6 +86,76 @@ async function extractEmbeddedImages(pageBytes: Uint8Array, stem: string) {
     return images;
   } catch {
     return [];
+  }
+}
+
+async function renderPageImage(pageBytes: Uint8Array) {
+  try {
+    const { createCanvas, DOMMatrix, ImageData, Path2D } = await import(
+      /* webpackIgnore: true */ "@napi-rs/canvas"
+    );
+    const globals = globalThis as unknown as Record<string, unknown>;
+    globals.DOMMatrix ||= DOMMatrix;
+    globals.ImageData ||= ImageData;
+    globals.Path2D ||= Path2D;
+    const pdfjs = await import(
+      /* webpackIgnore: true */ "pdfjs-dist/legacy/build/pdf.mjs"
+    );
+    const pdf = await pdfjs.getDocument({ data: pageBytes }).promise;
+    const page = await pdf.getPage(1);
+    const baseViewport = page.getViewport({ scale: 1 });
+    const scale = Math.min(2, 1600 / Math.max(baseViewport.width, baseViewport.height));
+    const viewport = page.getViewport({ scale: Math.max(1, scale) });
+    const canvas = createCanvas(Math.round(viewport.width), Math.round(viewport.height));
+    await page.render({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      canvasContext: canvas.getContext("2d") as never,
+      viewport
+    }).promise;
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+    await pdf.destroy();
+    return { dataUrl, height: canvas.height, width: canvas.width };
+  } catch {
+    return null;
+  }
+}
+
+export async function cropTextbookFigure({
+  crop,
+  dataUrl
+}: {
+  crop: { height?: number; width?: number; x?: number; y?: number };
+  dataUrl?: string;
+}) {
+  if (!dataUrl) return "";
+  try {
+    const { createCanvas, loadImage } = await import(
+      /* webpackIgnore: true */ "@napi-rs/canvas"
+    );
+    const image = await loadImage(dataUrl);
+    const x = Math.max(0, Math.min(900, Number(crop.x) || 0));
+    const y = Math.max(0, Math.min(900, Number(crop.y) || 0));
+    const width = Math.max(100, Math.min(1000 - x, Number(crop.width) || 1000));
+    const height = Math.max(100, Math.min(1000 - y, Number(crop.height) || 1000));
+    const sourceX = Math.round((x / 1000) * image.width);
+    const sourceY = Math.round((y / 1000) * image.height);
+    const sourceWidth = Math.max(1, Math.round((width / 1000) * image.width));
+    const sourceHeight = Math.max(1, Math.round((height / 1000) * image.height));
+    const canvas = createCanvas(sourceWidth, sourceHeight);
+    canvas.getContext("2d").drawImage(
+      image,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      0,
+      0,
+      sourceWidth,
+      sourceHeight
+    );
+    return canvas.toDataURL("image/jpeg", 0.84);
+  } catch {
+    return "";
   }
 }
 
@@ -163,13 +236,17 @@ export async function textbookPageEvidence({
         const textbookName = cleanString(source.name) || page.textbookName;
         const stem = `${safeFileStem(textbookName)}-p-${page.pageNumber}`;
 
+        const renderedPage = await renderPageImage(bytes);
         evidence.push({
           dataUrl: `data:application/pdf;base64,${Buffer.from(bytes).toString("base64")}`,
           filename: `${stem}.pdf`,
           pageNumber: page.pageNumber,
           textbookId,
           textbookName,
-          images: await extractEmbeddedImages(bytes, stem)
+          images: await extractEmbeddedImages(bytes, stem),
+          pageImageDataUrl: renderedPage?.dataUrl,
+          pageImageHeight: renderedPage?.height,
+          pageImageWidth: renderedPage?.width
         });
       }
     } catch {
