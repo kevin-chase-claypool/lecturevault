@@ -784,6 +784,8 @@ function SourceTranscriptMathPreview({ text }: { text: string }) {
 
 function normalizeLatexEscapes(text: string) {
   return text
+    .replace(/\\\\n/g, "\n")
+    .replace(/\\n(?=(?:#|-|\s|[A-Z]|$))/g, "\n")
     .replace(/\\\\(?=[()[\]])/g, "\\")
     .replace(/\\\\(?=[a-zA-Z])/g, "\\");
 }

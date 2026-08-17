@@ -393,7 +393,15 @@ function usageFromEmbedding(usage: unknown): TokenUsage {
 function extractJson(text: string) {
   const trimmed = text.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]+?)\s*```/i);
-  return JSON.parse(fenced ? fenced[1] : trimmed);
+  const candidate = fenced ? fenced[1] : trimmed;
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    // Models occasionally emit LaTeX commands such as \[ or \nabla inside
+    // JSON strings without escaping the backslash. Repair only invalid JSON
+    // escapes; preserve valid \n, \t, and unicode escapes.
+    return JSON.parse(candidate.replace(/\\(?!["\\/bfnrtu])/g, "\\\\"));
+  }
 }
 
 function fallbackArtifact(transcriptText: string, media: LectureMediaItem[], title: string) {
