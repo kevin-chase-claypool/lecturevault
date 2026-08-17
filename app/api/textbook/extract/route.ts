@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { PDFParse } from "pdf-parse";
 import { PDFDocument } from "pdf-lib";
 import { requireAuthenticatedRequest } from "../../../../lib/auth";
 import {
@@ -16,6 +15,27 @@ const EMBEDDING_BATCH_SIZE = 48;
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
 const DEFAULT_VISUAL_INDEX_MODEL = "gpt-4.1-mini";
 const MAX_VISUAL_INDEX_PAGES = 64;
+
+async function extractPdfText(buffer: Uint8Array) {
+  // PDF.js requires these browser-like constructors while running in Node.
+  // Register them before importing pdf-parse so Vercel bundles its native
+  // canvas dependency and PDF.js can initialize without a DOMMatrix failure.
+  const canvas = await import("@napi-rs/canvas");
+  const runtime = globalThis as unknown as Record<string, unknown>;
+
+  runtime.DOMMatrix ??= canvas.DOMMatrix;
+  runtime.ImageData ??= canvas.ImageData;
+  runtime.Path2D ??= canvas.Path2D;
+
+  const { PDFParse } = await import("pdf-parse");
+  const parser = new PDFParse({ data: buffer });
+
+  try {
+    return await parser.getText();
+  } finally {
+    await parser.destroy();
+  }
+}
 
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -156,6 +176,12 @@ export async function POST(request: Request) {
     return unauthorized;
   }
 
+  let requestContext: {
+    courseId?: string;
+    path?: string;
+    textbookId?: string;
+  } = {};
+
   try {
     const body = (await request.json()) as {
       bucket?: string;
@@ -170,6 +196,7 @@ export async function POST(request: Request) {
     const path = cleanString(body.path);
     const mimeType = cleanString(body.mimeType).toLowerCase();
     const name = cleanString(body.name);
+    requestContext = { courseId, path, textbookId };
 
     if (!textbookId) {
       return jsonError("Textbook id is required.", 400);
@@ -196,8 +223,7 @@ export async function POST(request: Request) {
       return jsonError("Could not read textbook PDF from Supabase Storage.", 404);
     }
 
-    const parser = new PDFParse({ data: buffer });
-    const parsed = await parser.getText();
+    const parsed = await extractPdfText(buffer);
     const chunks = [];
     const pageEvidence: Array<{
       course_id: string;
@@ -264,8 +290,6 @@ export async function POST(request: Request) {
         })
       );
     }
-
-    await parser.destroy();
 
     const fallbackChunks =
       chunks.length || !wholeDocumentText
@@ -449,6 +473,10 @@ export async function POST(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Could not extract textbook PDF.";
+    console.error("[textbook/extract] failed", {
+      message,
+      ...requestContext
+    });
     return jsonError(message, 500);
   }
 }

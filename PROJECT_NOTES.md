@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-08-16 - Fix Server PDF Runtime Initialization
+
+- Removed the eager `pdf-parse` import from textbook extraction because it initialized PDF.js before Node DOM polyfills existed in the Vercel function.
+- The extraction route now loads `@napi-rs/canvas`, registers `DOMMatrix`, `ImageData`, and `Path2D`, then dynamically loads `pdf-parse` and always destroys the parser after text extraction.
+- Declared the native canvas package as a Next.js server external dependency so Vercel retains it in the function bundle.
+- Added structured server-side extraction failure logging with the course, textbook, and storage path identifiers. Client behavior and existing textbook indexing workflow remain unchanged.
+
 ## 2026-07-28 - Isolate Full Transcript Equation Flow
 
 - Added a dedicated source-transcript math renderer that uses real block elements for display equations instead of relying on inline spans inside grid buttons.
