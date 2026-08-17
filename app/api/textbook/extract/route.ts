@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { DOMMatrix, ImageData, Path2D } from "@napi-rs/canvas";
 import { PDFDocument } from "pdf-lib";
 import { requireAuthenticatedRequest } from "../../../../lib/auth";
 import {
@@ -8,6 +9,13 @@ import {
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
+
+// PDF.js expects these browser canvas globals even for text extraction. Install
+// the Node implementations before dynamically loading the PDF.js runtime.
+const canvasGlobals = globalThis as unknown as Record<string, unknown>;
+canvasGlobals.DOMMatrix ||= DOMMatrix;
+canvasGlobals.ImageData ||= ImageData;
+canvasGlobals.Path2D ||= Path2D;
 
 const CHUNK_SIZE = 2400;
 const CHUNK_OVERLAP = 280;
