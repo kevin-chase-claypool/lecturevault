@@ -21,6 +21,10 @@ import {
   canonicalTextbookEvidenceText,
   canonicalTextbookPageEvidence
 } from "../../../lib/textbook-canonical-evidence";
+import {
+  ensureTextbookVisualAnchors,
+  selectTextbookVisualCitations
+} from "../../../lib/textbook-visual-selection";
 
 export const runtime = "nodejs";
 
@@ -122,6 +126,7 @@ type ReconstructionEvidence = {
     pageStart?: number;
     pageEnd?: number;
     description?: string;
+    inlineAnchor?: string;
     imageDataUrl?: string;
     imageFilename?: string;
     imageCrop?: { x?: number; y?: number; width?: number; height?: number } | null;
@@ -195,6 +200,7 @@ const LECTURE_RECONSTRUCTION_SCHEMA = {
               pageStart: { type: "number" },
               pageEnd: { type: "number" },
               description: { type: "string" },
+              inlineAnchor: { type: "string" },
               imageCrop: {
                 anyOf: [
                   {
@@ -651,6 +657,7 @@ async function normalizeEvidence(
         pageStart,
         pageEnd: Math.max(pageStart, pageEnd),
         description: cleanString(citation.description),
+        inlineAnchor: cleanString(citation.inlineAnchor) || undefined,
         imageDataUrl: cleanString(citation.imageDataUrl) || undefined,
         imageFilename: cleanString(citation.imageFilename) || undefined,
         imageCrop: normalizedFigureCrop(citation.imageCrop)
@@ -700,6 +707,7 @@ async function normalizeEvidence(
       pageStart: pageNumber,
       pageEnd: pageNumber,
       description: "Textbook figure selected for intuitive visual context.",
+      inlineAnchor: undefined,
       imageDataUrl: firstImage?.dataUrl,
       imageFilename: firstImage?.filename,
       imageCrop: undefined
@@ -1122,8 +1130,52 @@ export async function POST(request: Request) {
 
     artifact = extractJson(response.output_text);
 
-    const artifactTranscriptText =
+    let artifactTranscriptText =
       cleanString(artifact.transcriptText) || audioTranscripts.join("\n\n");
+    const hasTextbookVisualCrop = Array.isArray(artifact.evidence?.textbookCitations) &&
+      artifact.evidence.textbookCitations.some((citation) => Boolean(normalizedFigureCrop(citation.imageCrop)));
+
+    // The reconstruction model is intentionally allowed to be selective about
+    // textbook citations. A separate visual pass makes that selectivity safe:
+    // when relevant textbook pages were actually attached, it must choose a
+    // useful, tightly cropped visual rather than silently returning no image.
+    if (!hasTextbookVisualCrop && textbookVisualPages.some((page) => page.pageImageDataUrl)) {
+      const visualSelection = await selectTextbookVisualCitations({
+        client,
+        model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
+        pages: textbookVisualPages.map((page) => ({
+          textbookName: page.textbookName,
+          pageNumber: page.pageNumber,
+          pageImageDataUrl: page.pageImageDataUrl
+        })),
+        transcriptText: artifactTranscriptText
+      });
+      totalUsage = addUsage(totalUsage, usageFromOpenAI(visualSelection.usage));
+
+      if (visualSelection.citations.length) {
+        const existingCitations = Array.isArray(artifact.evidence?.textbookCitations)
+          ? artifact.evidence.textbookCitations
+          : [];
+        const selectedKeys = new Set(
+          visualSelection.citations.map(
+            (citation) => `${citation.textbookName.toLowerCase()}:${citation.pageStart}`
+          )
+        );
+        artifact.evidence = {
+          ...(artifact.evidence || {}),
+          textbookCitations: [
+            ...existingCitations.filter((citation) => !selectedKeys.has(
+              `${cleanString(citation.textbookName).toLowerCase()}:${Math.floor(Number(citation.pageStart))}`
+            )),
+            ...visualSelection.citations
+          ]
+        };
+        artifactTranscriptText = ensureTextbookVisualAnchors(
+          artifactTranscriptText,
+          visualSelection.citations
+        );
+      }
+    }
     const transcriptText = timedAudioSegments.length
       ? artifactTranscriptText
       : stripNonAudioTimestampPrefixes(artifactTranscriptText);
