@@ -1752,3 +1752,8 @@ For archive organization changes, manually verify:
 
 - Replaced the direct PDF.js worker setup with `pdf-parse` v2's `PDFParse` API. Its Node build embeds the PDF.js worker as a data URL, eliminating both Vercel package-resolution failures and pnpm symlink tracing issues.
 - Page-wise text results and the existing downstream chunk/evidence/indexing contracts are preserved.
+
+## 2026-08-17 - Register canvas globals for embedded PDF parsing
+
+- Registered `DOMMatrix`, `ImageData`, and `Path2D` from the external native canvas package before `pdf-parse` initializes PDF.js.
+- The native import remains webpack-ignored and server-external, preventing `.node` bundling while satisfying PDF.js's Node runtime globals.

@@ -20,6 +20,13 @@ async function extractPdfText(buffer: Uint8Array) {
   // pdf-parse embeds its PDF.js worker as a data URL, avoiding Vercel's
   // external-worker and pnpm symlink resolution problems while retaining
   // page-wise text results for retrieval and evidence indexing.
+  const { DOMMatrix, ImageData, Path2D } = await import(
+    /* webpackIgnore: true */ "@napi-rs/canvas"
+  );
+  const canvasGlobals = globalThis as unknown as Record<string, unknown>;
+  canvasGlobals.DOMMatrix ||= DOMMatrix;
+  canvasGlobals.ImageData ||= ImageData;
+  canvasGlobals.Path2D ||= Path2D;
   const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: buffer });
   try {
