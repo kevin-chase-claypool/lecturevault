@@ -209,6 +209,7 @@ type ReconstructionEvidence = {
     description?: string;
     imageDataUrl?: string;
     imageFilename?: string;
+    imageCrop?: { x?: number; y?: number; width?: number; height?: number } | null;
   }>;
 };
 
@@ -785,29 +786,119 @@ function SourceTranscriptMathPreview({ text }: { text: string }) {
 function normalizeLatexEscapes(text: string) {
   return text
     .replace(/\\\\n/g, "\n")
-    .replace(/\\n(?=(?:#|-|\s|[A-Z]|$))/g, "\n")
+    // Older fallback records held an entire JSON response. Their escaped line
+    // breaks need restoring, while common LaTex commands beginning with n must
+    // remain intact (for example \\nabla and \\neq).
+    .replace(/\\n(?!(?:abla|eq|ewline|ot|u)\b)/g, "\n")
     .replace(/\\\\(?=[()[\]])/g, "\\")
     .replace(/\\\\(?=[a-zA-Z])/g, "\\");
 }
 
-function recoverStoredTranscriptText(text: string) {
+type StoredReconstructionArtifact = {
+  reconstructionTitle?: unknown;
+  summary?: unknown;
+  transcriptText?: unknown;
+  evidence?: {
+    textbookCitations?: Array<{
+      textbookName?: unknown;
+      pageStart?: unknown;
+      pageEnd?: unknown;
+      description?: unknown;
+      imageCrop?: unknown;
+    }>;
+  };
+};
+
+function repairModelJsonEscapes(value: string) {
+  let output = "";
+  let inString = false;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+
+    if (character === '"') {
+      inString = !inString;
+      output += character;
+      continue;
+    }
+
+    if (inString && character === "\\") {
+      const next = value[index + 1];
+      const isUnicode = next === "u" && /^[0-9a-fA-F]{4}$/.test(value.slice(index + 2, index + 6));
+
+      if (next && /[a-zA-Z]/.test(next) && !isUnicode) {
+        // Escape all letter-led commands. JSON treats \\n, \\t, and \\r as
+        // legal escapes, but in model output they are often LaTex commands
+        // such as \\nabla, \\text, or \\right.
+        output += `\\\\${next}`;
+        index += 1;
+        continue;
+      }
+
+      if (next) {
+        output += `${character}${next}`;
+        index += 1;
+        continue;
+      }
+    }
+
+    output += character;
+  }
+
+  return output;
+}
+
+function recoverStoredReconstructionArtifact(text: string): StoredReconstructionArtifact | null {
   const candidate = text.trim();
   if (!candidate.startsWith("{") || !candidate.includes('"transcriptText"')) {
-    return text;
+    return null;
   }
 
   try {
-    const artifact = JSON.parse(candidate) as { transcriptText?: unknown };
-    return typeof artifact.transcriptText === "string" ? artifact.transcriptText : text;
+    return JSON.parse(candidate) as StoredReconstructionArtifact;
   } catch {
     try {
-      const repaired = candidate.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
-      const artifact = JSON.parse(repaired) as { transcriptText?: unknown };
-      return typeof artifact.transcriptText === "string" ? artifact.transcriptText : text;
+      return JSON.parse(repairModelJsonEscapes(candidate)) as StoredReconstructionArtifact;
     } catch {
-      return text;
+      return null;
     }
   }
+}
+
+function recoverStoredTranscriptText(text: string) {
+  const artifact = recoverStoredReconstructionArtifact(text);
+  return typeof artifact?.transcriptText === "string" ? artifact.transcriptText : text;
+}
+
+function recoveredTextbookCitations(text: string): TextbookCitationEvidence[] {
+  const citations = recoverStoredReconstructionArtifact(text)?.evidence?.textbookCitations || [];
+
+  return citations.flatMap((citation) => {
+    const textbookName = typeof citation.textbookName === "string" ? citation.textbookName.trim() : "";
+    const pageStart = Number(citation.pageStart);
+    const pageEnd = Number(citation.pageEnd ?? citation.pageStart);
+    const description = typeof citation.description === "string" ? citation.description.trim() : "";
+    const crop = citation.imageCrop && typeof citation.imageCrop === "object"
+      ? citation.imageCrop as Record<string, unknown>
+      : null;
+    const x = Number(crop?.x);
+    const y = Number(crop?.y);
+    const width = Number(crop?.width);
+    const height = Number(crop?.height);
+    const usableCrop = [x, y, width, height].every(Number.isFinite) &&
+      x >= 0 && y >= 0 && width >= 70 && height >= 70 &&
+      x + width <= 1000 && y + height <= 1000 && width * height <= 700000;
+
+    return textbookName && Number.isFinite(pageStart)
+      ? [{
+          textbookName,
+          pageStart,
+          pageEnd: Number.isFinite(pageEnd) ? Math.max(pageStart, pageEnd) : pageStart,
+          description: description || undefined,
+          imageCrop: usableCrop ? { x, y, width, height } : undefined
+        }]
+      : [];
+  });
 }
 
 function stripInlineMarkdown(text: string) {
@@ -1744,6 +1835,7 @@ function timedTranscriptSegments(value: unknown): TranscriptSegment[] {
 
 function evidenceForTranscript(transcript: Transcript | undefined, mediaItems: MediaItem[]) {
   const explicitFigures = transcript?.evidence?.figures || [];
+  const explicitTextbookCitations = transcript?.evidence?.textbookCitations || [];
   const figures = explicitFigures.length
     ? explicitFigures
     : mediaItems
@@ -1757,7 +1849,12 @@ function evidenceForTranscript(transcript: Transcript | undefined, mediaItems: M
   return {
     audioClips: transcript?.evidence?.audioClips || [],
     figures,
-    textbookCitations: transcript?.evidence?.textbookCitations || []
+    // A previous parser fallback saved an entire model JSON response into
+    // transcript.text. Recover its source citations for display instead of
+    // discarding the provenance with the malformed presentation.
+    textbookCitations: explicitTextbookCitations.length
+      ? explicitTextbookCitations
+      : recoveredTextbookCitations(transcript?.text || "")
   };
 }
 
@@ -8851,6 +8948,18 @@ function LectureDetail({
   const [isStudyBrowserOpen, setIsStudyBrowserOpen] = useState(false);
   const [transcriptQuery, setTranscriptQuery] = useState("");
   const [activeTranscriptSegmentId, setActiveTranscriptSegmentId] = useState<string | null>(null);
+  const recoveredArtifact = useMemo(
+    () => recoverStoredReconstructionArtifact(transcript?.text || lecture.summary),
+    [lecture.summary, transcript?.text]
+  );
+  const recoveredTitle = typeof recoveredArtifact?.reconstructionTitle === "string"
+    ? recoveredArtifact.reconstructionTitle.trim()
+    : "";
+  const recoveredSummary = typeof recoveredArtifact?.summary === "string"
+    ? recoveredArtifact.summary.trim()
+    : "";
+  const displayedLectureTitle = recoveredTitle || lecture.title;
+  const displayedLectureSummary = recoveredSummary || lecture.summary;
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 1120px)");
@@ -9234,12 +9343,12 @@ function LectureDetail({
         <div className="section-heading">
           <div>
             <span className="pill">{courseLabel(lecture.courseId)}</span>
-            <h3>{lecture.title}</h3>
+            <h3>{displayedLectureTitle}</h3>
           </div>
           <span>{lecture.date}</span>
         </div>
         <p>
-          <MathPreview text={lecture.summary} />
+          <MathPreview text={displayedLectureSummary} />
         </p>
 
         <section className="usage-panel" aria-label="Transcription usage">
@@ -9298,11 +9407,6 @@ function LectureDetail({
               }
             />
           </div>
-          <TextbookVisualInline
-            citations={reconstructionEvidence.textbookCitations}
-            sourceUrlForTextbook={sourceUrlForTextbook}
-            textbooks={textbooks}
-          />
         </section>
         <EvidenceReferencePanel
           evidence={reconstructionEvidence}

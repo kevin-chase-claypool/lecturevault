@@ -124,9 +124,100 @@ type ReconstructionEvidence = {
     description?: string;
     imageDataUrl?: string;
     imageFilename?: string;
-    imageCrop?: { x?: number; y?: number; width?: number; height?: number };
+    imageCrop?: { x?: number; y?: number; width?: number; height?: number } | null;
   }>;
 };
+
+// The model's response is persisted as a study artifact. Enforce this shape at
+// generation time instead of relying on a best-effort JSON parse: a single
+// unescaped LaTeX command must never turn the complete JSON response into the
+// user's displayed lecture notes.
+const LECTURE_RECONSTRUCTION_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reconstructionTitle", "summary", "transcriptText", "concepts", "evidence"],
+  properties: {
+    reconstructionTitle: { type: "string" },
+    summary: { type: "string" },
+    transcriptText: { type: "string" },
+    concepts: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "detail", "sourceMediaId"],
+        properties: {
+          title: { type: "string" },
+          detail: { type: "string" },
+          sourceMediaId: { type: "string" }
+        }
+      }
+    },
+    evidence: {
+      type: "object",
+      additionalProperties: false,
+      required: ["figures", "audioClips", "textbookCitations"],
+      properties: {
+        figures: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["mediaItemId", "description"],
+            properties: {
+              mediaItemId: { type: "string" },
+              description: { type: "string" }
+            }
+          }
+        },
+        audioClips: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["mediaItemId", "startSeconds", "endSeconds", "description"],
+            properties: {
+              mediaItemId: { type: "string" },
+              startSeconds: { type: "number" },
+              endSeconds: { type: "number" },
+              description: { type: "string" }
+            }
+          }
+        },
+        textbookCitations: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["textbookName", "pageStart", "pageEnd", "description", "imageCrop"],
+            properties: {
+              textbookName: { type: "string" },
+              pageStart: { type: "number" },
+              pageEnd: { type: "number" },
+              description: { type: "string" },
+              imageCrop: {
+                anyOf: [
+                  {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["x", "y", "width", "height"],
+                    properties: {
+                      x: { type: "number", minimum: 0, maximum: 1000 },
+                      y: { type: "number", minimum: 0, maximum: 1000 },
+                      width: { type: "number", minimum: 0, maximum: 1000 },
+                      height: { type: "number", minimum: 0, maximum: 1000 }
+                    }
+                  },
+                  { type: "null" }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+} as const;
 
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -395,15 +486,31 @@ function usageFromEmbedding(usage: unknown): TokenUsage {
 function extractJson(text: string) {
   const trimmed = text.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]+?)\s*```/i);
-  const candidate = fenced ? fenced[1] : trimmed;
-  try {
-    return JSON.parse(candidate);
-  } catch {
-    // Models occasionally emit LaTeX commands such as \[ or \nabla inside
-    // JSON strings without escaping the backslash. Repair only invalid JSON
-    // escapes; preserve valid \n, \t, and unicode escapes.
-    return JSON.parse(candidate.replace(/\\(?!["\\/bfnrtu])/g, "\\\\"));
+  const candidate = (fenced ? fenced[1] : trimmed).trim();
+  return JSON.parse(candidate);
+}
+
+function normalizedFigureCrop(value: unknown) {
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Record<string, unknown>;
+  const x = Number(record.x);
+  const y = Number(record.y);
+  const width = Number(record.width);
+  const height = Number(record.height);
+  const area = width * height;
+
+  // A textbook visual is a diagram or figure, never an almost-complete page.
+  // Reject the prior default-style crop (for example 15,50,970,900) instead of
+  // quietly reintroducing the full-PDF-page behavior the user rejected.
+  if (
+    ![x, y, width, height].every(Number.isFinite) ||
+    x < 0 || y < 0 || width < 70 || height < 70 ||
+    x + width > 1000 || y + height > 1000 || area > 700000
+  ) {
+    return undefined;
   }
+
+  return { x, y, width, height };
 }
 
 function fallbackArtifact(transcriptText: string, media: LectureMediaItem[], title: string) {
@@ -546,7 +653,7 @@ async function normalizeEvidence(
         description: cleanString(citation.description),
         imageDataUrl: cleanString(citation.imageDataUrl) || undefined,
         imageFilename: cleanString(citation.imageFilename) || undefined,
-        imageCrop: citation.imageCrop
+        imageCrop: normalizedFigureCrop(citation.imageCrop)
       };
     })
     .filter((citation): citation is NonNullable<typeof citation> => Boolean(citation));
@@ -918,7 +1025,7 @@ export async function POST(request: Request) {
     const textbookVisualPageManifest = textbookVisualPages
       .map(
         (page) =>
-          `Visual textbook page: ${page.textbookName}, p. ${page.pageNumber}. A rendered image of this page is attached. If it contains a useful diagram, plot, table, or worked figure, return a tight imageCrop with normalized 0-1000 coordinates (x, y, width, height) around that visual so it can be embedded inline; use it only when it improves intuition.`
+          `Visual textbook page: ${page.textbookName}, p. ${page.pageNumber}. A rendered image of this page is attached. Return imageCrop only for one self-contained diagram, plot, table, or textbook illustration that improves intuition. It must tightly bound that visual rather than the page body: leave page margins out and keep crop area at or below 70% of the page. If this page has no useful visual, return imageCrop: null.`
       )
       .join("\n");
     const content: ResponseInputMessageContentList = [
@@ -993,7 +1100,15 @@ export async function POST(request: Request) {
     const response = await client.responses.create({
       input: [{ role: "user", content }],
       instructions: LECTURE_AI_INSTRUCTIONS,
-      model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL
+      model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "lecture_reconstruction",
+          strict: true,
+          schema: LECTURE_RECONSTRUCTION_SCHEMA
+        }
+      }
     });
     totalUsage = addUsage(totalUsage, usageFromOpenAI(response.usage));
 
@@ -1005,15 +1120,7 @@ export async function POST(request: Request) {
       evidence?: ReconstructionEvidence;
     };
 
-    try {
-      artifact = extractJson(response.output_text);
-    } catch {
-      artifact = fallbackArtifact(
-        response.output_text || audioTranscripts.join("\n\n"),
-        mediaItems,
-        cleanString(body.title)
-      );
-    }
+    artifact = extractJson(response.output_text);
 
     const artifactTranscriptText =
       cleanString(artifact.transcriptText) || audioTranscripts.join("\n\n");
@@ -1021,20 +1128,30 @@ export async function POST(request: Request) {
       ? artifactTranscriptText
       : stripNonAudioTimestampPrefixes(artifactTranscriptText);
 
+    const evidence = await normalizeEvidence(
+      artifact.evidence,
+      mediaItems,
+      timedAudioSegments,
+      textbookContext,
+      textbookVisualPages.map((page) => ({
+        textbookName: page.textbookName,
+        pageNumber: page.pageNumber,
+        images: page.images,
+        pageImageDataUrl: page.pageImageDataUrl
+      }))
+    );
+
+    console.info("[lecture-ai] reconstruction generated", {
+      audioClipCount: evidence.audioClips.length,
+      figureCount: evidence.figures.length,
+      hasStructuredArtifact: true,
+      textbookCitationCount: evidence.textbookCitations.length,
+      textbookFigureCount: evidence.textbookCitations.filter((citation) => Boolean(citation.imageDataUrl)).length
+    });
+
     return Response.json({
       concepts: Array.isArray(artifact.concepts) ? artifact.concepts : [],
-      evidence: await normalizeEvidence(
-        artifact.evidence,
-        mediaItems,
-        timedAudioSegments,
-        textbookContext,
-        textbookVisualPages.map((page) => ({
-          textbookName: page.textbookName,
-          pageNumber: page.pageNumber,
-          images: page.images,
-          pageImageDataUrl: page.pageImageDataUrl
-        }))
-      ),
+      evidence,
       generatedBy: "openai",
       reconstructionTitle: cleanString(artifact.reconstructionTitle).slice(0, 120),
       sourceMediaIds: mediaItems.map((item) => cleanString(item.id)).filter(Boolean),
@@ -1047,6 +1164,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Could not build lecture reconstruction.";
+    console.error("[lecture-ai] reconstruction failed", { message });
     return jsonError(message, 500);
   }
 }
