@@ -1736,3 +1736,9 @@ For archive organization changes, manually verify:
 
 - Disabled PDF.js workers for the server-side extractor. Vercel functions do not ship a browser worker module, so worker startup produced a fake-worker module-resolution error before page extraction.
 - Sequential in-process parsing remains the memory-safe path for large textbooks.
+
+## 2026-08-17 - Include PDF.js worker in Vercel tracing
+
+- The runtime still attempted fake-worker fallback because the external PDF.js package's `pdf.worker.mjs` was absent from the traced function output.
+- The extractor now points PDF.js at its package worker and Next.js explicitly includes that worker in the textbook route's output tracing. This preserves the large-file Node runtime while resolving worker module loading on Vercel.
+- Verification: typecheck and production build pass locally.
