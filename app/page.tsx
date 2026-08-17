@@ -903,12 +903,14 @@ function ReviewMarkdownPreview({
   let numberedItems: string[] = [];
   let mathLines: string[] = [];
   let inDisplayMath = false;
+  const usedVisualLabels = new Set<string>();
 
   function appendVisualAids(sourceText: string) {
     const matches = visualAids.filter((aid) =>
       aid.tokens.some((token) => sourceText.toLowerCase().includes(token.toLowerCase()))
     );
     for (const aid of matches.slice(0, 2)) {
+      usedVisualLabels.add(aid.label);
       nodes.push(
         <figure className="inline-visual-aid" key={`visual-${aid.label}-${nodes.length}`}>
           <img src={aid.src} alt={aid.alt} loading="lazy" />
@@ -1028,6 +1030,21 @@ function ReviewMarkdownPreview({
 
   flushBullets();
   flushNumberedItems();
+
+  const remainingVisuals = visualAids.filter((aid) => !usedVisualLabels.has(aid.label));
+  if (remainingVisuals.length) {
+    nodes.push(
+      <section className="inline-visual-aid-gallery" key="remaining-source-visuals">
+        <h4>Additional source visuals</h4>
+        {remainingVisuals.map((aid) => (
+          <figure className="inline-visual-aid" key={`remaining-${aid.label}`}>
+            <img src={aid.src} alt={aid.alt} loading="lazy" />
+            <figcaption>{aid.label}</figcaption>
+          </figure>
+        ))}
+      </section>
+    );
+  }
 
   return (
     <div className={`guide-rendered${compact ? " compact" : ""}${className ? ` ${className}` : ""}`}>

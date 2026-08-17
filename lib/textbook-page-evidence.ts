@@ -54,10 +54,19 @@ async function extractEmbeddedImages(pageBytes: Uint8Array, stem: string) {
     const images: Array<{ dataUrl: string; filename: string; width: number; height: number }> = [];
     const seen = new Set<string>();
     for (let index = 0; index < operatorList.fnArray.length && images.length < 4; index += 1) {
+      const operator = operatorList.fnArray[index];
+      if (operator !== pdfjs.OPS.paintImageXObject && operator !== pdfjs.OPS.paintInlineImageXObject) {
+        continue;
+      }
       const args = operatorList.argsArray[index] as unknown[] | undefined;
       const name = typeof args?.[0] === "string" ? args[0] : "";
       if (!name || seen.has(name)) continue;
-      const image = objects.get(name) as { data?: Uint8ClampedArray; width?: number; height?: number; kind?: number } | undefined;
+      let image: { data?: Uint8ClampedArray; width?: number; height?: number; kind?: number } | undefined;
+      try {
+        image = objects.get(name) as typeof image;
+      } catch {
+        continue;
+      }
       if (!image?.data || !image.width || !image.height || image.width < 80 || image.height < 60) continue;
       seen.add(name);
       const canvas = createCanvas(image.width, image.height);

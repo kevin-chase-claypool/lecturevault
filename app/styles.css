@@ -2973,6 +2973,14 @@ button.review-draft-button:disabled {
   background: #f7fafc;
 }
 
+.inline-visual-aid-gallery {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  border-top: 1px solid #d6e2eb;
+  padding-top: 12px;
+}
+
 .inline-visual-aid img {
   display: block;
   width: 100%;
