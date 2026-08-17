@@ -320,6 +320,7 @@ type CourseTextbook = {
   name: string;
   mimeType: string;
   size: number;
+  contentHash?: string;
   storageBucket?: string;
   storagePath?: string;
   pageCount?: number;
@@ -1477,18 +1478,21 @@ async function uploadMediaFile({
   file,
   lectureId,
   mediaId,
+  dedupeKey,
   onProgress
 }: {
   file: File;
   lectureId: string;
   mediaId: string;
+  dedupeKey?: string;
   onProgress?: (uploadedBytes: number, totalBytes: number) => void;
 }) {
   const signedResponse = await fetch("/api/media/signed-upload", {
     body: JSON.stringify({
       fileName: file.name,
       lectureId,
-      mediaId
+      mediaId,
+      dedupeKey
     }),
     credentials: "include",
     headers: {
@@ -1500,11 +1504,16 @@ async function uploadMediaFile({
     apiKey?: string | null;
     bucket?: string;
     error?: string;
+    alreadyExists?: boolean;
     path?: string;
     resumableEndpoint?: string | null;
     signedUrl?: string;
     token?: string;
   };
+
+  if (signedResponse.ok && signedData.path && signedData.alreadyExists) {
+    return { storageBucket: signedData.bucket, storagePath: signedData.path };
+  }
 
   if (signedResponse.ok && signedData.path && signedData.signedUrl) {
     const isPdf = file.type.includes("pdf") || file.name.toLowerCase().endsWith(".pdf");
@@ -1600,6 +1609,11 @@ async function uploadMediaFile({
     storageBucket: data.bucket,
     storagePath: data.path
   };
+}
+
+async function sha256File(file: File) {
+  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function readFileAsDataUrl(file: File) {
@@ -3081,10 +3095,12 @@ export default function LectureVaultApp() {
 
     try {
       for (const file of pdfFiles) {
+        const contentHash = await sha256File(file);
         const existingStoredTextbook = state.textbooks.find(
           (textbook) =>
-            textbook.name.trim().toLowerCase() === file.name.trim().toLowerCase() &&
-            textbook.size === file.size &&
+            (textbook.contentHash === contentHash ||
+              (textbook.name.trim().toLowerCase() === file.name.trim().toLowerCase() &&
+                textbook.size === file.size)) &&
             Boolean(textbook.storagePath)
         );
         const existingCourseTextbook = existingStoredTextbook?.courseId === courseId
@@ -3113,8 +3129,9 @@ export default function LectureVaultApp() {
             }
           : await uploadMediaFile({
               file,
-              lectureId: `textbook-${courseId}`,
-              mediaId: textbookId,
+              lectureId: "textbooks",
+              mediaId: `sha256-${contentHash}`,
+              dedupeKey: contentHash,
               onProgress: (uploadedBytes, totalBytes) => {
                 const percent = totalBytes ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
                 setStatus(`Uploading ${file.name}: ${percent}% (resumable)`);
@@ -3166,6 +3183,7 @@ export default function LectureVaultApp() {
           name: file.name,
           mimeType: file.type || "application/pdf",
           size: file.size,
+          contentHash,
           storageBucket: storage.storageBucket,
           storagePath: storage.storagePath,
           nativeTextPageCount: data.nativeTextPageCount,

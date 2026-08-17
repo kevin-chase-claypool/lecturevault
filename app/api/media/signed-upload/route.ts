@@ -88,12 +88,44 @@ export async function POST(request: Request) {
   const lectureId = safeName(typeof body.lectureId === "string" ? body.lectureId : "lecture");
   const mediaId = safeName(typeof body.mediaId === "string" ? body.mediaId : crypto.randomUUID());
   const fileName = safeName(typeof body.fileName === "string" ? body.fileName : "media");
-  const path = `lectures/${lectureId}/${mediaId}-${fileName}`;
+  const dedupeKey = typeof body.dedupeKey === "string" && /^[a-f0-9]{64}$/i.test(body.dedupeKey)
+    ? body.dedupeKey.toLowerCase()
+    : "";
+  const extension = fileName.includes(".") ? `.${fileName.split(".").pop()}` : "";
+  const path = dedupeKey
+    ? `textbooks/${dedupeKey}${extension}`
+    : `lectures/${lectureId}/${mediaId}-${fileName}`;
+  if (dedupeKey) {
+    const { data: existing } = await client.storage
+      .from(SUPABASE_MEDIA_BUCKET)
+      .list("textbooks", { limit: 1000, search: dedupeKey });
+    const match = existing?.find((entry) => entry.name.toLowerCase().startsWith(dedupeKey));
+    if (match) {
+      return Response.json({
+        alreadyExists: true,
+        bucket: SUPABASE_MEDIA_BUCKET,
+        path: `textbooks/${match.name}`
+      });
+    }
+  }
   const { data, error } = await client.storage
     .from(SUPABASE_MEDIA_BUCKET)
     .createSignedUploadUrl(path, { upsert: false });
 
   if (error || !data) {
+    if (dedupeKey) {
+      const { data: existing } = await client.storage
+        .from(SUPABASE_MEDIA_BUCKET)
+        .list("textbooks", { limit: 1000, search: dedupeKey });
+      const match = existing?.find((entry) => entry.name.toLowerCase().startsWith(dedupeKey));
+      if (match) {
+        return Response.json({
+          alreadyExists: true,
+          bucket: SUPABASE_MEDIA_BUCKET,
+          path: `textbooks/${match.name}`
+        });
+      }
+    }
     return Response.json(
       { error: error?.message || "Could not create signed upload URL." },
       { status: 500 }
