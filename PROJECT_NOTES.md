@@ -1,5 +1,11 @@
 # LectureVault Project Notes
 
+## 2026-08-16 - Trace PDF.js Worker in the Textbook Function
+
+- Marked `pdf-parse` and `pdfjs-dist` as Next.js server-external packages alongside the native canvas dependency.
+- This keeps PDF.js and its adjacent `pdf.worker.mjs` together in Vercel's traced serverless function instead of bundling only the loader into a generated Next.js chunk. The worker is also explicitly included in the textbook route trace because PDF.js loads it dynamically.
+- Resolves the textbook-upload failure where PDF.js attempted to import a missing `/var/task/.next/server/chunks/pdf.worker.mjs` fake worker. The existing extraction, indexing, citation, and Supabase storage workflows are unchanged.
+
 ## 2026-08-16 - Fix Server PDF Runtime Initialization
 
 - Removed the eager `pdf-parse` import from textbook extraction because it initialized PDF.js before Node DOM polyfills existed in the Vercel function.

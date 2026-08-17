@@ -1,7 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   outputFileTracingRoot: __dirname,
-  serverExternalPackages: ["@napi-rs/canvas"]
+  // Keep PDF.js packages intact in the serverless function. PDF.js resolves its
+  // worker relative to its own module, which does not work after Next bundles
+  // only the loader into a generated server chunk.
+  serverExternalPackages: ["@napi-rs/canvas", "pdf-parse", "pdfjs-dist"],
+  outputFileTracingIncludes: {
+    "/api/textbook/extract": [
+      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
+    ]
+  }
 };
 
 module.exports = nextConfig;
