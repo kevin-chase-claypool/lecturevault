@@ -790,6 +790,26 @@ function normalizeLatexEscapes(text: string) {
     .replace(/\\\\(?=[a-zA-Z])/g, "\\");
 }
 
+function recoverStoredTranscriptText(text: string) {
+  const candidate = text.trim();
+  if (!candidate.startsWith("{") || !candidate.includes('"transcriptText"')) {
+    return text;
+  }
+
+  try {
+    const artifact = JSON.parse(candidate) as { transcriptText?: unknown };
+    return typeof artifact.transcriptText === "string" ? artifact.transcriptText : text;
+  } catch {
+    try {
+      const repaired = candidate.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
+      const artifact = JSON.parse(repaired) as { transcriptText?: unknown };
+      return typeof artifact.transcriptText === "string" ? artifact.transcriptText : text;
+    } catch {
+      return text;
+    }
+  }
+}
+
 function stripInlineMarkdown(text: string) {
   return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1");
 }
@@ -854,7 +874,7 @@ function SourceLinkedMathPreview({
 }
 
 function normalizeStructuredMarkdown(text: string) {
-  return normalizeLatexEscapes(text)
+  return normalizeLatexEscapes(recoverStoredTranscriptText(text))
     .trim()
     // AI output occasionally places a Markdown heading after a sentence instead of on its own line.
     .replace(/([.!?])\s+(#{1,4}\s+)/g, "$1\n\n$2")
