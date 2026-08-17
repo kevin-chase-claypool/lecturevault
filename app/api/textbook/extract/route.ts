@@ -1,6 +1,5 @@
 import OpenAI from "openai";
 import { PDFDocument } from "pdf-lib";
-import PDFParser, { type Output as Pdf2JsonOutput } from "pdf2json";
 import { requireAuthenticatedRequest } from "../../../../lib/auth";
 import {
   storageObjectToBuffer,
@@ -18,43 +17,43 @@ const DEFAULT_VISUAL_INDEX_MODEL = "gpt-4.1-mini";
 const MAX_VISUAL_INDEX_PAGES = 64;
 
 async function extractPdfText(buffer: Uint8Array) {
-  // pdf2json runs its parser inside the Node function. Unlike pdf-parse's
-  // PDF.js path, it does not dynamically import a browser worker that Vercel
-  // can omit from a serverless bundle.
-  const parser = new PDFParser(null, true);
-  const parsed = await new Promise<Pdf2JsonOutput>((resolve, reject) => {
-    parser.once("pdfParser_dataReady", resolve);
-    parser.once("pdfParser_dataError", (error) => {
-      reject(error instanceof Error ? error : error.parserError);
-    });
-    parser.parseBuffer(Buffer.from(buffer));
-  });
+  // Process one page at a time. pdf2json asks PDF.js for every page at once,
+  // retaining all page render structures and exhausting serverless memory on
+  // large textbooks. PDF.js text extraction can release each page immediately.
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const document = await pdfjs.getDocument({
+    data: Buffer.from(buffer),
+    disableAutoFetch: true,
+    disableFontFace: true,
+    disableStream: true,
+    isEvalSupported: false,
+    useWorkerFetch: false
+  }).promise;
+  const pages: Array<{ num: number; text: string }> = [];
 
   try {
-    const pages = parsed.Pages.map((page, index) => {
-      const text = page.Texts
-        .slice()
-        .sort((left, right) => left.y - right.y || left.x - right.x)
-        .map((textBlock) =>
-          textBlock.R.map((run) => {
-            try {
-              return decodeURIComponent(run.T);
-            } catch {
-              return run.T;
-            }
-          }).join("")
-        )
-        .join("\n");
-
-      return { num: index + 1, text };
-    });
+    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+      const page = await document.getPage(pageNumber);
+      try {
+        const content = await page.getTextContent();
+        const text = content.items
+          .filter((item): item is typeof item & { str: string } =>
+            typeof item === "object" && item !== null && "str" in item
+          )
+          .map((item) => item.str)
+          .join("\n");
+        pages.push({ num: pageNumber, text });
+      } finally {
+        page.cleanup();
+      }
+    }
 
     return {
       pages,
       text: pages.map((page) => page.text).join("\n\n")
     };
   } finally {
-    parser.destroy();
+    await document.destroy();
   }
 }
 

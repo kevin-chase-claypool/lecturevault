@@ -1,5 +1,11 @@
 # LectureVault Project Notes
 
+## 2026-08-17 - Extract Textbook Pages Sequentially
+
+- Production logs showed `pdf2json` exhausting the Vercel function memory while parsing a 387-page textbook because its PDF.js path requests all pages concurrently.
+- Replaced the extraction step with direct PDF.js text extraction that processes one page at a time, calls `page.cleanup()`, and destroys the document after indexing. Page numbering, chunking, canonical evidence, embeddings, and targeted visual-review behavior remain unchanged.
+- Verification: `npm run typecheck`, `npm run build`, and `git diff --check` passed.
+
 ## 2026-08-17 - Make Textbook Storage And Index Details Expandable
 
 - Kept the uploaded textbook row compact while moving the full file, Storage, page, chunk, canonical-evidence, visual-review, and AI usage metadata into an inline collapsible disclosure.

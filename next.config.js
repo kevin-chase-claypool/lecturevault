@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   outputFileTracingRoot: __dirname,
-  // The textbook extractor uses pdf2json's self-contained Node parser. Keep it
-  // external so Vercel traces the complete parser without a browser worker.
-  serverExternalPackages: ["pdf2json"]
+  // Keep PDF.js external so Vercel traces its complete Node runtime while the
+  // extractor processes textbook pages sequentially without a browser worker.
+  serverExternalPackages: ["pdfjs-dist"]
 };
 
 module.exports = nextConfig;
