@@ -15,6 +15,7 @@ const CHUNK_OVERLAP = 280;
 const EMBEDDING_BATCH_SIZE = 48;
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
 const DEFAULT_VISUAL_INDEX_MODEL = "gpt-4.1-mini";
+const MAX_VISUAL_INDEX_PAGES = 64;
 
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -216,6 +217,28 @@ export async function POST(request: Request) {
       const nativePageText = normalizeText(page.text || "");
       return nativePageText.length < 80 || hasMathVisualRisk(nativePageText);
     }).length;
+    const configuredVisualIndexPageLimit = Number.parseInt(
+      process.env.OPENAI_TEXTBOOK_VISUAL_INDEX_PAGE_LIMIT || "0",
+      10
+    );
+    const visualIndexPageLimit = Math.max(
+      0,
+      Math.min(
+        MAX_VISUAL_INDEX_PAGES,
+        Number.isFinite(configuredVisualIndexPageLimit)
+          ? configuredVisualIndexPageLimit
+          : 0
+      )
+    );
+    const visualCandidates = pages.filter((page) => {
+      const nativePageText = normalizeText(page.text || "");
+      return nativePageText.length < 80 || hasMathVisualRisk(nativePageText);
+    });
+    const pagesForVisualIndex = visualCandidates.slice(0, visualIndexPageLimit);
+    const visualIndexDeferredPageCount = Math.max(
+      0,
+      visuallyDependentPageCount - pagesForVisualIndex.length
+    );
     const wholeDocumentText = parsed.text;
 
     for (const page of pages) {
@@ -294,15 +317,10 @@ export async function POST(request: Request) {
 
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-      if (visuallyDependentPageCount) {
+      if (pagesForVisualIndex.length) {
         const sourcePdf = await PDFDocument.load(buffer, { ignoreEncryption: true });
 
-        for (const page of pages) {
-          const nativePageText = normalizeText(page.text || "");
-          if (nativePageText.length >= 80 && !hasMathVisualRisk(nativePageText)) {
-            continue;
-          }
-
+        for (const page of pagesForVisualIndex) {
           const pageIndex = page.num - 1;
 
           if (pageIndex < 0 || pageIndex >= sourcePdf.getPageCount()) {
@@ -424,6 +442,7 @@ export async function POST(request: Request) {
         (page) => page.requires_visual_verification
       ).length,
       visualAnalysisUsage,
+      visualIndexDeferredPageCount,
       visuallyIndexedPageCount,
       visuallyDependentPageCount
     });

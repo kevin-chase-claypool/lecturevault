@@ -1638,3 +1638,13 @@ For archive organization changes, manually verify:
 - Added a final shared narrow-screen contract for Vault, Media Library, Reviews, Past Reviews, and study navigation explorers.
 - Explorer lists now suppress horizontal spill, constrain every cell to its panel, and apply predictable ellipsis to long names and metadata without removing date or size information.
 - No archive selection, sorting, drag-and-drop, folder, media, review, or persistence behavior changed.
+
+## 2026-08-16 - Harden Textbook Indexing and Defer Unbounded Vision Work
+
+- Hardened `app/page.tsx` textbook upload, reindex, and delete calls so HTML/proxy failures are handled as actionable errors instead of throwing `Unexpected token '<'` while parsing JSON.
+- Hardened `app/api/textbook/extract/route.ts` so native PDF extraction, page evidence, and embeddings remain the default upload path, while upload-time vision indexing is opt-in through `OPENAI_TEXTBOOK_VISUAL_INDEX_PAGE_LIMIT` and capped at 64 pages.
+- Math-heavy and sparse pages remain flagged as requiring visual verification. Their original page PDFs are still available to the reconstruction and review retrieval flows for targeted, on-demand vision analysis, preserving math accuracy without forcing a full textbook vision scan during every upload.
+- Existing textbook storage paths, embeddings, page citations, AI retrieval, and cross-device state contracts are unchanged for valid requests.
+- The deferred-page count is persisted with the course textbook metadata so the UI can distinguish pages already visually indexed from pages intentionally reserved for targeted retrieval.
+- Upload and course views now expose that deferred visual-page count, so users can tell that math/visual pages are available for targeted reconstruction or review analysis rather than silently omitted.
+- Verification: Ontoly review, `git diff --check`, typecheck, production build, commit/push, and Vercel deployment follow this note update.

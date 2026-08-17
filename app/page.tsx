@@ -325,6 +325,7 @@ type CourseTextbook = {
   pagesNeedingVisualVerification?: number;
   visuallyIndexedPageCount?: number;
   visuallyDependentPageCount?: number;
+  visualIndexDeferredPageCount?: number;
   chunkCount: number;
   indexedChunkCount?: number;
   embeddingUsage?: TokenUsage | null;
@@ -345,6 +346,7 @@ type TextbookIndexResponse = {
   visualAnalysisUsage?: TokenUsage | null;
   visuallyIndexedPageCount?: number;
   visuallyDependentPageCount?: number;
+  visualIndexDeferredPageCount?: number;
 };
 
 type CourseSyllabus = {
@@ -556,6 +558,34 @@ function formatTokenUsage(usage?: TokenUsage | null) {
   ]
     .filter(Boolean)
     .join(" / ");
+}
+
+async function readApiJson<T extends { error?: string }>(
+  response: Response,
+  fallback: string
+): Promise<T> {
+  const raw = await response.text();
+  let data: T | null = null;
+
+  try {
+    data = raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    // Platform timeouts and proxy failures can return HTML instead of JSON.
+  }
+
+  if (!response.ok) {
+    const statusHint =
+      response.status === 504 || response.status === 524
+        ? " The textbook service timed out; try again or reindex the textbook."
+        : ` (HTTP ${response.status})`;
+    throw new Error(data?.error || `${fallback}${statusHint}`);
+  }
+
+  if (!data) {
+    throw new Error(`${fallback} The textbook service returned an invalid response.`);
+  }
+
+  return data;
 }
 
 function formatCompactTokenUsage(usage?: TokenUsage | null) {
@@ -3024,16 +3054,19 @@ export default function LectureVaultApp() {
           },
           method: "POST"
         });
-        const data = (await response.json()) as TextbookIndexResponse;
-
-        if (!response.ok) {
-          throw new Error(data.error || `Could not extract ${file.name}.`);
-        }
+        const data = await readApiJson<TextbookIndexResponse>(
+          response,
+          `Could not extract ${file.name}.`
+        );
 
         updatePipelineStep(
           "extract",
           "done",
-          `${data.pageCount || 0} pages read; ${data.visuallyIndexedPageCount || 0} visual-first pages indexed`
+          `${data.pageCount || 0} pages read; ${data.visuallyIndexedPageCount || 0} visual-first pages indexed${
+            data.visualIndexDeferredPageCount
+              ? `; ${data.visualIndexDeferredPageCount} visual pages reserved for targeted review`
+              : ""
+          }`
         );
         updatePipelineStep(
           "index",
@@ -3060,6 +3093,7 @@ export default function LectureVaultApp() {
           indexedChunkCount: data.indexedChunkCount || 0,
           visuallyIndexedPageCount: data.visuallyIndexedPageCount,
           visuallyDependentPageCount: data.visuallyDependentPageCount,
+          visualIndexDeferredPageCount: data.visualIndexDeferredPageCount,
           embeddingUsage: data.embeddingUsage || null,
           visualAnalysisUsage: data.visualAnalysisUsage || null,
           createdAt: new Date().toISOString()
@@ -3133,16 +3167,19 @@ export default function LectureVaultApp() {
         },
         method: "POST"
       });
-      const data = (await response.json()) as TextbookIndexResponse;
-
-      if (!response.ok) {
-        throw new Error(data.error || `Could not reindex ${textbook.name}.`);
-      }
+      const data = await readApiJson<TextbookIndexResponse>(
+        response,
+        `Could not reindex ${textbook.name}.`
+      );
 
       updatePipelineStep(
         "extract",
         "done",
-        `${data.pageCount || 0} pages read; ${data.visuallyIndexedPageCount || 0} visual-first pages indexed`
+        `${data.pageCount || 0} pages read; ${data.visuallyIndexedPageCount || 0} visual-first pages indexed${
+          data.visualIndexDeferredPageCount
+            ? `; ${data.visualIndexDeferredPageCount} visual pages reserved for targeted review`
+            : ""
+        }`
       );
       updatePipelineStep(
         "index",
@@ -3165,7 +3202,8 @@ export default function LectureVaultApp() {
                 pagesNeedingVisualVerification: data.pagesNeedingVisualVerification,
                 visualAnalysisUsage: data.visualAnalysisUsage || null,
                 visuallyDependentPageCount: data.visuallyDependentPageCount,
-                visuallyIndexedPageCount: data.visuallyIndexedPageCount
+                visuallyIndexedPageCount: data.visuallyIndexedPageCount,
+                visualIndexDeferredPageCount: data.visualIndexDeferredPageCount
               }
             : item
         )
@@ -3206,11 +3244,10 @@ export default function LectureVaultApp() {
         },
         method: "DELETE"
       });
-      const data = (await response.json()) as { error?: string };
-
-      if (!response.ok) {
-        throw new Error(data.error || "Could not remove textbook vectors.");
-      }
+      await readApiJson<{ error?: string }>(
+        response,
+        "Could not remove textbook vectors."
+      );
 
       setState((current) => ({
         ...current,
@@ -5744,6 +5781,10 @@ export default function LectureVaultApp() {
                                 {typeof textbook.pagesNeedingVisualVerification === "number" &&
                                 textbook.pagesNeedingVisualVerification > 0
                                   ? ` - ${textbook.pagesNeedingVisualVerification} page${textbook.pagesNeedingVisualVerification === 1 ? "" : "s"} flagged for recheck`
+                                  : ""}
+                                {typeof textbook.visualIndexDeferredPageCount === "number" &&
+                                textbook.visualIndexDeferredPageCount > 0
+                                  ? ` - ${textbook.visualIndexDeferredPageCount} visual pages reserved for targeted review`
                                   : ""}
                                 {textbook.embeddingUsage
                                   ? ` - ${formatTokenUsage(textbook.embeddingUsage)} AI indexing usage`
