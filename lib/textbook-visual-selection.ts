@@ -113,13 +113,17 @@ function normalizedCrop(value: NonNullable<VisualSelectionResponse["textbookCita
 
 function inlineAnchorCandidates(transcriptText: string) {
   const candidates = transcriptText
-    .split(/\n\s*\n/)
-    .map((paragraph) => paragraph.replace(/^#{1,4}\s+/, "").replace(/\s+/g, " ").trim())
-    .filter((paragraph) => paragraph.length >= 40 && paragraph.length <= 520)
-    .filter((paragraph) => !/^textbook visual:/i.test(paragraph))
+    // ReviewMarkdownPreview inserts an image after a single non-heading,
+    // non-list line. Build anchors from that same unit instead of a whole
+    // Markdown block (which may include a display-math line).
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 28 && line.length <= 520)
+    .filter((line) => !/^(?:#{1,4}\s|[-*]\s|\d+[.)]\s|\\\[|\\\])/.test(line))
+    .filter((line) => !/^textbook visual:/i.test(line))
     // The renderer works line-by-line. A concise exact prefix is far more
     // reliable than a full paragraph when placing a figure beside its source.
-    .map((paragraph) => paragraph.slice(0, 140).trim());
+    .map((line) => line.slice(0, 140).trim());
 
   return [...new Set(candidates)].slice(0, 24);
 }
