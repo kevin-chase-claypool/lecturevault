@@ -33,7 +33,9 @@ async function extractPdfText(buffer: Uint8Array) {
   canvasGlobals.Path2D ||= Path2D;
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const document = await pdfjs.getDocument({
-    data: Buffer.from(buffer),
+    // PDF.js requires a plain Uint8Array here; passing Node's Buffer causes
+    // the runtime validator to reject otherwise-valid textbook PDFs.
+    data: buffer,
     disableAutoFetch: true,
     disableFontFace: true,
     disableStream: true,

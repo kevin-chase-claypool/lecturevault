@@ -1720,3 +1720,9 @@ For archive organization changes, manually verify:
 - The first canvas-global fix still let webpack traverse `@napi-rs/canvas` and fail while parsing its platform-specific `.node` binary.
 - The extractor now uses a webpack-ignored runtime import; `serverExternalPackages` continues to make the native package available to the Node runtime while keeping the production bundle portable.
 - Verification: typecheck and production build pass locally after the import change.
+
+## 2026-08-17 - Pass Uint8Array to PDF.js
+
+- Updated textbook extraction to pass the downloaded PDF bytes directly as a `Uint8Array` instead of wrapping them in Node's `Buffer`.
+- This resolves PDF.js runtime validation failures (`Please provide binary data as Uint8Array, rather than Buffer`) after successful large-file uploads.
+- Verification: typecheck and production build pass locally.
