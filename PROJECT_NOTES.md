@@ -1,5 +1,10 @@
 # LectureVault Project Notes
 
+## 2026-08-17 - Restore Vercel Textbook Deployment Lockfile
+
+- Regenerated `pnpm-lock.yaml` after adding `pdf2json`. Vercel uses pnpm because this repository includes a pnpm lockfile, and its frozen install rejected the prior production deployment because the new parser dependency was absent from that lockfile.
+- Verified both type checking and the production build after the lockfile update. This enables Vercel to install the self-contained textbook parser before the extraction route runs.
+
 ## 2026-08-17 - Replace Textbook PDF.js Worker Extraction
 
 - Replaced the textbook ingestion route's `pdf-parse`/PDF.js worker path with `pdf2json`, a self-contained Node-side parser that does not dynamically import a browser worker at runtime.
