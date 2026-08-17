@@ -1834,8 +1834,11 @@ function timedTranscriptSegments(value: unknown): TranscriptSegment[] {
 }
 
 function evidenceForTranscript(transcript: Transcript | undefined, mediaItems: MediaItem[]) {
-  const explicitFigures = transcript?.evidence?.figures || [];
-  const explicitTextbookCitations = transcript?.evidence?.textbookCitations || [];
+  // Saved state can outlive a failed or interrupted generation. Treat malformed
+  // evidence entries as absent so one null citation can never crash Vault.
+  const explicitFigures = (transcript?.evidence?.figures || []).filter(Boolean);
+  const explicitAudioClips = (transcript?.evidence?.audioClips || []).filter(Boolean);
+  const explicitTextbookCitations = (transcript?.evidence?.textbookCitations || []).filter(Boolean);
   const figures = explicitFigures.length
     ? explicitFigures
     : mediaItems
@@ -1847,7 +1850,7 @@ function evidenceForTranscript(transcript: Transcript | undefined, mediaItems: M
         }));
 
   return {
-    audioClips: transcript?.evidence?.audioClips || [],
+    audioClips: explicitAudioClips,
     figures,
     // A previous parser fallback saved an entire model JSON response into
     // transcript.text. Recover its source citations for display instead of
