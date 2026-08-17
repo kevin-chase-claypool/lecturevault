@@ -14,6 +14,7 @@ import {
 import type { ReactNode } from "react";
 import JSZip from "jszip";
 import katex from "katex";
+import * as tus from "tus-js-client";
 import {
   Archive,
   BookOpen,
@@ -1473,11 +1474,13 @@ async function fileToMediaDataUrl(file: File) {
 async function uploadMediaFile({
   file,
   lectureId,
-  mediaId
+  mediaId,
+  onProgress
 }: {
   file: File;
   lectureId: string;
   mediaId: string;
+  onProgress?: (uploadedBytes: number, totalBytes: number) => void;
 }) {
   const signedResponse = await fetch("/api/media/signed-upload", {
     body: JSON.stringify({
@@ -1495,16 +1498,61 @@ async function uploadMediaFile({
     bucket?: string;
     error?: string;
     path?: string;
+    resumableEndpoint?: string | null;
     signedUrl?: string;
+    token?: string;
   };
 
   if (signedResponse.ok && signedData.path && signedData.signedUrl) {
-    const uploadBody = new FormData();
-    uploadBody.append("cacheControl", "3600");
-    uploadBody.append("", file);
+    const isPdf = file.type.includes("pdf") || file.name.toLowerCase().endsWith(".pdf");
+    const shouldUseResumableUpload = isPdf || file.size > 6 * 1024 * 1024;
+
+    if (shouldUseResumableUpload && signedData.resumableEndpoint && signedData.token) {
+      const resumableEndpoint = signedData.resumableEndpoint;
+      const signedUploadToken = signedData.token;
+      const storagePath = signedData.path;
+
+      await new Promise<void>((resolve, reject) => {
+        const upload = new tus.Upload(file, {
+          chunkSize: 6 * 1024 * 1024,
+          endpoint: resumableEndpoint,
+          headers: {
+            "x-signature": signedUploadToken,
+            "x-upsert": "false"
+          },
+          metadata: {
+            bucketName: signedData.bucket || "lecturevault-media",
+            cacheControl: "3600",
+            contentType: file.type || "application/octet-stream",
+            objectName: storagePath
+          },
+          onError: (error) => reject(error),
+          onProgress: (uploadedBytes, totalBytes) => onProgress?.(uploadedBytes, totalBytes),
+          onSuccess: () => resolve(),
+          removeFingerprintOnSuccess: true,
+          retryDelays: [0, 3_000, 5_000, 10_000, 20_000],
+          uploadDataDuringCreation: true
+        });
+
+        void upload.findPreviousUploads().then((previousUploads) => {
+          if (previousUploads.length) {
+            upload.resumeFromPreviousUpload(previousUploads[0]);
+          }
+          upload.start();
+        }, reject);
+      });
+
+      return {
+        storageBucket: signedData.bucket,
+        storagePath: signedData.path
+      };
+    }
 
     const directUpload = await fetch(signedData.signedUrl, {
-      body: uploadBody,
+      body: file,
+      headers: {
+        "content-type": file.type || "application/octet-stream"
+      },
       method: "PUT"
     });
 
@@ -1520,7 +1568,7 @@ async function uploadMediaFile({
 
   if (file.size > 4 * 1024 * 1024) {
     throw new Error(
-      signedData.error || `Could not create a direct Supabase upload for ${file.name}.`
+      signedData.error || `Could not start a resumable Supabase upload for ${file.name}.`
     );
   }
 
@@ -3035,7 +3083,11 @@ export default function LectureVaultApp() {
         const storage = await uploadMediaFile({
           file,
           lectureId: `textbook-${courseId}`,
-          mediaId: textbookId
+          mediaId: textbookId,
+          onProgress: (uploadedBytes, totalBytes) => {
+            const percent = totalBytes ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
+            setStatus(`Uploading ${file.name}: ${percent}% (resumable)`);
+          }
         });
         updatePipelineStep("upload", "done", `${file.name} uploaded`);
         activatePipelineStep("extract", "Extracting page text from the uploaded PDF");

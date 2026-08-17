@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-08-17 - Move Large Textbook Uploads Off Vercel
+
+- Replaced the broken multipart `PUT` to a Supabase signed-object URL with a raw-file request for small non-PDF files and a signed TUS resumable upload for every PDF (and files over 6 MB).
+- Large textbook PDFs now travel directly from the browser to Supabase Storage's dedicated hostname in fixed 6 MB chunks, automatically retrying and resuming an interrupted upload. The Vercel app only issues a short-lived, path-scoped signed upload token; it never receives the PDF request body.
+- Textbooks retain the existing private Storage object, one-time canonical page evidence, embeddings, and page citations. Reconstruction and review generation therefore continue to retrieve only relevant saved pages/chunks rather than duplicating the textbook or repeatedly running full-book vision analysis.
+- Verification: run `npm run typecheck` and `npm run build` from `LectureVault`.
+
 ## 2026-08-17 - Restore Vercel Textbook Deployment Lockfile
 
 - Regenerated `pnpm-lock.yaml` after adding `pdf2json`. Vercel uses pnpm because this repository includes a pnpm lockfile, and its frozen install rejected the prior production deployment because the new parser dependency was absent from that lockfile.

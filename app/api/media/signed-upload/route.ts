@@ -20,6 +20,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
+function resumableUploadEndpoint() {
+  const configuredUrl = process.env.SUPABASE_URL?.trim();
+
+  if (!configuredUrl) {
+    return null;
+  }
+
+  try {
+    const url = new URL(configuredUrl);
+
+    // Use Storage's direct hostname so large PDFs do not pass through the API gateway.
+    if (url.hostname.endsWith(".supabase.co")) {
+      url.hostname = `${url.hostname.slice(0, -".supabase.co".length)}.storage.supabase.co`;
+    }
+
+    return `${url.origin}/storage/v1/upload/resumable`;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   const unauthorized = requireAuthenticatedRequest(request);
 
@@ -72,6 +93,8 @@ export async function POST(request: Request) {
   return Response.json({
     bucket: SUPABASE_MEDIA_BUCKET,
     path: data.path,
-    signedUrl: data.signedUrl
+    resumableEndpoint: resumableUploadEndpoint(),
+    signedUrl: data.signedUrl,
+    token: data.token
   });
 }
