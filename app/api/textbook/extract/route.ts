@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { DOMMatrix, ImageData, Path2D } from "@napi-rs/canvas";
 import { PDFDocument } from "pdf-lib";
 import { requireAuthenticatedRequest } from "../../../../lib/auth";
 import {
@@ -9,13 +8,6 @@ import {
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
-
-// PDF.js expects these browser canvas globals even for text extraction. Install
-// the Node implementations before dynamically loading the PDF.js runtime.
-const canvasGlobals = globalThis as unknown as Record<string, unknown>;
-canvasGlobals.DOMMatrix ||= DOMMatrix;
-canvasGlobals.ImageData ||= ImageData;
-canvasGlobals.Path2D ||= Path2D;
 
 const CHUNK_SIZE = 2400;
 const CHUNK_OVERLAP = 280;
@@ -28,6 +20,12 @@ async function extractPdfText(buffer: Uint8Array) {
   // Process one page at a time. pdf2json asks PDF.js for every page at once,
   // retaining all page render structures and exhausting serverless memory on
   // large textbooks. PDF.js text extraction can release each page immediately.
+  // Its Node canvas globals must be installed before the PDF.js module loads.
+  const { DOMMatrix, ImageData, Path2D } = await import("@napi-rs/canvas");
+  const canvasGlobals = globalThis as unknown as Record<string, unknown>;
+  canvasGlobals.DOMMatrix ||= DOMMatrix;
+  canvasGlobals.ImageData ||= ImageData;
+  canvasGlobals.Path2D ||= Path2D;
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const document = await pdfjs.getDocument({
     data: Buffer.from(buffer),

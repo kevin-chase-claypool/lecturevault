@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-08-17 - Initialize PDF.js Node Canvas Globals
+
+- The sequential extractor exposed a second runtime compatibility issue: PDF.js references `DOMMatrix` before page text extraction begins.
+- Registered `DOMMatrix`, `ImageData`, and `Path2D` from `@napi-rs/canvas` before dynamically importing PDF.js, preserving the low-memory sequential page path.
+- Verification: run `npm run typecheck` and `npm run build` from `LectureVault`.
+- The native canvas import is intentionally dynamic so Vercel does not try to webpack the platform `.node` binary.
+
 ## 2026-08-17 - Extract Textbook Pages Sequentially
 
 - Production logs showed `pdf2json` exhausting the Vercel function memory while parsing a 387-page textbook because its PDF.js path requests all pages concurrently.
