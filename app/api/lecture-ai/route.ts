@@ -121,6 +121,8 @@ type ReconstructionEvidence = {
     pageStart?: number;
     pageEnd?: number;
     description?: string;
+    imageDataUrl?: string;
+    imageFilename?: string;
   }>;
 };
 
@@ -448,7 +450,11 @@ function normalizeEvidence(
   mediaItems: LectureMediaItem[],
   timedAudioSegments: TimedAudioSegment[],
   textbookContext: TextbookContextChunk[],
-  textbookVisualPages: Array<{ textbookName: string; pageNumber: number }> = []
+  textbookVisualPages: Array<{
+    textbookName: string;
+    pageNumber: number;
+    images?: Array<{ dataUrl: string; filename: string }>;
+  }> = []
 ) {
   const figureSources = mediaItems
     .filter((item) => item.kind === "image" && cleanString(item.id))
@@ -526,7 +532,9 @@ function normalizeEvidence(
         textbookName: cleanString(source.textbookName),
         pageStart,
         pageEnd: Math.max(pageStart, pageEnd),
-        description: cleanString(citation.description)
+        description: cleanString(citation.description),
+        imageDataUrl: cleanString(citation.imageDataUrl) || undefined,
+        imageFilename: cleanString(citation.imageFilename) || undefined
       };
     })
     .filter((citation): citation is NonNullable<typeof citation> => Boolean(citation));
@@ -544,11 +552,14 @@ function normalizeEvidence(
       continue;
     }
     citedPageKeys.add(key);
+    const firstImage = page.images?.[0];
     textbookCitations.push({
       textbookName,
       pageStart: pageNumber,
       pageEnd: pageNumber,
-      description: "Attached textbook page selected for visual context."
+      description: "Textbook figure selected for intuitive visual context.",
+      imageDataUrl: firstImage?.dataUrl,
+      imageFilename: firstImage?.filename
     });
   }
 
@@ -931,7 +942,14 @@ export async function POST(request: Request) {
         detail: "high" as const,
         file_data: page.dataUrl,
         filename: page.filename
-      }))
+      })),
+      ...textbookVisualPages.flatMap((page) =>
+        page.images.map((image) => ({
+          type: "input_image" as const,
+          image_url: image.dataUrl,
+          detail: "high" as const
+        }))
+      )
     ];
     const response = await client.responses.create({
       input: [{ role: "user", content }],
@@ -973,7 +991,8 @@ export async function POST(request: Request) {
         textbookContext,
         textbookVisualPages.map((page) => ({
           textbookName: page.textbookName,
-          pageNumber: page.pageNumber
+          pageNumber: page.pageNumber,
+          images: page.images
         }))
       ),
       generatedBy: "openai",

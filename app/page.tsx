@@ -207,6 +207,8 @@ type ReconstructionEvidence = {
     pageStart: number;
     pageEnd?: number;
     description?: string;
+    imageDataUrl?: string;
+    imageFilename?: string;
   }>;
 };
 
@@ -8550,11 +8552,15 @@ function TextbookVisualInline({
                 <strong>{textbook.name}, {pageLabel}</strong>
                 <span>{citation.description || "Visual context for the nearby explanation."}</span>
               </summary>
-              <iframe
-                title={`${textbook.name}, ${pageLabel}`}
-                src={`${sourceUrl}#page=${citation.pageStart}`}
-                loading="lazy"
-              />
+              {citation.imageDataUrl ? (
+                <img src={citation.imageDataUrl} alt={`${textbook.name} figure from ${pageLabel}`} loading="lazy" />
+              ) : (
+                <iframe
+                  title={`${textbook.name}, ${pageLabel}`}
+                  src={`${sourceUrl}#page=${citation.pageStart}`}
+                  loading="lazy"
+                />
+              )}
               <a href={`${sourceUrl}#page=${citation.pageStart}`} target="_blank" rel="noreferrer">
                 Open this page in a new tab
               </a>

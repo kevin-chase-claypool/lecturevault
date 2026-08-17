@@ -21,6 +21,7 @@ export type TextbookPageEvidence = {
   pageNumber: number;
   textbookId: string;
   textbookName: string;
+  images: Array<{ dataUrl: string; filename: string; width: number; height: number }>;
 };
 
 function cleanString(value: unknown) {
@@ -35,6 +36,45 @@ function safeFileStem(value: string) {
       .replace(/^-+|-+$/g, "")
       .slice(0, 72) || "textbook"
   );
+}
+
+async function extractEmbeddedImages(pageBytes: Uint8Array, stem: string) {
+  try {
+    const { createCanvas, ImageData } = await import(
+      /* webpackIgnore: true */ "@napi-rs/canvas"
+    );
+    const pdfjs = await import(
+      /* webpackIgnore: true */ "pdfjs-dist/legacy/build/pdf.mjs"
+    );
+    const loadingTask = pdfjs.getDocument({ data: pageBytes });
+    const pdf = await loadingTask.promise;
+    const page = await pdf.getPage(1);
+    const objects = page.objs;
+    const operatorList = await page.getOperatorList();
+    const images: Array<{ dataUrl: string; filename: string; width: number; height: number }> = [];
+    const seen = new Set<string>();
+    for (let index = 0; index < operatorList.fnArray.length && images.length < 4; index += 1) {
+      const args = operatorList.argsArray[index] as unknown[] | undefined;
+      const name = typeof args?.[0] === "string" ? args[0] : "";
+      if (!name || seen.has(name)) continue;
+      const image = objects.get(name) as { data?: Uint8ClampedArray; width?: number; height?: number; kind?: number } | undefined;
+      if (!image?.data || !image.width || !image.height || image.width < 80 || image.height < 60) continue;
+      seen.add(name);
+      const canvas = createCanvas(image.width, image.height);
+      const context = canvas.getContext("2d");
+      context.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
+      images.push({
+        dataUrl: canvas.toDataURL("image/png"),
+        filename: `${stem}-${images.length + 1}.png`,
+        width: image.width,
+        height: image.height
+      });
+    }
+    await pdf.destroy();
+    return images;
+  } catch {
+    return [];
+  }
 }
 
 function requestedPages(requests: TextbookPageRequest[]) {
@@ -112,13 +152,15 @@ export async function textbookPageEvidence({
         singlePagePdf.addPage(copiedPage);
         const bytes = await singlePagePdf.save();
         const textbookName = cleanString(source.name) || page.textbookName;
+        const stem = `${safeFileStem(textbookName)}-p-${page.pageNumber}`;
 
         evidence.push({
           dataUrl: `data:application/pdf;base64,${Buffer.from(bytes).toString("base64")}`,
-          filename: `${safeFileStem(textbookName)}-p-${page.pageNumber}.pdf`,
+          filename: `${stem}.pdf`,
           pageNumber: page.pageNumber,
           textbookId,
-          textbookName
+          textbookName,
+          images: await extractEmbeddedImages(bytes, stem)
         });
       }
     } catch {
