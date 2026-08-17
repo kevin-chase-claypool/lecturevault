@@ -8504,6 +8504,68 @@ function EvidenceReferencePanel({
   );
 }
 
+function TextbookVisualInline({
+  citations,
+  textbooks,
+  sourceUrlForTextbook
+}: {
+  citations: TextbookCitationEvidence[];
+  textbooks: CourseTextbook[];
+  sourceUrlForTextbook: (textbook: CourseTextbook) => string;
+}) {
+  const pages = citations
+    .map((citation) => {
+      const textbook = textbooks.find(
+        (entry) => entry.name.trim().toLowerCase() === citation.textbookName.trim().toLowerCase()
+      );
+      if (!textbook) return null;
+      const sourceUrl = sourceUrlForTextbook(textbook);
+      if (!sourceUrl) return null;
+      return { citation, sourceUrl, textbook };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+
+  if (!pages.length) return null;
+
+  return (
+    <section className="textbook-visual-inline" aria-label="Embedded textbook visuals">
+      <div className="section-heading compact-heading">
+        <div>
+          <span className="pill">Textbook visuals</span>
+          <h4>Referenced diagrams and page visuals</h4>
+        </div>
+        <span>{pages.length} page{pages.length === 1 ? "" : "s"}</span>
+      </div>
+      <p className="section-note">
+        Expand a page to inspect the original diagram, pole-zero plot, or worked notation beside the explanation.
+      </p>
+      <div className="textbook-visual-inline-list">
+        {pages.map(({ citation, sourceUrl, textbook }, index) => {
+          const pageLabel = citation.pageEnd && citation.pageEnd !== citation.pageStart
+            ? `pp. ${citation.pageStart}-${citation.pageEnd}`
+            : `p. ${citation.pageStart}`;
+          return (
+            <details className="textbook-visual-inline-card" key={`${textbook.id}-${citation.pageStart}-${index}`}>
+              <summary>
+                <strong>{textbook.name}, {pageLabel}</strong>
+                <span>{citation.description || "Visual context for the nearby explanation."}</span>
+              </summary>
+              <iframe
+                title={`${textbook.name}, ${pageLabel}`}
+                src={`${sourceUrl}#page=${citation.pageStart}`}
+                loading="lazy"
+              />
+              <a href={`${sourceUrl}#page=${citation.pageStart}`} target="_blank" rel="noreferrer">
+                Open this page in a new tab
+              </a>
+            </details>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function ReviewFigureReferences({ figures }: { figures: ReviewFigure[] }) {
   const storageReferences = useMemo(
     () =>
@@ -9106,6 +9168,11 @@ function LectureDetail({
               }
             />
           </div>
+          <TextbookVisualInline
+            citations={reconstructionEvidence.textbookCitations}
+            sourceUrlForTextbook={sourceUrlForTextbook}
+            textbooks={textbooks}
+          />
         </section>
         <EvidenceReferencePanel
           evidence={reconstructionEvidence}

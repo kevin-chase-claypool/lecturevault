@@ -1768,3 +1768,9 @@ For archive organization changes, manually verify:
 - Reconstruction requests now attach up to eight retrieved original textbook pages, prioritizing pages flagged for visual verification while also including clear pages when their diagrams, plots, layout, or worked notation can improve intuition.
 - Updated the lecture-generation instructions to inspect supplied whiteboard images and textbook pages, preserve source-supported technical complexity, explain the intuition before formal derivations, and cite/label visuals selectively only when they materially support the explanation.
 - Verification: typecheck and production build pass locally.
+
+## 2026-08-17 - Embed cited textbook visuals in reconstruction view
+
+- Added an inline textbook-visual section beneath the rendered reconstruction. Each cited page can be expanded in an embedded PDF viewer at the cited page number, making pole-zero plots and other diagrams visible beside the LaTeX explanation instead of only appearing as a text citation.
+- Added targeted generation guidance for pole-zero, stability, frequency-response, transfer-function, and realization topics so the model actively uses relevant supplied diagrams and explains their geometric meaning.
+- Verification: typecheck and production build pass locally.
