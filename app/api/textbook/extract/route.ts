@@ -28,6 +28,10 @@ async function extractPdfText(buffer: Uint8Array) {
   canvasGlobals.ImageData ||= ImageData;
   canvasGlobals.Path2D ||= Path2D;
   const { PDFParse } = await import("pdf-parse");
+  const { getData: getPdfWorkerData } = await import(
+    /* webpackIgnore: true */ "pdf-parse/worker"
+  );
+  PDFParse.setWorker(getPdfWorkerData());
   const parser = new PDFParse({ data: buffer });
   try {
     const result = await parser.getText();

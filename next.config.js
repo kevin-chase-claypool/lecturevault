@@ -6,7 +6,7 @@ const nextConfig = {
   // Keep only the native canvas package external. Bundling pdfjs-dist ensures
   // its worker module is present in the Vercel function instead of being lost
   // from pnpm's external package trace.
-  serverExternalPackages: ["@napi-rs/canvas"]
+  serverExternalPackages: ["@napi-rs/canvas", "pdf-parse"]
 };
 
 module.exports = nextConfig;

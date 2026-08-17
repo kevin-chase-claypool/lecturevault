@@ -1757,3 +1757,8 @@ For archive organization changes, manually verify:
 
 - Registered `DOMMatrix`, `ImageData`, and `Path2D` from the external native canvas package before `pdf-parse` initializes PDF.js.
 - The native import remains webpack-ignored and server-external, preventing `.node` bundling while satisfying PDF.js's Node runtime globals.
+
+## 2026-08-17 - Set pdf-parse's embedded worker data explicitly
+
+- Configured `PDFParse` with the worker data URL provided by `pdf-parse/worker`, rather than allowing PDF.js to fall back to a relative `pdf.worker.mjs` import inside a generated Vercel chunk.
+- `pdf-parse` is externalized alongside the native canvas package so its worker helper and embedded data remain available at runtime.
