@@ -3081,18 +3081,45 @@ export default function LectureVaultApp() {
 
     try {
       for (const file of pdfFiles) {
+        const existingStoredTextbook = state.textbooks.find(
+          (textbook) =>
+            textbook.name.trim().toLowerCase() === file.name.trim().toLowerCase() &&
+            textbook.size === file.size &&
+            Boolean(textbook.storagePath)
+        );
+        const existingCourseTextbook = existingStoredTextbook?.courseId === courseId
+          ? existingStoredTextbook
+          : undefined;
+
+        if (existingCourseTextbook) {
+          updatePipelineStep(
+            "upload",
+            "done",
+            `${file.name} is already attached to ${course.code}; reusing the existing record`
+          );
+          updatePipelineStep("extract", "done", "Existing indexed textbook reused");
+          updatePipelineStep("index", "done", "Existing textbook vectors reused");
+          updatePipelineStep("save", "done", `${file.name} already ready for AI search`);
+          continue;
+        }
+
         const textbookId = uid("textbook");
         activatePipelineStep("upload", `${file.name} (${formatFileSize(file.size)})`);
         setStatus(`Uploading and extracting ${file.name}...`);
-        const storage = await uploadMediaFile({
-          file,
-          lectureId: `textbook-${courseId}`,
-          mediaId: textbookId,
-          onProgress: (uploadedBytes, totalBytes) => {
-            const percent = totalBytes ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
-            setStatus(`Uploading ${file.name}: ${percent}% (resumable)`);
-          }
-        });
+        const storage = existingStoredTextbook
+          ? {
+              storageBucket: existingStoredTextbook.storageBucket,
+              storagePath: existingStoredTextbook.storagePath as string
+            }
+          : await uploadMediaFile({
+              file,
+              lectureId: `textbook-${courseId}`,
+              mediaId: textbookId,
+              onProgress: (uploadedBytes, totalBytes) => {
+                const percent = totalBytes ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
+                setStatus(`Uploading ${file.name}: ${percent}% (resumable)`);
+              }
+            });
         updatePipelineStep("upload", "done", `${file.name} uploaded`);
         activatePipelineStep("extract", "Extracting page text from the uploaded PDF");
         const response = await fetch("/api/textbook/extract", {
