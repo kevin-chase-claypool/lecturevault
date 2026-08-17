@@ -1,7 +1,6 @@
 import OpenAI from "openai";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { PDFDocument } from "pdf-lib";
+import PDFParser, { type Output as Pdf2JsonOutput } from "pdf2json";
 import { requireAuthenticatedRequest } from "../../../../lib/auth";
 import {
   storageObjectToBuffer,
@@ -19,35 +18,43 @@ const DEFAULT_VISUAL_INDEX_MODEL = "gpt-4.1-mini";
 const MAX_VISUAL_INDEX_PAGES = 64;
 
 async function extractPdfText(buffer: Uint8Array) {
-  // PDF.js requires these browser-like constructors while running in Node.
-  // Register them before importing pdf-parse so Vercel bundles its native
-  // canvas dependency and PDF.js can initialize without a DOMMatrix failure.
-  const canvas = await import("@napi-rs/canvas");
-  const runtime = globalThis as unknown as Record<string, unknown>;
-
-  runtime.DOMMatrix ??= canvas.DOMMatrix;
-  runtime.ImageData ??= canvas.ImageData;
-  runtime.Path2D ??= canvas.Path2D;
-
-  const { PDFParse } = await import("pdf-parse");
-  // PDF.js defaults to a relative worker path. Under Vercel's pnpm layout that
-  // path can point at an untraced nested package location, so target the
-  // explicitly traced dependency-root worker instead.
-  const workerPath = path.join(
-    process.cwd(),
-    "node_modules",
-    "pdfjs-dist",
-    "legacy",
-    "build",
-    "pdf.worker.mjs"
-  );
-  PDFParse.setWorker(pathToFileURL(workerPath).href);
-  const parser = new PDFParse({ data: buffer });
+  // pdf2json runs its parser inside the Node function. Unlike pdf-parse's
+  // PDF.js path, it does not dynamically import a browser worker that Vercel
+  // can omit from a serverless bundle.
+  const parser = new PDFParser(null, true);
+  const parsed = await new Promise<Pdf2JsonOutput>((resolve, reject) => {
+    parser.once("pdfParser_dataReady", resolve);
+    parser.once("pdfParser_dataError", (error) => {
+      reject(error instanceof Error ? error : error.parserError);
+    });
+    parser.parseBuffer(Buffer.from(buffer));
+  });
 
   try {
-    return await parser.getText();
+    const pages = parsed.Pages.map((page, index) => {
+      const text = page.Texts
+        .slice()
+        .sort((left, right) => left.y - right.y || left.x - right.x)
+        .map((textBlock) =>
+          textBlock.R.map((run) => {
+            try {
+              return decodeURIComponent(run.T);
+            } catch {
+              return run.T;
+            }
+          }).join("")
+        )
+        .join("\n");
+
+      return { num: index + 1, text };
+    });
+
+    return {
+      pages,
+      text: pages.map((page) => page.text).join("\n\n")
+    };
   } finally {
-    await parser.destroy();
+    parser.destroy();
   }
 }
 
@@ -474,7 +481,7 @@ export async function POST(request: Request) {
       embeddingUsage,
       indexedChunkCount,
       nativeTextPageCount,
-      pageCount: parsed.total || pages.length || 0,
+      pageCount: pages.length,
       pageEvidenceCount: pageEvidence.length,
       pagesNeedingVisualVerification: pageEvidence.filter(
         (page) => page.requires_visual_verification

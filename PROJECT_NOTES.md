@@ -1,5 +1,13 @@
 # LectureVault Project Notes
 
+## 2026-08-17 - Replace Textbook PDF.js Worker Extraction
+
+- Replaced the textbook ingestion route's `pdf-parse`/PDF.js worker path with `pdf2json`, a self-contained Node-side parser that does not dynamically import a browser worker at runtime.
+- Preserved the existing page-aware textbook contract by converting parser pages into ordered `{ num, text }` records, so chunking, embeddings, page citations, math-risk visual verification, and reconstruction/review retrieval remain unchanged.
+- Derived the returned page count from the normalized parser pages rather than relying on the previous parser's `total` field.
+- Removed the obsolete PDF.js worker tracing configuration and retained only the self-contained parser as a Vercel server external package.
+- This targets the production failure where Vercel uploaded a textbook successfully but could not locate `pdf.worker.mjs` during extraction.
+
 ## 2026-08-16 - Trace PDF.js Worker in the Textbook Function
 
 - Expanded the Vercel trace to include the full legacy PDF.js build from both the regular dependency link and pnpm's physical package path. This covers the location used by Vercel's serverless pnpm runtime when `PDFParse` loads its worker.
