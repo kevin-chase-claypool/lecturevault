@@ -207,6 +207,7 @@ type ReconstructionEvidence = {
     pageStart: number;
     pageEnd?: number;
     description?: string;
+    inlineAnchor?: string;
     imageDataUrl?: string;
     imageFilename?: string;
     imageCrop?: { x?: number; y?: number; width?: number; height?: number } | null;
@@ -9164,7 +9165,11 @@ function LectureDetail({
             alt: `${citation.textbookName}, page ${citation.pageStart}`,
             label: `${citation.textbookName}, p. ${citation.pageStart}`,
             src: citation.imageDataUrl,
-            tokens: [`p. ${citation.pageStart}`, `page ${citation.pageStart}`]
+            tokens: [
+              citation.inlineAnchor || "",
+              `p. ${citation.pageStart}`,
+              `page ${citation.pageStart}`
+            ].filter(Boolean)
           }]
         : []
     );
