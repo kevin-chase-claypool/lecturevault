@@ -447,7 +447,8 @@ function normalizeEvidence(
   evidence: ReconstructionEvidence | undefined,
   mediaItems: LectureMediaItem[],
   timedAudioSegments: TimedAudioSegment[],
-  textbookContext: TextbookContextChunk[]
+  textbookContext: TextbookContextChunk[],
+  textbookVisualPages: Array<{ textbookName: string; pageNumber: number }> = []
 ) {
   const figureSources = mediaItems
     .filter((item) => item.kind === "image" && cleanString(item.id))
@@ -529,6 +530,27 @@ function normalizeEvidence(
       };
     })
     .filter((citation): citation is NonNullable<typeof citation> => Boolean(citation));
+
+  const citedPageKeys = new Set(
+    textbookCitations.map(
+      (citation) => `${citation.textbookName.toLowerCase()}:${citation.pageStart}`
+    )
+  );
+  for (const page of textbookVisualPages) {
+    const textbookName = cleanString(page.textbookName);
+    const pageNumber = Number(page.pageNumber);
+    const key = `${textbookName.toLowerCase()}:${pageNumber}`;
+    if (!textbookName || !Number.isFinite(pageNumber) || citedPageKeys.has(key)) {
+      continue;
+    }
+    citedPageKeys.add(key);
+    textbookCitations.push({
+      textbookName,
+      pageStart: pageNumber,
+      pageEnd: pageNumber,
+      description: "Attached textbook page selected for visual context."
+    });
+  }
 
   return { audioClips, figures, textbookCitations };
 }
@@ -944,7 +966,16 @@ export async function POST(request: Request) {
 
     return Response.json({
       concepts: Array.isArray(artifact.concepts) ? artifact.concepts : [],
-      evidence: normalizeEvidence(artifact.evidence, mediaItems, timedAudioSegments, textbookContext),
+      evidence: normalizeEvidence(
+        artifact.evidence,
+        mediaItems,
+        timedAudioSegments,
+        textbookContext,
+        textbookVisualPages.map((page) => ({
+          textbookName: page.textbookName,
+          pageNumber: page.pageNumber
+        }))
+      ),
       generatedBy: "openai",
       reconstructionTitle: cleanString(artifact.reconstructionTitle).slice(0, 120),
       sourceMediaIds: mediaItems.map((item) => cleanString(item.id)).filter(Boolean),
