@@ -1648,3 +1648,9 @@ For archive organization changes, manually verify:
 - The deferred-page count is persisted with the course textbook metadata so the UI can distinguish pages already visually indexed from pages intentionally reserved for targeted retrieval.
 - Upload and course views now expose that deferred visual-page count, so users can tell that math/visual pages are available for targeted reconstruction or review analysis rather than silently omitted.
 - Verification: Ontoly review, `git diff --check`, typecheck, production build, commit/push, and Vercel deployment follow this note update.
+## 2026-08-16 Textbook PDF parser runtime compatibility
+
+- Added `@napi-rs/canvas` as a production dependency so `pdfjs-dist`, used by `pdf-parse`, can provide the canvas globals expected by the Node/Vercel runtime (`DOMMatrix`, `ImageData`, and `Path2D`).
+- This fixes textbook indexing failures that occurred before the extraction handler could run, where Vercel returned an HTTP 500 during PDF parsing.
+- The lockfile was regenerated so the existing Ontoly development dependency and the new native parser dependency are represented consistently.
+- The pnpm lockfile is also synchronized because Vercel uses frozen pnpm installs during production builds.

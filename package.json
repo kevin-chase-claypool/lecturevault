@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.6",
     "@supabase/supabase-js": "^2.110.1",
     "@types/katex": "^0.16.8",
     "jszip": "^3.10.1",
