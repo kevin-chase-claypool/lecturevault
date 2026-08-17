@@ -1,5 +1,11 @@
 # LectureVault Project Notes
 
+## 2026-08-17 - Make Textbook Storage And Index Details Expandable
+
+- Kept the uploaded textbook row compact while moving the full file, Storage, page, chunk, canonical-evidence, visual-review, and AI usage metadata into an inline collapsible disclosure.
+- Storage paths remain wrapped safely, and the disclosure uses the existing textbook card so it stays associated with the original PDF and its reconstruction/review evidence.
+- Verification: `npm run typecheck`, `npm run build`, and `git diff --check` passed.
+
 ## 2026-08-17 - Move Large Textbook Uploads Off Vercel
 
 - Replaced the broken multipart `PUT` to a Supabase signed-object URL with a raw-file request for small non-PDF files and a signed TUS resumable upload for every PDF (and files over 6 MB).

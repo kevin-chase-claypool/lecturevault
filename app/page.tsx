@@ -5828,22 +5828,31 @@ export default function LectureVaultApp() {
                               <small>
                                 {formatFileSize(textbook.size)} - {textbook.pageCount || 0} pages -{" "}
                                 {textbook.indexedChunkCount || 0} indexed sections - {textbook.pageEvidenceCount || 0} canonical page records
-                                {typeof textbook.visuallyIndexedPageCount === "number" &&
-                                textbook.visuallyIndexedPageCount > 0
-                                  ? ` - ${textbook.visuallyIndexedPageCount} visual pages analyzed`
-                                  : ""}
-                                {typeof textbook.pagesNeedingVisualVerification === "number" &&
-                                textbook.pagesNeedingVisualVerification > 0
-                                  ? ` - ${textbook.pagesNeedingVisualVerification} page${textbook.pagesNeedingVisualVerification === 1 ? "" : "s"} flagged for recheck`
-                                  : ""}
-                                {typeof textbook.visualIndexDeferredPageCount === "number" &&
-                                textbook.visualIndexDeferredPageCount > 0
-                                  ? ` - ${textbook.visualIndexDeferredPageCount} visual pages reserved for targeted review`
-                                  : ""}
-                                {textbook.embeddingUsage
-                                  ? ` - ${formatTokenUsage(textbook.embeddingUsage)} AI indexing usage`
-                                  : ""}
                               </small>
+                              <details className="course-textbook-details">
+                                <summary>Storage and indexing details</summary>
+                                <div className="course-textbook-details-grid">
+                                  <span><strong>File size</strong>{formatFileSize(textbook.size)}</span>
+                                  <span><strong>Type</strong>{textbook.mimeType || "application/pdf"}</span>
+                                  <span><strong>Uploaded</strong>{new Date(textbook.createdAt).toLocaleDateString()}</span>
+                                  <span><strong>Storage</strong>{textbook.storageBucket || "Supabase Storage"}</span>
+                                  <span><strong>Pages</strong>{textbook.pageCount || 0} total ({textbook.nativeTextPageCount || 0} native text)</span>
+                                  <span><strong>Search chunks</strong>{textbook.chunkCount || 0} created / {textbook.indexedChunkCount || 0} indexed</span>
+                                  <span><strong>Canonical evidence</strong>{textbook.pageEvidenceCount || 0} page records</span>
+                                  <span><strong>Visual analysis</strong>{textbook.visuallyIndexedPageCount || 0} pages analyzed</span>
+                                  <span><strong>Flagged for recheck</strong>{textbook.pagesNeedingVisualVerification || 0} pages</span>
+                                  <span><strong>Reserved for review</strong>{textbook.visualIndexDeferredPageCount || 0} visual pages</span>
+                                  {textbook.embeddingUsage ? (
+                                    <span><strong>Embedding usage</strong>{formatTokenUsage(textbook.embeddingUsage)}</span>
+                                  ) : null}
+                                  {textbook.visualAnalysisUsage ? (
+                                    <span><strong>Visual AI usage</strong>{formatTokenUsage(textbook.visualAnalysisUsage)}</span>
+                                  ) : null}
+                                  {textbook.storagePath ? (
+                                    <span className="course-textbook-storage-path"><strong>Storage path</strong>{textbook.storagePath}</span>
+                                  ) : null}
+                                </div>
+                              </details>
                             </div>
                             {!textbook.pageEvidenceCount ? (
                               <button
