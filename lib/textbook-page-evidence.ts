@@ -46,9 +46,7 @@ async function extractEmbeddedImages(pageBytes: Uint8Array, stem: string) {
     const { createCanvas, ImageData } = await import(
       /* webpackIgnore: true */ "@napi-rs/canvas"
     );
-    const pdfjs = await import(
-      /* webpackIgnore: true */ "pdfjs-dist/legacy/build/pdf.mjs"
-    );
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const loadingTask = pdfjs.getDocument({
       data: pageBytes,
       // Textbooks assembled by some scanners contain harmless malformed object
@@ -107,9 +105,7 @@ async function renderPageImage(pageBytes: Uint8Array) {
     globals.DOMMatrix ||= DOMMatrix;
     globals.ImageData ||= ImageData;
     globals.Path2D ||= Path2D;
-    const pdfjs = await import(
-      /* webpackIgnore: true */ "pdfjs-dist/legacy/build/pdf.mjs"
-    );
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const pdf = await pdfjs.getDocument({
       data: pageBytes,
       stopAtErrors: false
