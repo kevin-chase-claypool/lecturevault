@@ -1762,3 +1762,9 @@ For archive organization changes, manually verify:
 
 - Configured `PDFParse` with the worker data URL provided by `pdf-parse/worker`, rather than allowing PDF.js to fall back to a relative `pdf.worker.mjs` import inside a generated Vercel chunk.
 - `pdf-parse` is externalized alongside the native canvas package so its worker helper and embedded data remain available at runtime.
+
+## 2026-08-17 - Make reconstructions visually intuitive and technically complete
+
+- Reconstruction requests now attach up to eight retrieved original textbook pages, prioritizing pages flagged for visual verification while also including clear pages when their diagrams, plots, layout, or worked notation can improve intuition.
+- Updated the lecture-generation instructions to inspect supplied whiteboard images and textbook pages, preserve source-supported technical complexity, explain the intuition before formal derivations, and cite/label visuals selectively only when they materially support the explanation.
+- Verification: typecheck and production build pass locally.

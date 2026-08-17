@@ -13,6 +13,7 @@ import {
 } from "../../../lib/supabase-server";
 import {
   textbookPageEvidence,
+  type TextbookPageRequest,
   type TextbookPageSource
 } from "../../../lib/textbook-page-evidence";
 import {
@@ -31,6 +32,7 @@ const MAX_DOCUMENT_INPUTS = 5;
 // Keep retrieval and original-page verification aligned: every retrieved context
 // candidate can be backed by its actual textbook page in the same model request.
 const MAX_TEXTBOOK_CONTEXT = 8;
+const MAX_TEXTBOOK_VISUAL_PAGES = 8;
 // Leave reliable headroom below the Audio API's 25 MB request limit. These chunks
 // are created only for transcription; the original source remains in Supabase.
 const MAX_TRANSCRIPTION_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -822,14 +824,32 @@ export async function POST(request: Request) {
     ]
       .filter(Boolean)
       .join("\n\n---\n\n");
+    // Attach a bounded set of retrieved textbook pages even when their native
+    // text was clear. This lets the model use diagrams, plots, layout, and
+    // worked notation for intuition without sending an entire textbook back
+    // to the model. Flagged pages get priority for visual verification.
+    const textbookVisualRequestMap = new Map<string, TextbookPageRequest>();
+    for (const request of [
+      ...canonicalTextbookEvidence.pageRequestsNeedingSource,
+      ...textbookPageRequests
+    ]) {
+      const key = `${cleanString(request.textbookId)}:${request.pageStart}:${request.pageEnd}`;
+      if (!textbookVisualRequestMap.has(key)) {
+        textbookVisualRequestMap.set(key, request);
+      }
+    }
+    const textbookVisualRequests = [...textbookVisualRequestMap.values()].slice(
+      0,
+      MAX_TEXTBOOK_VISUAL_PAGES
+    );
     const textbookVisualPages = await textbookPageEvidence({
-      requests: canonicalTextbookEvidence.pageRequestsNeedingSource,
+      requests: textbookVisualRequests,
       sources: textbookSources
     });
     const textbookVisualPageManifest = textbookVisualPages
       .map(
         (page) =>
-          `Visual textbook page: ${page.textbookName}, p. ${page.pageNumber}. This is the original PDF page for the retrieved excerpt; inspect its equations, diagrams, units, and layout before relying on or citing it.`
+          `Visual textbook page: ${page.textbookName}, p. ${page.pageNumber}. This original PDF page was selected because its equations, diagrams, units, layout, or visual explanation may improve intuition; use it when helpful and cite it only when the written explanation depends on it.`
       )
       .join("\n");
     const content: ResponseInputMessageContentList = [
