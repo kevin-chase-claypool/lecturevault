@@ -54,8 +54,10 @@ const TEXTBOOK_VISUAL_SELECTION_SCHEMA = {
             properties: {
               x: { type: "number", minimum: 0, maximum: 1000 },
               y: { type: "number", minimum: 0, maximum: 1000 },
-              width: { type: "number", minimum: 70, maximum: 1000 },
-              height: { type: "number", minimum: 70, maximum: 1000 }
+              // 820 x 820 is safely below the 70%-of-page limit and prevents
+              // the selector from proposing a near-full-page crop.
+              width: { type: "number", minimum: 70, maximum: 820 },
+              height: { type: "number", minimum: 70, maximum: 820 }
             }
           }
         }
