@@ -8566,8 +8566,8 @@ function TextbookVisualInline({
         (entry) => entry.name.trim().toLowerCase() === citation.textbookName.trim().toLowerCase()
       );
       if (!textbook) return null;
+      if (!citation.imageDataUrl) return null;
       const sourceUrl = sourceUrlForTextbook(textbook);
-      if (!sourceUrl) return null;
       return { citation, sourceUrl, textbook };
     })
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
@@ -8579,12 +8579,12 @@ function TextbookVisualInline({
       <div className="section-heading compact-heading">
         <div>
           <span className="pill">Textbook visuals</span>
-          <h4>Referenced diagrams and page visuals</h4>
+          <h4>Embedded textbook figures</h4>
         </div>
-        <span>{pages.length} page{pages.length === 1 ? "" : "s"}</span>
+        <span>{pages.length} figure{pages.length === 1 ? "" : "s"}</span>
       </div>
       <p className="section-note">
-        Expand a page to inspect the original diagram, pole-zero plot, or worked notation beside the explanation.
+        Figures extracted from the supplied textbooks are embedded directly beside the explanation. The page link preserves source provenance.
       </p>
       <div className="textbook-visual-inline-list">
         {pages.map(({ citation, sourceUrl, textbook }, index) => {
@@ -8592,24 +8592,14 @@ function TextbookVisualInline({
             ? `pp. ${citation.pageStart}-${citation.pageEnd}`
             : `p. ${citation.pageStart}`;
           return (
-            <details className="textbook-visual-inline-card" key={`${textbook.id}-${citation.pageStart}-${index}`}>
-              <summary>
+            <figure className="textbook-visual-inline-card" key={`${textbook.id}-${citation.pageStart}-${index}`}>
+              <img src={citation.imageDataUrl} alt={`${textbook.name} figure from ${pageLabel}`} loading="lazy" />
+              <figcaption>
                 <strong>{textbook.name}, {pageLabel}</strong>
                 <span>{citation.description || "Visual context for the nearby explanation."}</span>
-              </summary>
-              {citation.imageDataUrl ? (
-                <img src={citation.imageDataUrl} alt={`${textbook.name} figure from ${pageLabel}`} loading="lazy" />
-              ) : (
-                <iframe
-                  title={`${textbook.name}, ${pageLabel}`}
-                  src={`${sourceUrl}#page=${citation.pageStart}`}
-                  loading="lazy"
-                />
-              )}
-              <a href={`${sourceUrl}#page=${citation.pageStart}`} target="_blank" rel="noreferrer">
-                Open this page in a new tab
-              </a>
-            </details>
+                {sourceUrl ? <a href={`${sourceUrl}#page=${citation.pageStart}`} target="_blank" rel="noreferrer">Open source page</a> : null}
+              </figcaption>
+            </figure>
           );
         })}
       </div>

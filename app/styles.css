@@ -2936,46 +2936,28 @@ button.review-draft-button:disabled {
   background: var(--panel);
 }
 
-.textbook-visual-inline-card summary {
+.textbook-visual-inline-card img {
+  display: block;
+  width: 100%;
+  max-height: 560px;
+  object-fit: contain;
+  background: #eef3f7;
+}
+
+.textbook-visual-inline-card figcaption {
   display: grid;
-  gap: 3px;
-  cursor: pointer;
-  list-style: none;
-  padding: 9px 11px;
+  gap: 4px;
+  padding: 9px 11px 10px;
+  border-top: 1px solid #d6e2eb;
 }
 
-.textbook-visual-inline-card summary::-webkit-details-marker {
-  display: none;
-}
-
-.textbook-visual-inline-card summary::before {
-  content: "+";
-  float: right;
-  color: var(--primary);
-  font-weight: 900;
-}
-
-.textbook-visual-inline-card[open] summary::before {
-  content: "−";
-}
-
-.textbook-visual-inline-card summary span {
+.textbook-visual-inline-card figcaption span {
   color: var(--muted);
   font-size: 0.76rem;
 }
 
-.textbook-visual-inline-card iframe {
-  display: block;
-  width: 100%;
-  min-height: 460px;
-  border: 0;
-  border-top: 1px solid #d6e2eb;
-  background: #eef3f7;
-}
-
-.textbook-visual-inline-card > a {
+.textbook-visual-inline-card figcaption a {
   display: inline-block;
-  padding: 8px 11px 10px;
   color: var(--primary);
   font-size: 0.78rem;
   font-weight: 800;

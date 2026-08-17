@@ -539,6 +539,23 @@ function normalizeEvidence(
     })
     .filter((citation): citation is NonNullable<typeof citation> => Boolean(citation));
 
+  const visualPageByKey = new Map(
+    textbookVisualPages.map((page) => [
+      `${cleanString(page.textbookName).toLowerCase()}:${Number(page.pageNumber)}`,
+      page
+    ])
+  );
+  for (const citation of textbookCitations) {
+    const visualPage = visualPageByKey.get(
+      `${citation.textbookName.toLowerCase()}:${citation.pageStart}`
+    );
+    const firstImage = visualPage?.images?.[0];
+    if (firstImage && !citation.imageDataUrl) {
+      citation.imageDataUrl = firstImage.dataUrl;
+      citation.imageFilename = firstImage.filename;
+    }
+  }
+
   const citedPageKeys = new Set(
     textbookCitations.map(
       (citation) => `${citation.textbookName.toLowerCase()}:${citation.pageStart}`
@@ -548,11 +565,11 @@ function normalizeEvidence(
     const textbookName = cleanString(page.textbookName);
     const pageNumber = Number(page.pageNumber);
     const key = `${textbookName.toLowerCase()}:${pageNumber}`;
-    if (!textbookName || !Number.isFinite(pageNumber) || citedPageKeys.has(key)) {
+    const firstImage = page.images?.[0];
+    if (!textbookName || !Number.isFinite(pageNumber) || citedPageKeys.has(key) || !firstImage) {
       continue;
     }
     citedPageKeys.add(key);
-    const firstImage = page.images?.[0];
     textbookCitations.push({
       textbookName,
       pageStart: pageNumber,
