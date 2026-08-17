@@ -1742,3 +1742,8 @@ For archive organization changes, manually verify:
 - The runtime still attempted fake-worker fallback because the external PDF.js package's `pdf.worker.mjs` was absent from the traced function output.
 - The extractor now points PDF.js at its package worker and Next.js explicitly includes that worker in the textbook route's output tracing. This preserves the large-file Node runtime while resolving worker module loading on Vercel.
 - Verification: typecheck and production build pass locally.
+
+## 2026-08-17 - Bundle PDF.js worker with textbook function
+
+- Externalizing `pdfjs-dist` left its worker module out of Vercel's pnpm-traced function package, causing repeated fake-worker resolution failures.
+- PDF.js is now bundled by Next.js while only native `@napi-rs/canvas` remains external, so the worker module ships with the extraction function.
