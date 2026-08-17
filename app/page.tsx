@@ -800,6 +800,13 @@ type EvidenceTextLink = {
   title: string;
 };
 
+type InlineVisualAid = {
+  alt: string;
+  label: string;
+  src: string;
+  tokens: string[];
+};
+
 function SourceLinkedMathPreview({
   text,
   sourceLinks = []
@@ -861,12 +868,14 @@ function ReviewMarkdownPreview({
   compact = false,
   className = "",
   text,
-  sourceLinks = []
+  sourceLinks = [],
+  visualAids = []
 }: {
   compact?: boolean;
   className?: string;
   text: string;
   sourceLinks?: EvidenceTextLink[];
+  visualAids?: InlineVisualAid[];
 }) {
   const lines = normalizeStructuredMarkdown(text).split(/\r?\n/);
   const nodes: ReactNode[] = [];
@@ -874,6 +883,20 @@ function ReviewMarkdownPreview({
   let numberedItems: string[] = [];
   let mathLines: string[] = [];
   let inDisplayMath = false;
+
+  function appendVisualAids(sourceText: string) {
+    const matches = visualAids.filter((aid) =>
+      aid.tokens.some((token) => sourceText.toLowerCase().includes(token.toLowerCase()))
+    );
+    for (const aid of matches.slice(0, 2)) {
+      nodes.push(
+        <figure className="inline-visual-aid" key={`visual-${aid.label}-${nodes.length}`}>
+          <img src={aid.src} alt={aid.alt} loading="lazy" />
+          <figcaption>{aid.label}</figcaption>
+        </figure>
+      );
+    }
+  }
 
   function flushBullets() {
     if (!bullets.length) {
@@ -980,6 +1003,7 @@ function ReviewMarkdownPreview({
         <SourceLinkedMathPreview sourceLinks={sourceLinks} text={stripInlineMarkdown(line)} />
       </p>
     );
+    appendVisualAids(line);
   }
 
   flushBullets();
@@ -8972,6 +8996,31 @@ function LectureDetail({
 
     return [...figureLinks, ...audioLinks, ...textbookLinks];
   }, [mediaItems, reconstructionEvidence, signedSourceUrls, textbooks]);
+  const inlineVisualAids = useMemo<InlineVisualAid[]>(() => {
+    const figureAids = reconstructionEvidence.figures.flatMap((figure) => {
+      const item = mediaItems.find((media) => media.id === figure.mediaItemId);
+      const src = item ? sourceUrlForMedia(item) : "";
+      return src
+        ? [{
+            alt: figure.description || item?.name || figure.label,
+            label: `${figure.label}: ${figure.description || item?.name || "Source visual"}`,
+            src,
+            tokens: [figure.label, `Figure ${figure.label.replace(/^Fig\.\s*/i, "")}`]
+          }]
+        : [];
+    });
+    const textbookAids = reconstructionEvidence.textbookCitations.flatMap((citation) =>
+      citation.imageDataUrl
+        ? [{
+            alt: `${citation.textbookName}, page ${citation.pageStart}`,
+            label: `${citation.textbookName}, p. ${citation.pageStart}`,
+            src: citation.imageDataUrl,
+            tokens: [`p. ${citation.pageStart}`, `page ${citation.pageStart}`]
+          }]
+        : []
+    );
+    return [...figureAids, ...textbookAids];
+  }, [mediaItems, reconstructionEvidence, signedSourceUrls]);
   const hasTimestampedTranscript = Boolean(
     transcript?.segments.some((segment) => {
       const media = mediaItems.find((item) => item.id === segment.mediaItemId);
@@ -9202,6 +9251,7 @@ function LectureDetail({
             <ReviewMarkdownPreview
               className="math-document-preview"
               sourceLinks={evidenceTextLinks}
+              visualAids={inlineVisualAids}
               text={
                 hasTimestampedTranscript
                   ? transcript?.text || lecture.summary || "No reconstruction has been generated yet."

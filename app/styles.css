@@ -2963,6 +2963,29 @@ button.review-draft-button:disabled {
   font-weight: 800;
 }
 
+.inline-visual-aid {
+  display: grid;
+  gap: 5px;
+  margin: 12px 0;
+  border: 1px solid #d6e2eb;
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  background: #f7fafc;
+}
+
+.inline-visual-aid img {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.inline-visual-aid figcaption {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
 .evidence-panel-heading,
 .evidence-panel-heading > div,
 .evidence-group summary,
