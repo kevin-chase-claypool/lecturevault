@@ -256,7 +256,11 @@ export async function POST(request: Request) {
       return jsonError("Could not read textbook PDF from Supabase Storage.", 404);
     }
 
-    const parsed = await extractPdfText(buffer);
+    // Supabase's download helper returns a Node Buffer. Normalize it once at
+    // the boundary so every PDF consumer receives the Uint8Array shape it
+    // expects (notably PDF.js in the Vercel runtime).
+    const pdfBytes = new Uint8Array(buffer);
+    const parsed = await extractPdfText(pdfBytes);
     const chunks = [];
     const pageEvidence: Array<{
       course_id: string;
@@ -375,7 +379,7 @@ export async function POST(request: Request) {
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
       if (pagesForVisualIndex.length) {
-        const sourcePdf = await PDFDocument.load(buffer, { ignoreEncryption: true });
+        const sourcePdf = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
 
         for (const page of pagesForVisualIndex) {
           const pageIndex = page.num - 1;

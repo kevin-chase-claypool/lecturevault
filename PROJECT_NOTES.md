@@ -1726,3 +1726,8 @@ For archive organization changes, manually verify:
 - Updated textbook extraction to pass the downloaded PDF bytes directly as a `Uint8Array` instead of wrapping them in Node's `Buffer`.
 - This resolves PDF.js runtime validation failures (`Please provide binary data as Uint8Array, rather than Buffer`) after successful large-file uploads.
 - Verification: typecheck and production build pass locally.
+
+## 2026-08-17 - Normalize Supabase downloads before extraction
+
+- Supabase Storage returns downloaded files as Node `Buffer` instances through the server helper. The extraction route now converts those bytes at the storage boundary and reuses the normalized `Uint8Array` for PDF.js and visual-page PDF loading.
+- This closes the remaining runtime path that could reintroduce the Buffer validation error after a successful upload.
