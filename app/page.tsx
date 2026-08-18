@@ -3754,6 +3754,11 @@ export default function LectureVaultApp() {
         storagePath: textbook.storagePath as string
       }));
     const transcriptText = transcript?.text.trim() || lecture?.summary.trim() || "";
+    // Legacy reconstructions can have their cited pages preserved inside the
+    // saved structured-artifact text rather than transcript.evidence. Reuse
+    // the same recovery path as the Vault view so visual repair starts from
+    // the real cited pages for both storage shapes.
+    const citedTextbookPages = evidenceForTranscript(transcript, state.mediaItems).textbookCitations;
 
     if (!lecture || !transcriptText) {
       setStatus("This reconstruction needs saved text before textbook visual aids can be refreshed.");
@@ -3789,7 +3794,7 @@ export default function LectureVaultApp() {
       const response = await fetch("/api/reconstruction-visuals", {
         body: JSON.stringify({
           courseId: lecture.courseId,
-          textbookCitations: transcript?.evidence?.textbookCitations || [],
+          textbookCitations: citedTextbookPages,
           textbookSources: storedTextbooks,
           title: lecture.title,
           transcriptText
@@ -3825,7 +3830,7 @@ export default function LectureVaultApp() {
 
       setState((current) => {
         const existingTranscript = current.transcripts.find((item) => item.lectureId === lectureId);
-        const existingCitations = existingTranscript?.evidence?.textbookCitations || [];
+        const existingCitations = evidenceForTranscript(existingTranscript, current.mediaItems).textbookCitations;
         const refreshedPageKeys = new Set(
           refreshedCitations.map((citation) =>
             [

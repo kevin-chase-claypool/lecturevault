@@ -1866,3 +1866,8 @@ For archive organization changes, manually verify:
 - A rejected crop now produces structured feedback for the retry. The second pass knows whether it contained prose, lacked one complete visual, was cut off, or was irrelevant to its anchor, and must choose a different figure or a genuinely corrected tight crop.
 - Multiple separate figures on one page remain possible; only substantially overlapping crops are treated as duplicates. There is still no numerical limit on qualifying inline visual aids.
 - Verification: `node scripts/verify-textbook-visual-contract.mjs`, `pnpm typecheck`, `git diff --check`, and production build before deployment.
+
+## 2026-08-18 - Use recovered citations in visual repair
+
+- Older reconstructions can retain their textbook citations only inside a saved structured-artifact JSON block. The visual-repair request now uses the same recovery function as the Vault renderer, so those cited pages are sent as first-priority visual evidence instead of silently falling back to semantic search alone.
+- Saving an audited visual also preserves recovered legacy citations in explicit evidence, preventing a successful repair from hiding the reconstruction's original textbook provenance.
