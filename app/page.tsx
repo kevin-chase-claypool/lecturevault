@@ -55,6 +55,13 @@ type Course = {
   term: string;
   studyProfile?: string;
   syllabus?: CourseSyllabus;
+  examSections?: ExamSection[];
+  createdAt: string;
+};
+
+type ExamSection = {
+  id: string;
+  name: string;
   createdAt: string;
 };
 
@@ -65,6 +72,7 @@ type Lecture = {
   title: string;
   date: string;
   summary: string;
+  examSectionIds?: string[];
   syllabusMapping?: {
     units: string[];
     examRelevance: "high" | "medium" | "low";
@@ -268,6 +276,8 @@ type ExamWorkspace = {
   name: string;
   startsOn: string;
   context?: string;
+  examSectionIds?: string[];
+  examSectionNames?: string[];
   createdAt: string;
 };
 
@@ -450,6 +460,78 @@ const emptyState: VaultState = {
 
 function uid(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}-${Date.now()}`;
+}
+
+function normalizeExamSections(value: unknown): ExamSection[] {
+  if (!Array.isArray(value)) return [];
+
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const record = item as Partial<ExamSection>;
+    const id = typeof record.id === "string" ? record.id.trim() : "";
+    const name = typeof record.name === "string" ? record.name.trim() : "";
+    const nameKey = name.toLowerCase();
+    if (!id || !name || seenIds.has(id) || seenNames.has(nameKey)) return [];
+    seenIds.add(id);
+    seenNames.add(nameKey);
+    return [{
+      id,
+      name,
+      createdAt: typeof record.createdAt === "string" ? record.createdAt : ""
+    }];
+  });
+}
+
+function normalizeExamSectionIds(value: unknown, sections: ExamSection[]) {
+  if (!Array.isArray(value)) return [];
+  const validIds = new Set(sections.map((section) => section.id));
+  return [...new Set(value.filter((id): id is string => typeof id === "string" && validIds.has(id)))];
+}
+
+function lectureMatchesExamSectionScope(lecture: Lecture, sectionIds: string[]) {
+  if (!sectionIds.length || !Array.isArray(lecture.examSectionIds)) {
+    return false;
+  }
+
+  const allowedIds = new Set(sectionIds);
+  return lecture.examSectionIds.some((id) => allowedIds.has(id));
+}
+
+function normalizeExamScopeState(state: VaultState): VaultState {
+  const courses = state.courses.map((course) => {
+    if (!Array.isArray(course.examSections)) return course;
+    return { ...course, examSections: normalizeExamSections(course.examSections) };
+  });
+  const sectionIdsByCourse = new Map(
+    courses.map((course) => [course.id, course.examSections || []])
+  );
+
+  return {
+    ...state,
+    courses,
+    lectures: state.lectures.map((lecture) => {
+      if (!Array.isArray(lecture.examSectionIds)) return lecture;
+      return {
+        ...lecture,
+        examSectionIds: normalizeExamSectionIds(
+          lecture.examSectionIds,
+          sectionIdsByCourse.get(lecture.courseId) || []
+        )
+      };
+    }),
+    exams: state.exams.map((exam) => {
+      if (!Array.isArray(exam.examSectionIds)) return exam;
+      return {
+        ...exam,
+        examSectionIds: normalizeExamSectionIds(
+          exam.examSectionIds,
+          sectionIdsByCourse.get(exam.courseId) || []
+        )
+      };
+    })
+  };
 }
 
 function formatSeconds(seconds: number) {
@@ -2035,7 +2117,9 @@ function loadState(): VaultState {
         ? parsed.reconstructionDrafts
         : []
     };
-    return ensureCourseLectureFolders(removeLegacyDemoRecords(normalized));
+    return normalizeExamScopeState(
+      ensureCourseLectureFolders(removeLegacyDemoRecords(normalized))
+    );
   } catch {
     return emptyState;
   }
@@ -2047,8 +2131,9 @@ function normalizeState(input: unknown): VaultState {
   }
 
   const parsed = { ...emptyState, ...(input as Partial<VaultState>) } as VaultState;
-  return ensureCourseLectureFolders(
-    removeLegacyDemoRecords({
+  return normalizeExamScopeState(
+    ensureCourseLectureFolders(
+      removeLegacyDemoRecords({
       ...parsed,
       archiveFolders: Array.isArray(parsed.archiveFolders)
         ? parsed.archiveFolders
@@ -2071,7 +2156,8 @@ function normalizeState(input: unknown): VaultState {
       reconstructionDrafts: Array.isArray(parsed.reconstructionDrafts)
         ? parsed.reconstructionDrafts
         : []
-    })
+      })
+    )
   );
 }
 
@@ -2155,6 +2241,8 @@ export default function LectureVaultApp() {
     studyProfile: ""
   });
   const [courseProfileDrafts, setCourseProfileDrafts] = useState<Record<string, string>>({});
+  const [newExamSectionNames, setNewExamSectionNames] = useState<Record<string, string>>({});
+  const [examSectionNameDrafts, setExamSectionNameDrafts] = useState<Record<string, string>>({});
   const [captureForm, setCaptureForm] = useState({
     courseId: "",
     title: "",
@@ -2193,6 +2281,7 @@ export default function LectureVaultApp() {
   const [builderSortDirection, setBuilderSortDirection] = useState<SortDirection>("desc");
   const [selectedBuilderLectureId, setSelectedBuilderLectureId] = useState("");
   const [builderSelectedLectureIds, setBuilderSelectedLectureIds] = useState<string[]>([]);
+  const [builderReviewSectionIds, setBuilderReviewSectionIds] = useState<string[]>([]);
   const [vaultReviewSelectionIds, setVaultReviewSelectionIds] = useState<string[]>([]);
   const [studyLectureIds, setStudyLectureIds] = useState<string[]>([]);
   const [pipelineTitle, setPipelineTitle] = useState("");
@@ -2844,6 +2933,11 @@ export default function LectureVaultApp() {
   const areAllVisibleArchiveLecturesSelected =
     archiveLectures.length > 0 &&
     archiveLectures.every((lecture) => vaultReviewSelectionIds.includes(lecture.id));
+  const builderCourse = state.courses.find((course) => course.id === builderCourseId);
+  const builderExamSections = builderCourse?.examSections || [];
+  const builderReviewScopeReady =
+    builderExamSections.length > 0 && builderReviewSectionIds.length > 0;
+  const builderExamSectionKey = builderExamSections.map((section) => section.id).join("|");
   const builderLectures = useMemo(() => {
     const term = builderQuery.trim().toLowerCase();
 
@@ -2852,6 +2946,10 @@ export default function LectureVaultApp() {
       builderCourseId,
       builderFolderId
     ).filter((lecture) => {
+      if (!builderReviewScopeReady || !lectureMatchesExamSectionScope(lecture, builderReviewSectionIds)) {
+        return false;
+      }
+
       const transcript = state.transcripts.find(
         (item) => item.lectureId === lecture.id
       );
@@ -2880,14 +2978,19 @@ export default function LectureVaultApp() {
             : first.title.localeCompare(second.title, undefined, { sensitivity: "base" });
       return builderSortDirection === "asc" ? comparison : -comparison;
     });
-  }, [builderCourseId, builderFolderId, builderQuery, builderSortDirection, builderSortKey, state]);
+  }, [builderCourseId, builderFolderId, builderQuery, builderReviewScopeReady, builderReviewSectionIds, builderSortDirection, builderSortKey, state]);
   const selectedBuilderLecture =
     builderLectures.find((lecture) => lecture.id === selectedBuilderLectureId) ||
     builderLectures[0];
   const builderSelectedLectures = builderSelectedLectureIds
     .map((id) => state.lectures.find((lecture) => lecture.id === id))
     .filter((lecture): lecture is Lecture =>
-      Boolean(lecture && lecture.courseId === builderCourseId)
+      Boolean(
+        lecture &&
+          lecture.courseId === builderCourseId &&
+          builderReviewScopeReady &&
+          lectureMatchesExamSectionScope(lecture, builderReviewSectionIds)
+      )
     );
   const builderReviewCoverage = useMemo(() => {
     const selectedIds = new Set(builderSelectedLectures.map((lecture) => lecture.id));
@@ -2902,6 +3005,14 @@ export default function LectureVaultApp() {
     };
   }, [builderCourseId, builderSelectedLectures, state.concepts, state.mediaItems, state.textbooks]);
   const basketCount = builderSelectedLectures.length;
+
+  useEffect(() => {
+    const validSectionIds = new Set(builderExamSections.map((section) => section.id));
+    setBuilderReviewSectionIds((current) => {
+      const next = current.filter((id) => validSectionIds.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [builderCourseId, builderExamSectionKey]);
 
   useEffect(() => {
     setState((current) => ensureCourseLectureFolders(current));
@@ -3165,6 +3276,113 @@ export default function LectureVaultApp() {
     }));
     setCourseProfileDrafts((current) => ({ ...current, [courseId]: studyProfile }));
     setStatus(`${course.code} study profile saved.`);
+  }
+
+  function addExamSection(courseId: string) {
+    const course = state.courses.find((item) => item.id === courseId);
+    const name = (newExamSectionNames[courseId] || "").trim();
+
+    if (!course || !name) {
+      setStatus("Enter an exam-section name first.");
+      return;
+    }
+
+    const existingSections = course.examSections || [];
+    if (existingSections.some((section) => section.name.toLowerCase() === name.toLowerCase())) {
+      setStatus(`${name} already exists for ${course.code}.`);
+      return;
+    }
+
+    const section: ExamSection = {
+      id: uid("exam-section"),
+      name,
+      createdAt: new Date().toISOString()
+    };
+    setState((current) => ({
+      ...current,
+      courses: current.courses.map((item) =>
+        item.id === courseId
+          ? { ...item, examSections: [...(item.examSections || []), section] }
+          : item
+      )
+    }));
+    setNewExamSectionNames((current) => ({ ...current, [courseId]: "" }));
+    setStatus(`${section.name} added to ${course.code}. Allocate reconstructions to include them in a review.`);
+  }
+
+  function saveExamSectionName(courseId: string, sectionId: string) {
+    const course = state.courses.find((item) => item.id === courseId);
+    const section = course?.examSections?.find((item) => item.id === sectionId);
+    const name = (examSectionNameDrafts[sectionId] ?? section?.name ?? "").trim();
+
+    if (!course || !section || !name) {
+      setStatus("An exam-section name cannot be empty.");
+      return;
+    }
+    if (
+      course.examSections?.some(
+        (item) => item.id !== sectionId && item.name.toLowerCase() === name.toLowerCase()
+      )
+    ) {
+      setStatus(`${name} already exists for ${course.code}.`);
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      courses: current.courses.map((item) =>
+        item.id === courseId
+          ? {
+              ...item,
+              examSections: (item.examSections || []).map((item) =>
+                item.id === sectionId ? { ...item, name } : item
+              )
+            }
+          : item
+      )
+    }));
+    setExamSectionNameDrafts((current) => ({ ...current, [sectionId]: name }));
+    setStatus(`${name} saved.`);
+  }
+
+  function removeExamSection(courseId: string, sectionId: string) {
+    const course = state.courses.find((item) => item.id === courseId);
+    const section = course?.examSections?.find((item) => item.id === sectionId);
+
+    if (!course || !section) return;
+    if (!window.confirm(`Remove ${section.name}? Reconstructions assigned only to this section will become unallocated.`)) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      courses: current.courses.map((item) =>
+        item.id === courseId
+          ? { ...item, examSections: (item.examSections || []).filter((item) => item.id !== sectionId) }
+          : item
+      ),
+      lectures: current.lectures.map((lecture) =>
+        lecture.courseId === courseId
+          ? {
+              ...lecture,
+              examSectionIds: (lecture.examSectionIds || []).filter((id) => id !== sectionId)
+            }
+          : lecture
+      ),
+      exams: current.exams.map((exam) =>
+        exam.courseId === courseId
+          ? {
+              ...exam,
+              examSectionIds: (exam.examSectionIds || []).filter((id) => id !== sectionId)
+            }
+          : exam
+      )
+    }));
+    setExamSectionNameDrafts((current) => {
+      const { [sectionId]: _removed, ...rest } = current;
+      return rest;
+    });
+    setStatus(`${section.name} removed. Reallocate affected reconstructions before creating a review.`);
   }
 
   async function addCourseSyllabus(courseId: string, file: File) {
@@ -4284,14 +4502,36 @@ export default function LectureVaultApp() {
     setBuilderCourseId(courseId);
     setBuilderFolderId("all");
     setSelectedBuilderLectureId("");
-    setBuilderSelectedLectureIds((current) =>
-      current.filter((id) =>
-        state.lectures.some(
-          (lecture) => lecture.id === id && lecture.courseId === courseId
-        )
-      )
-    );
+    setBuilderReviewSectionIds([]);
+    setBuilderSelectedLectureIds([]);
     setExamForm((current) => ({ ...current, courseId }));
+  }
+
+  function applyBuilderReviewScope(sectionIds: string[]) {
+    const validSectionIds = new Set(builderExamSections.map((section) => section.id));
+    const nextSectionIds = Array.from(
+      new Set(sectionIds.filter((id) => validSectionIds.has(id)))
+    );
+
+    setBuilderReviewSectionIds(nextSectionIds);
+    setBuilderSelectedLectureIds((current) =>
+      current.filter((id) => {
+        const lecture = state.lectures.find((item) => item.id === id);
+        return Boolean(
+          lecture &&
+            lecture.courseId === builderCourseId &&
+            lectureMatchesExamSectionScope(lecture, nextSectionIds)
+        );
+      })
+    );
+  }
+
+  function toggleBuilderReviewSection(sectionId: string) {
+    applyBuilderReviewScope(
+      builderReviewSectionIds.includes(sectionId)
+        ? builderReviewSectionIds.filter((id) => id !== sectionId)
+        : [...builderReviewSectionIds, sectionId]
+    );
   }
 
   function addLectureToBasket(lectureId: string) {
@@ -4304,6 +4544,21 @@ export default function LectureVaultApp() {
 
     if (lecture.courseId !== builderCourseId) {
       setExamBuilderCourse(lecture.courseId);
+      setScreen("builder");
+      setStatus(`Choose ${courseLabel(lecture.courseId)} exam section(s) before adding "${lecture.title}" to a review.`);
+      return;
+    }
+
+    if (!builderReviewScopeReady) {
+      setScreen("builder");
+      setStatus("Choose one or more exam sections before adding reconstructions to a review.");
+      return;
+    }
+
+    if (!lectureMatchesExamSectionScope(lecture, builderReviewSectionIds)) {
+      setScreen("builder");
+      setStatus(`"${lecture.title}" is outside the selected exam section scope.`);
+      return;
     }
 
     setBuilderSelectedLectureIds((current) => {
@@ -4390,23 +4645,12 @@ export default function LectureVaultApp() {
     }
 
     const courseId = selectedLectures[0].courseId;
-    const selectedIds = selectedLectures
-      .filter((lecture) => lecture.courseId === courseId)
-      .map((lecture) => lecture.id);
 
     setExamBuilderCourse(courseId);
-    setBuilderSelectedLectureIds((current) => {
-      const sameCourseIds = current.filter((id) =>
-        state.lectures.some(
-          (lecture) => lecture.id === id && lecture.courseId === courseId
-        )
-      );
-
-      return Array.from(new Set([...sameCourseIds, ...selectedIds]));
-    });
     setVaultReviewSelectionIds([]);
+    setScreen("builder");
     setStatus(
-      `Added ${selectedIds.length} reconstruction${selectedIds.length === 1 ? "" : "s"} to the new review draft.`
+      `Choose one or more ${courseLabel(courseId)} exam sections. Only their allocated reconstructions can be added to the review.`
     );
   }
 
@@ -4451,6 +4695,11 @@ export default function LectureVaultApp() {
       return;
     }
 
+    if (!builderReviewScopeReady) {
+      setStatus("Choose one or more course exam sections before building the review.");
+      return;
+    }
+
     if (!builderSelectedLectures.length) {
       setStatus("Select archive materials before building the review.");
       return;
@@ -4464,6 +4713,10 @@ export default function LectureVaultApp() {
       name: examForm.name.trim(),
       startsOn: examForm.startsOn,
       context,
+      examSectionIds: builderReviewSectionIds,
+      examSectionNames: builderExamSections
+        .filter((section) => builderReviewSectionIds.includes(section.id))
+        .map((section) => section.name),
       createdAt
     };
 
@@ -4609,6 +4862,7 @@ export default function LectureVaultApp() {
           courseName: courseLabel(exam.courseId),
           courseStudyProfile,
           instructions: submittedContext,
+          reviewSectionIds: exam.examSectionIds || [],
           lectures: selectedLectures,
           transcripts: selectedTranscripts,
           concepts: selectedConcepts,
@@ -6065,6 +6319,69 @@ export default function LectureVaultApp() {
                       </button>
                     </div>
                   </details>
+                  <details className="course-exam-sections">
+                    <summary>
+                      <span>Exam sections</span>
+                      <small>{(course.examSections || []).length} configured</small>
+                    </summary>
+                    <div className="exam-section-editor">
+                      <p>
+                        Define the rolling assessment boundaries for this course. Reviews can use only reconstructions allocated to their selected section or sections.
+                      </p>
+                      <div className="exam-section-list">
+                        {(course.examSections || []).map((section) => (
+                          <div className="exam-section-row" key={section.id}>
+                            <input
+                              aria-label={`Name for ${section.name}`}
+                              value={examSectionNameDrafts[section.id] ?? section.name}
+                              onChange={(event) =>
+                                setExamSectionNameDrafts((current) => ({
+                                  ...current,
+                                  [section.id]: event.target.value
+                                }))
+                              }
+                            />
+                            <div className="button-row">
+                              <button type="button" onClick={() => saveExamSectionName(course.id, section.id)}>
+                                Save
+                              </button>
+                              <button
+                                className="danger"
+                                type="button"
+                                onClick={() => removeExamSection(course.id, section.id)}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {!(course.examSections || []).length ? (
+                          <p className="exam-section-empty">Add the first section before building a review.</p>
+                        ) : null}
+                      </div>
+                      <div className="exam-section-row add-exam-section-row">
+                        <input
+                          value={newExamSectionNames[course.id] || ""}
+                          onChange={(event) =>
+                            setNewExamSectionNames((current) => ({
+                              ...current,
+                              [course.id]: event.target.value
+                            }))
+                          }
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              addExamSection(course.id);
+                            }
+                          }}
+                          placeholder="Exam 1, Exam 2, Final Exam"
+                        />
+                        <button type="button" onClick={() => addExamSection(course.id)}>
+                          Add section
+                        </button>
+                      </div>
+                    </div>
+                  </details>
                   {textbookCount ? (
                     <div className="course-textbook-list">
                       {state.textbooks
@@ -6467,6 +6784,27 @@ export default function LectureVaultApp() {
                 )
               }));
               setStatus("Saved syllabus and exam relevance mapping.");
+            }}
+            onUpdateExamSectionIds={(lectureId, examSectionIds) => {
+              const lecture = state.lectures.find((item) => item.id === lectureId);
+              const course = state.courses.find((item) => item.id === lecture?.courseId);
+              if (!lecture || !course) return;
+
+              const normalizedIds = normalizeExamSectionIds(
+                examSectionIds,
+                course.examSections || []
+              );
+              setState((current) => ({
+                ...current,
+                lectures: current.lectures.map((item) =>
+                  item.id === lectureId ? { ...item, examSectionIds: normalizedIds } : item
+                )
+              }));
+              setStatus(
+                normalizedIds.length
+                  ? `Saved this reconstruction to ${normalizedIds.length} exam section${normalizedIds.length === 1 ? "" : "s"}.`
+                  : "This reconstruction is unallocated and cannot be used in a scoped review."
+              );
             }}
           />
         ) : null}
@@ -6914,6 +7252,52 @@ export default function LectureVaultApp() {
                   ))}
                 </select>
               </label>
+              <fieldset className="review-scope-selector">
+                <legend>Review scope</legend>
+                {builderExamSections.length ? (
+                  <>
+                    <p>
+                      Select every exam section this review may use. Reconstructions outside this scope are excluded before AI generation.
+                    </p>
+                    <div className="review-scope-options">
+                      {builderExamSections.map((section) => (
+                        <label className="review-scope-option" key={section.id}>
+                          <input
+                            type="checkbox"
+                            checked={builderReviewSectionIds.includes(section.id)}
+                            onChange={() => toggleBuilderReviewSection(section.id)}
+                          />
+                          <span>{section.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="button-row compact">
+                      <button
+                        type="button"
+                        onClick={() => applyBuilderReviewScope(builderExamSections.map((section) => section.id))}
+                      >
+                        Use all sections
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyBuilderReviewScope([])}
+                        disabled={!builderReviewSectionIds.length}
+                      >
+                        Clear scope
+                      </button>
+                    </div>
+                    <p className="review-scope-summary">
+                      {builderReviewSectionIds.length
+                        ? `${builderReviewSectionIds.length} section${builderReviewSectionIds.length === 1 ? "" : "s"} permitted.`
+                        : "Choose at least one section to unlock eligible reconstructions."}
+                    </p>
+                  </>
+                ) : (
+                  <p className="review-scope-empty">
+                    Add exam sections in Courses before this course can create a scoped review.
+                  </p>
+                )}
+              </fieldset>
               <ArchiveFolderTree
                 courses={state.courses.filter(
                   (course) => course.id === builderCourseId
@@ -7010,7 +7394,9 @@ export default function LectureVaultApp() {
                     ) : null}
                   </div>
                   <p className="review-draft-next-step" id="review-draft-next-step">
-                    {!builderSelectedLectures.length
+                    {!builderReviewScopeReady
+                      ? "Choose one or more course exam sections to define this review's allowed material."
+                      : !builderSelectedLectures.length
                       ? "Select one or more reconstructions to begin."
                       : !examForm.name.trim()
                         ? "Name this review to continue."
@@ -7043,6 +7429,7 @@ export default function LectureVaultApp() {
                       type="submit"
                       disabled={
                         isReviewGenerating ||
+                        !builderReviewScopeReady ||
                         !examForm.name.trim() ||
                         !builderSelectedLectures.length
                       }
@@ -7074,7 +7461,7 @@ export default function LectureVaultApp() {
                 <button
                   type="button"
                   onClick={addBuilderVisibleLectures}
-                  disabled={!builderLectures.length}
+                  disabled={!builderReviewScopeReady || !builderLectures.length}
                 >
                   Add Shown Lectures to Review
                 </button>
@@ -7124,7 +7511,11 @@ export default function LectureVaultApp() {
                     onSelect={() => setSelectedBuilderLectureId(lecture.id)}
                   />
                 ))}
-                {!builderLectures.length ? (
+                {!builderReviewScopeReady ? (
+                  <p className="empty panel review-scope-empty">
+                    Choose exam sections in the sidebar. This review cannot access reconstructions until its scope is explicit.
+                  </p>
+                ) : !builderLectures.length ? (
                   <p className="empty panel">
                     No archive materials match this course, folder, and search.
                   </p>
@@ -7277,7 +7668,10 @@ export default function LectureVaultApp() {
                       onClick={() => setSelectedExamId(exam.id)}
                     >
                       <strong>{exam.name}</strong>
-                      <span>{courseLabel(exam.courseId)}</span>
+                      <span>
+                        {courseLabel(exam.courseId)}
+                        {exam.examSectionNames?.length ? ` · ${exam.examSectionNames.join(", ")}` : " · Legacy unscoped review"}
+                      </span>
                       <span>{exam.startsOn || new Date(exam.createdAt).toLocaleDateString()}</span>
                       <span>{sourceCount} source{sourceCount === 1 ? "" : "s"}</span>
                     </button>
@@ -7298,6 +7692,7 @@ export default function LectureVaultApp() {
                   <div className="selected-lecture-meta">
                     <span>{selectedExam.startsOn || "No exam date"}</span>
                     <span>{selectedExamLectures.length} source{selectedExamLectures.length === 1 ? "" : "s"}</span>
+                    <span>{selectedExam.examSectionNames?.length ? selectedExam.examSectionNames.join(", ") : "Legacy unscoped review"}</span>
                   </div>
                   <label className="review-folder-select">
                     Folder
@@ -8976,7 +9371,8 @@ function LectureDetail({
   onAddToReviewDraft,
   onOpenLecture,
   onBackToVault,
-  onUpdateSyllabusMapping
+  onUpdateSyllabusMapping,
+  onUpdateExamSectionIds
 }: {
   lecture: Lecture;
   courseLabel: (id: string) => string;
@@ -8992,6 +9388,7 @@ function LectureDetail({
   onOpenLecture: (lectureId: string) => void;
   onBackToVault: () => void;
   onUpdateSyllabusMapping: (lectureId: string, mapping: NonNullable<Lecture["syllabusMapping"]>) => void;
+  onUpdateExamSectionIds: (lectureId: string, examSectionIds: string[]) => void;
 }) {
   const [explorerQuery, setExplorerQuery] = useState("");
   const [explorerSortKey, setExplorerSortKey] = useState<ArchiveSortKey>("date");
@@ -9003,11 +9400,13 @@ function LectureDetail({
   const [mappingUnitsDraft, setMappingUnitsDraft] = useState((lecture.syllabusMapping?.units || []).join(", "));
   const [mappingRelevanceDraft, setMappingRelevanceDraft] = useState<"high" | "medium" | "low">(lecture.syllabusMapping?.examRelevance || "medium");
   const [mappingRationaleDraft, setMappingRationaleDraft] = useState(lecture.syllabusMapping?.rationale || "");
+  const [examSectionIdsDraft, setExamSectionIdsDraft] = useState<string[]>(lecture.examSectionIds || []);
   useEffect(() => {
     setMappingUnitsDraft((lecture.syllabusMapping?.units || []).join(", "));
     setMappingRelevanceDraft(lecture.syllabusMapping?.examRelevance || "medium");
     setMappingRationaleDraft(lecture.syllabusMapping?.rationale || "");
-  }, [lecture.id, lecture.syllabusMapping]);
+    setExamSectionIdsDraft(lecture.examSectionIds || []);
+  }, [lecture.examSectionIds, lecture.id, lecture.syllabusMapping]);
   const recoveredArtifact = useMemo(
     () => recoverStoredReconstructionArtifact(transcript?.text || lecture.summary),
     [lecture.summary, transcript?.text]
@@ -9415,6 +9814,48 @@ function LectureDetail({
         <p>
           <MathPreview text={displayedLectureSummary} />
         </p>
+
+        <section className="usage-panel reconstruction-exam-allocation" aria-label="Exam section allocation">
+          <div>
+            <span className="pill">Review boundary</span>
+            <h4>Exam section allocation</h4>
+            <p>
+              Select every course exam section that may use this reconstruction. Unallocated reconstructions are excluded from all reviews.
+            </p>
+          </div>
+          {course.examSections?.length ? (
+            <>
+              <div className="exam-section-checkboxes">
+                {course.examSections.map((section) => (
+                  <label key={section.id}>
+                    <input
+                      type="checkbox"
+                      checked={examSectionIdsDraft.includes(section.id)}
+                      onChange={() =>
+                        setExamSectionIdsDraft((current) =>
+                          current.includes(section.id)
+                            ? current.filter((id) => id !== section.id)
+                            : [...current, section.id]
+                        )
+                      }
+                    />
+                    <span>{section.name}</span>
+                  </label>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => onUpdateExamSectionIds(lecture.id, examSectionIdsDraft)}
+              >
+                Save section allocation
+              </button>
+            </>
+          ) : (
+            <p className="exam-section-empty">
+              Set up course exam sections in Courses before allocating this reconstruction.
+            </p>
+          )}
+        </section>
 
         <section className="usage-panel" aria-label="Syllabus and exam mapping">
           <div>
@@ -9838,6 +10279,9 @@ function ExamDetail({
         <p className="section-note">
           Saved sources remain available in the explorer. This viewer preserves
           the generated study artifact and its original instructions.
+          {exam.examSectionNames?.length
+            ? ` Allowed sections: ${exam.examSectionNames.join(", ")}.`
+            : " This is a legacy review created before exam sections were introduced."}
         </p>
 
         <section className="usage-panel" aria-label="Review generation usage">

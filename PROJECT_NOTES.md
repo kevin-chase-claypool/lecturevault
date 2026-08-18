@@ -1,5 +1,13 @@
 # LectureVault Project Notes
 
+## 2026-08-18 - Add Rolling Exam Sections and Fail-Closed Review Scope
+
+- Courses now own named Exam Sections (for example Exam 1, Exam 2, Exam 3, and Final Exam). A reconstruction can be allocated to one or more of those sections from its study view.
+- New Review requires the owner to choose at least one configured section. The archive list, direct add actions, bulk-add actions, review draft, and Build Review action all exclude unallocated and out-of-scope reconstructions. Selecting multiple sections supports a cumulative final without altering earlier allocations; a separate Final Exam section is equally supported.
+- The review API independently requires an explicit section scope, retains only lectures allocated to it, and filters their transcript, concepts, and media to that same approved lecture set before submitting material to AI.
+- Saved reviews retain their section names as a historical scope label. Reviews made before this change are marked as legacy unscoped rather than being silently represented as section-safe.
+- Verification: `pnpm typecheck`; production build and visual workflow verification pending this change set.
+
 ## 2026-08-17 - Fix Strict Reconstruction Citation Schema
 
 - OpenAI rejected the reconstruction request because strict JSON schemas require every declared property to be listed in `required`. The textbook citation object declared `inlineAnchor` but omitted it from that list.

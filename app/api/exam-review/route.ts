@@ -27,6 +27,7 @@ type ExamReviewLecture = {
   title?: string;
   date?: string;
   summary?: string;
+  examSectionIds?: string[];
 };
 
 type ExamReviewTranscript = {
@@ -86,6 +87,16 @@ function cleanString(value: unknown) {
 
 function cleanNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function cleanSectionIds(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((id): id is string => typeof id === "string" && Boolean(id.trim())).map((id) => id.trim()))];
+}
+
+function lectureIsWithinReviewScope(lecture: ExamReviewLecture, sectionIds: string[]) {
+  const allocatedIds = cleanSectionIds(lecture.examSectionIds);
+  return allocatedIds.some((id) => sectionIds.includes(id));
 }
 
 function isTimedAudioSegment(segment: {
@@ -350,6 +361,7 @@ export async function POST(request: Request) {
       courseName?: string;
       courseStudyProfile?: string;
       instructions?: string;
+      reviewSectionIds?: string[];
       lectures?: ExamReviewLecture[];
       transcripts?: ExamReviewTranscript[];
       concepts?: ExamReviewConcept[];
@@ -357,7 +369,14 @@ export async function POST(request: Request) {
       textbookCitations?: ExamReviewTextbookCitation[];
       textbookSources?: ExamReviewTextbookSource[];
     };
-    const lectures = Array.isArray(body.lectures) ? body.lectures : [];
+    const reviewSectionIds = cleanSectionIds(body.reviewSectionIds);
+    if (!reviewSectionIds.length) {
+      return jsonError("Choose at least one course exam section before generating a review.", 400);
+    }
+
+    const lectures = (Array.isArray(body.lectures) ? body.lectures : []).filter((lecture) =>
+      lectureIsWithinReviewScope(lecture, reviewSectionIds)
+    );
 
     if (!lectures.length) {
       return jsonError("Select at least one archive lecture for this exam.", 400);
@@ -367,11 +386,18 @@ export async function POST(request: Request) {
       return jsonError(`Select ${MAX_LECTURES} or fewer lectures at a time.`, 400);
     }
 
+    const selectedLectureIds = new Set(lectures.map((lecture) => cleanString(lecture.id)));
     const transcripts = prepareTranscripts(
-      Array.isArray(body.transcripts) ? body.transcripts : []
+      (Array.isArray(body.transcripts) ? body.transcripts : []).filter((transcript) =>
+        selectedLectureIds.has(cleanString(transcript.lectureId))
+      )
     );
-    const concepts = Array.isArray(body.concepts) ? body.concepts : [];
-    const mediaItems = Array.isArray(body.mediaItems) ? body.mediaItems : [];
+    const concepts = (Array.isArray(body.concepts) ? body.concepts : []).filter((concept) =>
+      selectedLectureIds.has(cleanString(concept.lectureId))
+    );
+    const mediaItems = (Array.isArray(body.mediaItems) ? body.mediaItems : []).filter((item) =>
+      selectedLectureIds.has(cleanString(item.lectureId))
+    );
     const textbookCitations = Array.isArray(body.textbookCitations)
       ? body.textbookCitations
       : [];
