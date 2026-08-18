@@ -1023,6 +1023,7 @@ export async function POST(request: Request) {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     let totalUsage: TokenUsage = {};
     const audioTranscripts: string[] = [];
+    const audioTranscriptTexts: string[] = [];
     const timedAudioSegments: TimedAudioSegment[] = [];
     const transcribedMediaIds: string[] = [];
     const usableAudio = mediaItems
@@ -1118,6 +1119,20 @@ export async function POST(request: Request) {
           (chunk) =>
             `[Audio transcript | media id: ${item.id || "unlinked"} | beginning near ${Math.floor(chunk.startSeconds)} seconds] ${chunk.text}`
         );
+
+      const fullAudioTranscript = [
+        ...orderedTimedSegments.map((segment) => segment.text),
+        ...unsegmentedChunkTexts
+          .sort((first, second) => first.startSeconds - second.startSeconds)
+          .map((chunk) => chunk.text)
+      ]
+        .map(cleanString)
+        .filter(Boolean)
+        .join("\n");
+
+      if (fullAudioTranscript) {
+        audioTranscriptTexts.push(`Audio source: ${sourceName}\n${fullAudioTranscript}`);
+      }
 
       if (timestampedSegments.length || unsegmentedTranscript.length) {
         audioTranscripts.push(
@@ -1563,6 +1578,7 @@ export async function POST(request: Request) {
       evidence,
       generatedBy: "openai",
       reconstructionTitle: cleanString(artifact.reconstructionTitle).slice(0, 120),
+      audioTranscriptText: audioTranscriptTexts.join("\n\n---\n\n") || undefined,
       syllabusMapping: {
         units: Array.isArray(artifact.syllabusMapping?.units)
           ? artifact.syllabusMapping.units.map(cleanString).filter(Boolean).slice(0, 8)

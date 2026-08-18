@@ -187,6 +187,7 @@ type Transcript = {
   mediaItemId?: string;
   sourceMediaIds?: string[];
   transcribedMediaIds?: string[];
+  sourceTranscriptKind?: "audio" | "pasted";
   text: string;
   segments: TranscriptSegment[];
   generatedBy?: "manual" | "placeholder" | "openai";
@@ -3909,7 +3910,9 @@ export default function LectureVaultApp() {
               generatedBy: "openai",
               id: uid("transcript"),
               lectureId,
-              segments: splitTranscript(refreshedText),
+              // A visual refresh only changes the generated reconstruction.
+              // It never creates a source transcript where none was supplied.
+              segments: [],
               text: refreshedText,
               usage: data.usage || null
             };
@@ -4395,6 +4398,7 @@ export default function LectureVaultApp() {
     let transcriptUsage: TokenUsage | null = null;
     let reconstructionEvidence: ReconstructionEvidence | undefined;
     let sourceTranscriptSegments: TranscriptSegment[] = [];
+    let sourceTranscriptKind: Transcript["sourceTranscriptKind"];
     let generatedBy: Transcript["generatedBy"] = pastedTranscript
       ? "manual"
       : "placeholder";
@@ -4462,6 +4466,7 @@ export default function LectureVaultApp() {
             detail?: string;
             sourceMediaId?: string;
           }>;
+          audioTranscriptText?: string;
           error?: string;
           generatedBy?: "openai";
           reconstructionTitle?: string;
@@ -4508,6 +4513,21 @@ export default function LectureVaultApp() {
         transcriptUsage = data.usage || null;
         reconstructionEvidence = data.evidence;
         sourceTranscriptSegments = timedTranscriptSegments(data.timedAudioSegments);
+        const audioTranscriptText = data.audioTranscriptText?.trim() || "";
+        if (!sourceTranscriptSegments.length && audioTranscriptText) {
+          const unlinkedAudioMediaId = data.transcribedMediaIds?.length === 1
+            ? data.transcribedMediaIds[0]
+            : undefined;
+          sourceTranscriptSegments = splitTranscript(audioTranscriptText).map((segment) => ({
+            ...segment,
+            ...(unlinkedAudioMediaId ? { mediaItemId: unlinkedAudioMediaId } : {})
+          }));
+        }
+        sourceTranscriptKind = sourceTranscriptSegments.length
+          ? "audio"
+          : pastedTranscript
+            ? "pasted"
+            : undefined;
         if (!sourceTranscriptSegments.length) {
           transcriptText = stripNonAudioTimestampPrefixes(transcriptText);
         }
@@ -4548,7 +4568,10 @@ export default function LectureVaultApp() {
       text: transcriptText,
       segments: sourceTranscriptSegments.length
         ? sourceTranscriptSegments
-        : splitTranscript(transcriptText),
+        : pastedTranscript
+          ? splitTranscript(pastedTranscript)
+          : [],
+      ...(sourceTranscriptKind ? { sourceTranscriptKind } : {}),
       generatedBy,
       usage: transcriptUsage,
       oneNoteSources,
@@ -9898,6 +9921,21 @@ function LectureDetail({
     const media = mediaItems.find((item) => item.id === segment.mediaItemId);
     return media?.kind === "audio" && segment.endSeconds > segment.startSeconds;
   }).length || 0;
+  const hasAudioTranscript = Boolean(
+    transcript?.sourceTranscriptKind === "audio" || hasTimestampedTranscript
+  );
+  const hasPastedSourceTranscript = Boolean(
+    transcript?.sourceTranscriptKind === "pasted" && transcript?.segments.length
+  );
+  const hasSourceTranscript = hasAudioTranscript || hasPastedSourceTranscript;
+  const sourceTranscriptHeading = hasAudioTranscript
+    ? "Full audio transcript"
+    : "Pasted source transcript";
+  const sourceTranscriptDescription = hasTimestampedTranscript
+    ? "Search the original lecture and jump to a recorded moment when needed."
+    : hasAudioTranscript
+      ? "Search the complete recorded-audio transcription. Timestamps were not available from this source."
+      : "Search the source text that was pasted with this reconstruction.";
   const visibleTranscriptSegments = useMemo(() => {
     const normalizedQuery = transcriptQuery.trim().toLowerCase();
 
@@ -10226,20 +10264,19 @@ function LectureDetail({
           sourceUrlForTextbook={sourceUrlForTextbook}
           textbooks={textbooks}
         />
+        {hasSourceTranscript ? (
         <section className="source-transcript" aria-label="Full source transcript">
           <details>
             <summary>
               <span>
                 <span className="pill">Source record</span>
-                <strong>{hasTimestampedTranscript ? "Full audio transcript" : "Full transcript"}</strong>
+                <strong>{sourceTranscriptHeading}</strong>
                 <small>
-                  {hasTimestampedTranscript
-                    ? "Search the original lecture and jump to a recorded moment when needed."
-                    : "Search the complete source text behind this reconstruction."}
+                  {sourceTranscriptDescription}
                 </small>
               </span>
               <span>
-                {timestampedTranscriptSegmentCount || transcript?.segments.length || 0} {hasTimestampedTranscript ? "audio cues" : "source passages"}
+                {timestampedTranscriptSegmentCount || transcript?.segments.length || 0} {hasTimestampedTranscript ? "audio cues" : "transcript passages"}
               </span>
             </summary>
             <div className="source-transcript-content">
@@ -10296,6 +10333,7 @@ function LectureDetail({
             </div>
           </details>
         </section>
+        ) : null}
       </article>
 
       <aside className="panel side-panel">

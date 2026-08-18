@@ -255,7 +255,7 @@ ${
     : "- No board images saved."
 }
 
-Transcript segments:
+Source audio transcript:
 ${
   timedAudioSegments.length
     ? timedAudioSegments
@@ -267,8 +267,11 @@ ${
             )}: ${cleanString(segment.text)}`
         )
         .join("\n")
-    : transcript?.text || "No transcript text saved."
-}`;
+    : "- No timestamped source audio transcript saved."
+}
+
+Reconstruction artifact:
+${cleanString(transcript?.text) || "No reconstruction text saved."}`;
     })
     .join("\n\n---\n\n");
 }
