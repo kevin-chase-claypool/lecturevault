@@ -58,6 +58,26 @@ function textbookNameKey(value: unknown) {
     .replace(/[^a-z0-9]+/g, "");
 }
 
+function textbookNameMatches(citationName: string, sourceName: string) {
+  const citationKey = textbookNameKey(citationName);
+  const sourceKey = textbookNameKey(sourceName);
+
+  if (!citationKey || !sourceKey) return false;
+  if (sourceKey === citationKey || sourceKey.includes(citationKey) || citationKey.includes(sourceKey)) return true;
+
+  // Legacy prose citations commonly abbreviate a title to an author name
+  // (for example, "Wickert" or "Roberts (2018)"). A meaningful shared author
+  // token is precise enough here because the candidate set is already limited
+  // to textbooks attached to the same course.
+  const ignored = new Set(["analysis", "book", "digital", "edition", "filter", "for", "methods", "signals", "systems", "the", "using"]);
+  const tokens = (value: string) => new Set(
+    value.toLowerCase().match(/[a-z]{4,}/g)?.filter((token) => !ignored.has(token)) || []
+  );
+  const citationTokens = tokens(citationName);
+  const sourceTokens = tokens(sourceName);
+  return [...citationTokens].some((token) => sourceTokens.has(token));
+}
+
 function jsonError(message: string, status: number) {
   return Response.json({ error: message }, { status });
 }
@@ -104,7 +124,7 @@ function citedPageRequests(
     const citationKey = textbookNameKey(citationName);
     const source = sources.find((candidate) => {
       const sourceKey = textbookNameKey(candidate.name);
-      return sourceKey && citationKey && (sourceKey === citationKey || sourceKey.includes(citationKey) || citationKey.includes(sourceKey));
+      return sourceKey && citationKey && textbookNameMatches(citationName, cleanString(candidate.name));
     });
 
     return source && pageStart

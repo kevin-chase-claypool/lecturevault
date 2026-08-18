@@ -187,9 +187,11 @@ assert.equal(
 assert.equal(
   visualRepairRouteSource.includes("citedPageRequests(body.textbookCitations, sources)") &&
     rendererSource.includes("const citedTextbookPages = evidenceForTranscript(transcript, state.mediaItems).textbookCitations") &&
-    rendererSource.includes("textbookCitations: citedTextbookPages"),
+    rendererSource.includes("textbookCitations: citedTextbookPages") &&
+    rendererSource.includes("Textbook Context Used") &&
+    visualRepairRouteSource.includes("textbookNameMatches"),
   true,
-  "Visual repair must recover and inspect the reconstruction's cited textbook pages before semantic nearest-neighbour pages."
+  "Visual repair must recover cited pages from both structured and legacy text records before semantic nearest-neighbour pages."
 );
 assert.equal(
   selectionSource.includes("Rendered-page sources include a faint orange coordinate grid") &&

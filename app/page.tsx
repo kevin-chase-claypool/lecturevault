@@ -986,7 +986,7 @@ function recoverStoredTranscriptText(text: string) {
 function recoveredTextbookCitations(text: string): TextbookCitationEvidence[] {
   const citations = recoverStoredReconstructionArtifact(text)?.evidence?.textbookCitations || [];
 
-  return citations.flatMap((citation) => {
+  const structuredCitations = citations.flatMap((citation) => {
     const textbookName = typeof citation.textbookName === "string" ? citation.textbookName.trim() : "";
     const pageStart = Number(citation.pageStart);
     const pageEnd = Number(citation.pageEnd ?? citation.pageStart);
@@ -1012,6 +1012,45 @@ function recoveredTextbookCitations(text: string): TextbookCitationEvidence[] {
         }]
       : [];
   });
+
+  if (structuredCitations.length) {
+    return structuredCitations;
+  }
+
+  // Some early saved reconstructions retained the readable lesson but not the
+  // original JSON evidence object. Their `Textbook Context Used` section is
+  // still a trustworthy page-level provenance record, so recover its cited
+  // pages for visual repair and display instead of treating the record as if
+  // it had no textbook sources.
+  const textbookContext = text.match(
+    /(?:^|\n)\s*(?:#{1,4}\s*)?Textbook Context Used\s*\n([\s\S]*?)(?=\n\s*#{1,4}\s+|$)/i
+  )?.[1] || "";
+  const recovered: TextbookCitationEvidence[] = [];
+
+  for (const rawLine of textbookContext.split(/\r?\n/)) {
+    const line = rawLine.replace(/^\s*[-*]\s*/, "").trim();
+    const reference = line.match(/^(.+?)\s*,?\s*p{1,2}\.\s*([\d\s,–-]+)/i);
+
+    if (!reference) continue;
+
+    const textbookName = reference[1].trim();
+    const pageReferences = reference[2].matchAll(/(\d+)(?:\s*[-–]\s*(\d+))?/g);
+    for (const pageReference of pageReferences) {
+      const pageStart = Number(pageReference[1]);
+      const pageEnd = Number(pageReference[2] || pageReference[1]);
+      if (!textbookName || !Number.isInteger(pageStart) || pageStart < 1 || !Number.isInteger(pageEnd) || pageEnd < pageStart) {
+        continue;
+      }
+      recovered.push({
+        description: line,
+        pageEnd,
+        pageStart,
+        textbookName
+      });
+    }
+  }
+
+  return recovered;
 }
 
 function stripInlineMarkdown(text: string) {
