@@ -150,10 +150,6 @@ export async function POST(request: Request) {
     );
     const usableCitations = textbookCitations.filter((citation) => Boolean(citation.imageDataUrl));
 
-    if (!usableCitations.length) {
-      return jsonError("No self-contained textbook visual could be extracted from the retrieved pages.", 422);
-    }
-
     return Response.json({
       evidence: { textbookCitations: usableCitations },
       transcriptText: ensureTextbookVisualAnchors(transcriptText, usableCitations),

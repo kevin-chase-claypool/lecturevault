@@ -14,11 +14,34 @@ export type TextbookVisualCitation = {
   pageEnd: number;
   pageStart: number;
   textbookName: string;
+  visualKind: TextbookVisualKind;
+  whyNotKaTeX: string;
 };
+
+// These are intentionally limited to visuals that KaTeX cannot usefully
+// replace. Equations, worked algebra, prose, tables of text, and whole pages
+// never qualify, even when they are relevant to the reconstruction.
+export const TEXTBOOK_VISUAL_KINDS = [
+  "block_diagram",
+  "signal_flow_diagram",
+  "schematic",
+  "graph_or_plot",
+  "geometry_diagram",
+  "photo_or_illustration",
+  "map_or_chart"
+] as const;
+
+export type TextbookVisualKind = (typeof TEXTBOOK_VISUAL_KINDS)[number];
+
+export function isTextbookVisualKind(value: unknown): value is TextbookVisualKind {
+  return typeof value === "string" && (TEXTBOOK_VISUAL_KINDS as readonly string[]).includes(value);
+}
 
 type VisualSelectionResponse = {
   textbookCitations?: Array<{
     description?: unknown;
+    visualKind?: unknown;
+    whyNotKaTeX?: unknown;
     imageCrop?: {
       height?: unknown;
       width?: unknown;
@@ -37,16 +60,20 @@ const TEXTBOOK_VISUAL_SELECTION_SCHEMA = {
   properties: {
     textbookCitations: {
       type: "array",
-      minItems: 1,
+      // Returning no visual is correct whenever the retrieved pages contain
+      // only prose, equations, tables, or other content KaTeX already handles.
+      minItems: 0,
       maxItems: 3,
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["imageIndex", "anchorIndex", "description", "imageCrop"],
+        required: ["imageIndex", "anchorIndex", "description", "visualKind", "whyNotKaTeX", "imageCrop"],
         properties: {
           imageIndex: { type: "number", minimum: 1 },
           anchorIndex: { type: "number", minimum: 1 },
           description: { type: "string" },
+          visualKind: { type: "string", enum: TEXTBOOK_VISUAL_KINDS },
+          whyNotKaTeX: { type: "string" },
           imageCrop: {
             type: "object",
             additionalProperties: false,
@@ -54,10 +81,8 @@ const TEXTBOOK_VISUAL_SELECTION_SCHEMA = {
             properties: {
               x: { type: "number", minimum: 0, maximum: 1000 },
               y: { type: "number", minimum: 0, maximum: 1000 },
-              // 820 x 820 is safely below the 70%-of-page limit and prevents
-              // the selector from proposing a near-full-page crop.
-              width: { type: "number", minimum: 70, maximum: 820 },
-              height: { type: "number", minimum: 70, maximum: 820 }
+              width: { type: "number", minimum: 90, maximum: 920 },
+              height: { type: "number", minimum: 90, maximum: 920 }
             }
           }
         }
@@ -101,11 +126,13 @@ function normalizedCrop(value: NonNullable<VisualSelectionResponse["textbookCita
     ![x, y, width, height].every(Number.isFinite) ||
     x < 0 ||
     y < 0 ||
-    width < 70 ||
-    height < 70 ||
+    width < 90 ||
+    height < 90 ||
     x + width > 1000 ||
     y + height > 1000 ||
-    cropArea > 700000
+    // A figure can be wide or tall, but it cannot be a cropped textbook page.
+    // Figure 8.5 (the system-realization diagram) is well within this bound.
+    cropArea > 480000
   ) {
     return null;
   }
@@ -182,9 +209,10 @@ export async function selectTextbookVisualCitations({
     {
       type: "input_text",
       text: [
-        "You select textbook visuals for a saved engineering/math reconstruction.",
-        "Choose one to three supplied textbook diagrams, plots, tables, worked layouts, or textbook illustrations that directly improve intuitive understanding of the reconstruction. At least one source page was retrieved as relevant, so do not return an empty array.",
-        "For every selected visual, return a tight normalized 0-1000 crop around the visual itself. Never crop an entire page, body prose, a book cover, or an equation alone. A crop may cover no more than 70% of the page.",
+        "You select only non-KaTeX textbook visuals for a saved engineering/math reconstruction.",
+        "Return [] unless a supplied page contains a self-contained block diagram, signal-flow diagram, schematic, graph/plot, geometry diagram, map/chart, or photo/illustration that directly improves intuition. It is correct, and preferred, to return [] for pages containing only prose, equations, worked algebra, tables, or page layouts.",
+        "A valid benchmark is Figure 8.5 in Roberts: crop the system-realization block diagram itself, not the textbook page around it. A valid crop must tightly bound a single figure element with no surrounding explanatory paragraphs, no unrelated equations, no book/page header or footer, and no page margins. Keep a short figure label only if it is inseparable from the diagram.",
+        "Never select a book cover, whole page, cropped page, equation, worked calculation, table of text, or paragraph. If the diagram can be written clearly as ordinary KaTeX, do not select it. The crop may cover no more than 48% of the page.",
         "Choose the anchorIndex for the exact reconstruction paragraph that this visual should appear after. Do not invent anchor text.",
         "Use the imageIndex from this manifest. The server, not you, will bind that index to the exact textbook and page:\n" + pageManifest,
         "Use the anchorIndex from this exact paragraph manifest:\n" + anchors.map((anchor, index) => `Anchor ${index + 1}: ${anchor}`).join("\n"),
@@ -200,7 +228,7 @@ export async function selectTextbookVisualCitations({
   const response = await client.responses.create({
     input: [{ role: "user", content }],
     instructions:
-      "Return only the requested strict JSON. A textbook visual must be a self-contained aid that is useful beside the cited explanation; do not return page screenshots.",
+      "Return only the requested strict JSON. Every selected item must be a genuine non-KaTeX visual aid. Returning an empty array is the correct response if none qualifies.",
     model,
     text: {
       format: {
@@ -218,8 +246,10 @@ export async function selectTextbookVisualCitations({
     const inlineAnchor = anchors[Math.floor(Number(citation.anchorIndex)) - 1] || "";
     const key = page ? `${page.textbookName.toLowerCase()}:${page.pageNumber}` : "";
     const crop = normalizedCrop(citation.imageCrop);
+    const visualKind = isTextbookVisualKind(citation.visualKind) ? citation.visualKind : null;
+    const whyNotKaTeX = cleanString(citation.whyNotKaTeX);
 
-    if (!page || !crop || !inlineAnchor || seen.has(key)) {
+    if (!page || !crop || !inlineAnchor || !visualKind || !whyNotKaTeX || seen.has(key)) {
       return [];
     }
 
@@ -230,7 +260,9 @@ export async function selectTextbookVisualCitations({
       inlineAnchor,
       pageEnd: page.pageNumber,
       pageStart: page.pageNumber,
-      textbookName: page.textbookName
+      textbookName: page.textbookName,
+      visualKind,
+      whyNotKaTeX
     }];
   });
 
@@ -239,24 +271,10 @@ export async function selectTextbookVisualCitations({
 
 export function ensureTextbookVisualAnchors(
   transcriptText: string,
-  citations: TextbookVisualCitation[]
+  _citations: TextbookVisualCitation[]
 ) {
-  let nextText = transcriptText.trim();
-  const normalizeForAnchorMatch = (value: string) => value.replace(/\s+/g, " ").trim().toLowerCase();
-  const normalizedTranscript = normalizeForAnchorMatch(nextText);
-  const missing = citations.filter((citation) =>
-    !citation.inlineAnchor || !normalizedTranscript.includes(normalizeForAnchorMatch(citation.inlineAnchor))
-  );
-
-  if (!missing.length) {
-    return nextText;
-  }
-
-  const appendix = missing.map((citation) => {
-    const anchor = `Textbook visual: ${citation.textbookName}, p. ${citation.pageStart}`;
-    citation.inlineAnchor = anchor;
-    return `${anchor}. ${citation.description} Textbook reference: ${citation.textbookName}, p. ${citation.pageStart}.`;
-  });
-
-  return [nextText, "### Textbook Visual Aids", ...appendix].filter(Boolean).join("\n\n");
+  // Citations use exact prose anchors chosen from transcriptText. Do not append
+  // an image gallery or synthetic "visual aids" section when an anchor cannot
+  // be found; an image belongs inline or it is omitted.
+  return transcriptText.trim();
 }

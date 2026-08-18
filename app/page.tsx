@@ -208,9 +208,11 @@ type ReconstructionEvidence = {
     pageEnd?: number;
     description?: string;
     inlineAnchor?: string;
-    imageDataUrl?: string;
-    imageFilename?: string;
-    imageCrop?: { x?: number; y?: number; width?: number; height?: number } | null;
+  imageDataUrl?: string;
+  imageFilename?: string;
+  imageCrop?: { x?: number; y?: number; width?: number; height?: number } | null;
+  visualKind?: string;
+  whyNotKaTeX?: string;
   }>;
 };
 
@@ -219,6 +221,26 @@ type AudioClipEvidence = NonNullable<ReconstructionEvidence["audioClips"]>[numbe
 type TextbookCitationEvidence = NonNullable<
   ReconstructionEvidence["textbookCitations"]
 >[number];
+
+const INLINE_TEXTBOOK_VISUAL_KINDS = new Set([
+  "block_diagram",
+  "signal_flow_diagram",
+  "schematic",
+  "graph_or_plot",
+  "geometry_diagram",
+  "photo_or_illustration",
+  "map_or_chart"
+]);
+
+function isInlineTextbookVisual(
+  citation: TextbookCitationEvidence
+): citation is TextbookCitationEvidence & { imageDataUrl: string; visualKind: string } {
+  return Boolean(
+    citation.imageDataUrl &&
+    citation.visualKind &&
+    INLINE_TEXTBOOK_VISUAL_KINDS.has(citation.visualKind)
+  );
+}
 
 type StorageObjectReference = {
   bucket?: string;
@@ -914,6 +936,7 @@ type EvidenceTextLink = {
 
 type InlineVisualAid = {
   alt: string;
+  inlineOnly?: boolean;
   label: string;
   src: string;
   tokens: string[];
@@ -1123,7 +1146,10 @@ function ReviewMarkdownPreview({
   flushBullets();
   flushNumberedItems();
 
-  const remainingVisuals = visualAids.filter((aid) => !usedVisualLabels.has(aid.label));
+  // Textbook visuals either land beside the explanation selected by their
+  // exact anchor or do not render. They must never fall back to a page-style
+  // gallery at the end of a reconstruction.
+  const remainingVisuals = visualAids.filter((aid) => !aid.inlineOnly && !usedVisualLabels.has(aid.label));
   if (remainingVisuals.length) {
     nodes.push(
       <section className="inline-visual-aid-gallery" key="remaining-source-visuals">
@@ -8730,7 +8756,7 @@ function TextbookVisualInline({
         (entry) => entry.name.trim().toLowerCase() === citation.textbookName.trim().toLowerCase()
       );
       if (!textbook) return null;
-      if (!citation.imageDataUrl) return null;
+      if (!isInlineTextbookVisual(citation)) return null;
       const sourceUrl = sourceUrlForTextbook(textbook);
       return { citation, sourceUrl, textbook };
     })
@@ -9160,9 +9186,10 @@ function LectureDetail({
         : [];
     });
     const textbookAids = reconstructionEvidence.textbookCitations.flatMap((citation) =>
-      citation.imageDataUrl
+      isInlineTextbookVisual(citation)
         ? [{
             alt: `${citation.textbookName}, page ${citation.pageStart}`,
+            inlineOnly: true,
             label: `${citation.textbookName}, p. ${citation.pageStart}`,
             src: citation.imageDataUrl,
             tokens: [

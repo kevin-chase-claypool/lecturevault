@@ -23,6 +23,7 @@ import {
 } from "../../../lib/textbook-canonical-evidence";
 import {
   ensureTextbookVisualAnchors,
+  isTextbookVisualKind,
   selectTextbookVisualCitations
 } from "../../../lib/textbook-visual-selection";
 
@@ -130,6 +131,8 @@ type ReconstructionEvidence = {
     imageDataUrl?: string;
     imageFilename?: string;
     imageCrop?: { x?: number; y?: number; width?: number; height?: number } | null;
+    visualKind?: string;
+    whyNotKaTeX?: string;
   }>;
 };
 
@@ -201,22 +204,10 @@ const LECTURE_RECONSTRUCTION_SCHEMA = {
               pageEnd: { type: "number" },
               description: { type: "string" },
               inlineAnchor: { type: "string" },
-              imageCrop: {
-                anyOf: [
-                  {
-                    type: "object",
-                    additionalProperties: false,
-                    required: ["x", "y", "width", "height"],
-                    properties: {
-                      x: { type: "number", minimum: 0, maximum: 1000 },
-                      y: { type: "number", minimum: 0, maximum: 1000 },
-                      width: { type: "number", minimum: 0, maximum: 1000 },
-                      height: { type: "number", minimum: 0, maximum: 1000 }
-                    }
-                  },
-                  { type: "null" }
-                ]
-              }
+              // The primary reconstruction model may cite textbook prose, but
+              // a dedicated visual selector is the sole authority allowed to
+              // create a textbook image crop.
+              imageCrop: { type: "null" }
             }
           }
         }
@@ -510,8 +501,8 @@ function normalizedFigureCrop(value: unknown) {
   // quietly reintroducing the full-PDF-page behavior the user rejected.
   if (
     ![x, y, width, height].every(Number.isFinite) ||
-    x < 0 || y < 0 || width < 70 || height < 70 ||
-    x + width > 1000 || y + height > 1000 || area > 700000
+    x < 0 || y < 0 || width < 90 || height < 90 ||
+    x + width > 1000 || y + height > 1000 || area > 480000
   ) {
     return undefined;
   }
@@ -576,7 +567,6 @@ async function normalizeEvidence(
   textbookVisualPages: Array<{
     textbookName: string;
     pageNumber: number;
-    images?: Array<{ dataUrl: string; filename: string }>;
     pageImageDataUrl?: string;
   }> = []
 ) {
@@ -652,15 +642,21 @@ async function normalizeEvidence(
         return null;
       }
 
+      const visualKind = isTextbookVisualKind(citation.visualKind)
+        ? citation.visualKind
+        : undefined;
+
       return {
         textbookName: cleanString(source.textbookName),
         pageStart,
         pageEnd: Math.max(pageStart, pageEnd),
         description: cleanString(citation.description),
         inlineAnchor: cleanString(citation.inlineAnchor) || undefined,
-        imageDataUrl: cleanString(citation.imageDataUrl) || undefined,
-        imageFilename: cleanString(citation.imageFilename) || undefined,
-        imageCrop: normalizedFigureCrop(citation.imageCrop)
+        imageDataUrl: visualKind ? cleanString(citation.imageDataUrl) || undefined : undefined,
+        imageFilename: visualKind ? cleanString(citation.imageFilename) || undefined : undefined,
+        imageCrop: visualKind ? normalizedFigureCrop(citation.imageCrop) : undefined,
+        visualKind,
+        whyNotKaTeX: visualKind ? cleanString(citation.whyNotKaTeX) || undefined : undefined
       };
     })
     .filter((citation): citation is NonNullable<typeof citation> => Boolean(citation));
@@ -675,43 +671,13 @@ async function normalizeEvidence(
     const visualPage = visualPageByKey.get(
       `${citation.textbookName.toLowerCase()}:${citation.pageStart}`
     );
-    const firstImage = visualPage?.images?.[0];
-    if (citation.imageCrop && visualPage?.pageImageDataUrl && !citation.imageDataUrl) {
+    if (citation.visualKind && citation.imageCrop && visualPage?.pageImageDataUrl && !citation.imageDataUrl) {
       citation.imageDataUrl = await cropTextbookFigure({
         crop: citation.imageCrop,
         dataUrl: visualPage.pageImageDataUrl
       }) || undefined;
       citation.imageFilename = `textbook-figure-p-${citation.pageStart}.jpg`;
-    } else if (firstImage && !citation.imageDataUrl) {
-      citation.imageDataUrl = firstImage.dataUrl;
-      citation.imageFilename = firstImage.filename;
     }
-  }
-
-  const citedPageKeys = new Set(
-    textbookCitations.map(
-      (citation) => `${citation.textbookName.toLowerCase()}:${citation.pageStart}`
-    )
-  );
-  for (const page of textbookVisualPages) {
-    const textbookName = cleanString(page.textbookName);
-    const pageNumber = Number(page.pageNumber);
-    const key = `${textbookName.toLowerCase()}:${pageNumber}`;
-    const firstImage = page.images?.[0];
-    if (!textbookName || !Number.isFinite(pageNumber) || citedPageKeys.has(key) || !firstImage) {
-      continue;
-    }
-    citedPageKeys.add(key);
-    textbookCitations.push({
-      textbookName,
-      pageStart: pageNumber,
-      pageEnd: pageNumber,
-      description: "Textbook figure selected for intuitive visual context.",
-      inlineAnchor: undefined,
-      imageDataUrl: firstImage?.dataUrl,
-      imageFilename: firstImage?.filename,
-      imageCrop: undefined
-    });
   }
 
   return { audioClips, figures, textbookCitations };
@@ -1030,12 +996,6 @@ export async function POST(request: Request) {
       requests: textbookVisualRequests,
       sources: textbookSources
     });
-    const textbookVisualPageManifest = textbookVisualPages
-      .map(
-        (page) =>
-          `Visual textbook page: ${page.textbookName}, p. ${page.pageNumber}. A rendered image of this page is attached. Return imageCrop only for one self-contained diagram, plot, table, or textbook illustration that improves intuition. It must tightly bound that visual rather than the page body: leave page margins out and keep crop area at or below 70% of the page. If this page has no useful visual, return imageCrop: null.`
-      )
-      .join("\n");
     const content: ResponseInputMessageContentList = [
       {
         type: "input_text",
@@ -1057,9 +1017,6 @@ export async function POST(request: Request) {
           textbookContextText
             ? `Relevant course textbook excerpts:\n${textbookContextText}`
             : "No course textbook excerpts were selected for this lecture.",
-          textbookVisualPageManifest
-            ? `Original textbook pages attached only because they need visual verification:\n${textbookVisualPageManifest}`
-            : "No original textbook pages require repeated visual verification.",
           TEXTBOOK_REFERENCE_POLICY,
           audioTranscripts.length
             ? `Audio transcription text:\n${audioTranscripts.join("\n\n---\n\n")}`
@@ -1088,22 +1045,6 @@ export async function POST(request: Request) {
           : { file_data: dataUrl }),
         filename: cleanString(item.name) || "onenote-page.pdf"
       })),
-      ...textbookVisualPages.map((page) => ({
-        type: "input_file" as const,
-        detail: "high" as const,
-        file_data: page.dataUrl,
-        filename: page.filename
-      })),
-      ...textbookVisualPages.flatMap((page) =>
-        [
-          ...(page.pageImageDataUrl ? [{ dataUrl: page.pageImageDataUrl }] : []),
-          ...page.images
-        ].map((image) => ({
-          type: "input_image" as const,
-          image_url: image.dataUrl,
-          detail: "high" as const
-        }))
-      )
     ];
     const response = await client.responses.create({
       input: [{ role: "user", content }],
@@ -1132,14 +1073,10 @@ export async function POST(request: Request) {
 
     let artifactTranscriptText =
       cleanString(artifact.transcriptText) || audioTranscripts.join("\n\n");
-    const hasTextbookVisualCrop = Array.isArray(artifact.evidence?.textbookCitations) &&
-      artifact.evidence.textbookCitations.some((citation) => Boolean(normalizedFigureCrop(citation.imageCrop)));
-
-    // The reconstruction model is intentionally allowed to be selective about
-    // textbook citations. A separate visual pass makes that selectivity safe:
-    // when relevant textbook pages were actually attached, it must choose a
-    // useful, tightly cropped visual rather than silently returning no image.
-    if (!hasTextbookVisualCrop && textbookVisualPages.some((page) => page.pageImageDataUrl)) {
+    // A dedicated visual pass is the only path that may create a textbook
+    // image. It is intentionally selective: no qualifying diagram means no
+    // embedded visual, rather than a page crop.
+    if (textbookVisualPages.some((page) => page.pageImageDataUrl)) {
       const visualSelection = await selectTextbookVisualCitations({
         client,
         model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
@@ -1153,20 +1090,12 @@ export async function POST(request: Request) {
       totalUsage = addUsage(totalUsage, usageFromOpenAI(visualSelection.usage));
 
       if (visualSelection.citations.length) {
-        const existingCitations = Array.isArray(artifact.evidence?.textbookCitations)
-          ? artifact.evidence.textbookCitations
-          : [];
-        const selectedKeys = new Set(
-          visualSelection.citations.map(
-            (citation) => `${citation.textbookName.toLowerCase()}:${citation.pageStart}`
-          )
-        );
         artifact.evidence = {
           ...(artifact.evidence || {}),
           textbookCitations: [
-            ...existingCitations.filter((citation) => !selectedKeys.has(
-              `${cleanString(citation.textbookName).toLowerCase()}:${Math.floor(Number(citation.pageStart))}`
-            )),
+            ...(Array.isArray(artifact.evidence?.textbookCitations)
+              ? artifact.evidence.textbookCitations.map((citation) => ({ ...citation, imageCrop: null }))
+              : []),
             ...visualSelection.citations
           ]
         };
@@ -1188,7 +1117,6 @@ export async function POST(request: Request) {
       textbookVisualPages.map((page) => ({
         textbookName: page.textbookName,
         pageNumber: page.pageNumber,
-        images: page.images,
         pageImageDataUrl: page.pageImageDataUrl
       }))
     );
