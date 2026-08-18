@@ -199,10 +199,11 @@ assert.equal(
 assert.equal(
   pageEvidenceSource.includes('import("@napi-rs/canvas")') &&
     textbookExtractionSource.includes('import("@napi-rs/canvas")') &&
+    pageEvidenceSource.includes("CanvasFactory: textbookCanvasFactory(createCanvas)") &&
     !pageEvidenceSource.includes('webpackIgnore: true */ "@napi-rs/canvas"') &&
     !textbookExtractionSource.includes('webpackIgnore: true */ "@napi-rs/canvas"'),
   true,
-  "The production PDF renderer must keep its canvas dependency traceable so Vercel can supply actual candidate pixels."
+  "The production PDF renderer must keep its canvas dependency traceable and provide it directly to PDF.js so Vercel can supply actual candidate pixels."
 );
 
 console.log("Textbook visual contract passed.");

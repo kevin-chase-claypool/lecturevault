@@ -100,6 +100,62 @@ async function loadPdfJsWithInlineWorker() {
   return import("pdfjs-dist/legacy/build/pdf.mjs");
 }
 
+type CanvasLike = {
+  getContext: (contextId: "2d") => unknown;
+  height: number;
+  width: number;
+};
+
+/**
+ * PDF.js normally constructs NodeCanvasFactory, whose nested `require` starts
+ * from pdfjs-dist's own pnpm package directory. In a traced Vercel function
+ * that lookup can miss the app-level native canvas package even though this
+ * module loaded it successfully. Passing this factory to getDocument keeps
+ * every temporary PDF.js canvas on the same known implementation.
+ */
+function textbookCanvasFactory(
+  createCanvas: (width: number, height: number) => CanvasLike
+) {
+  return class TextbookCanvasFactory {
+    constructor(private readonly options: { enableHWA?: boolean } = {}) {}
+
+    create(width: number, height: number) {
+      if (width <= 0 || height <= 0) {
+        throw new Error("Invalid canvas size");
+      }
+
+      const canvas = createCanvas(width, height);
+      return {
+        canvas,
+        // @napi-rs/canvas does not expose the browser-only
+        // `willReadFrequently` context option; its 2D context is already
+        // appropriate for the short-lived render and audit work here.
+        context: canvas.getContext("2d")
+      };
+    }
+
+    reset(canvasAndContext: { canvas?: CanvasLike | null; context?: unknown }, width: number, height: number) {
+      if (!canvasAndContext.canvas || width <= 0 || height <= 0) {
+        throw new Error("Invalid canvas reset");
+      }
+
+      canvasAndContext.canvas.width = width;
+      canvasAndContext.canvas.height = height;
+    }
+
+    destroy(canvasAndContext: { canvas?: CanvasLike | null; context?: unknown }) {
+      if (!canvasAndContext.canvas) {
+        return;
+      }
+
+      canvasAndContext.canvas.width = 0;
+      canvasAndContext.canvas.height = 0;
+      canvasAndContext.canvas = null;
+      canvasAndContext.context = null;
+    }
+  };
+}
+
 async function extractEmbeddedImages(pageBytes: Uint8Array, stem: string) {
   try {
     // Keep this import visible to Next's file tracer. `webpackIgnore` made
@@ -109,6 +165,7 @@ async function extractEmbeddedImages(pageBytes: Uint8Array, stem: string) {
     const { createCanvas, ImageData } = await import("@napi-rs/canvas");
     const pdfjs = await loadPdfJsWithInlineWorker();
     const loadingTask = pdfjs.getDocument({
+      CanvasFactory: textbookCanvasFactory(createCanvas),
       // PDF.js transfers this buffer to its worker. Keep the original bytes
       // intact because they are also the source of the OpenAI page attachment.
       data: pageBytes.slice(),
@@ -168,6 +225,7 @@ async function renderPageImage(pageBytes: Uint8Array) {
     globals.Path2D ||= Path2D;
     const pdfjs = await loadPdfJsWithInlineWorker();
     const pdf = await pdfjs.getDocument({
+      CanvasFactory: textbookCanvasFactory(createCanvas),
       // PDF.js transfers this buffer to its worker. Rendering must never
       // detach the canonical one-page PDF that we attach to the model.
       data: pageBytes.slice(),
