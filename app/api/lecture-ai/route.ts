@@ -46,6 +46,10 @@ const DEFAULT_TEXTBOOK_VISUAL_SELECTION_MODEL = "gpt-4.1";
 const DEFAULT_TEXTBOOK_VISUAL_VERIFICATION_MODEL = "gpt-4.1";
 const DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-transcribe-diarize";
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
+// GPT-4.1 mini supports up to 32,768 output tokens in one Responses API call.
+// Make that allocation explicit instead of accepting a small provider default.
+const MAX_RECONSTRUCTION_OUTPUT_TOKENS = 32_768;
+const MAX_RECONSTRUCTION_COVERAGE_AUDIT_TOKENS = 2_048;
 const MAX_IMAGE_INPUTS = 30;
 const MAX_AUDIO_INPUTS = 3;
 const MAX_DOCUMENT_INPUTS = 5;
@@ -257,6 +261,43 @@ const LECTURE_RECONSTRUCTION_SCHEMA = {
     }
   }
 } as const;
+
+// The primary lesson is intentionally written first. This small, source-aware
+// audit then determines whether a dense lecture needs an additional guided
+// lesson section. It keeps the expansion decision tied to coverage rather
+// than a fixed character or paragraph target.
+const RECONSTRUCTION_COVERAGE_AUDIT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["needsExpansion", "missingTopics"],
+  properties: {
+    needsExpansion: { type: "boolean" },
+    missingTopics: { type: "array", items: { type: "string" } }
+  }
+} as const;
+
+const RECONSTRUCTION_CONTINUATION_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["transcriptText"],
+  properties: {
+    transcriptText: { type: "string" }
+  }
+} as const;
+
+type ReconstructionArtifact = {
+  reconstructionTitle?: string;
+  summary?: string;
+  transcriptText?: string;
+  concepts?: Array<{ title?: string; detail?: string; sourceMediaId?: string }>;
+  evidence?: ReconstructionEvidence;
+  syllabusMapping?: SyllabusMapping;
+};
+
+type ReconstructionCoverageAudit = {
+  needsExpansion?: boolean;
+  missingTopics?: string[];
+};
 
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -527,6 +568,101 @@ function extractJson(text: string) {
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]+?)\s*```/i);
   const candidate = (fenced ? fenced[1] : trimmed).trim();
   return JSON.parse(candidate);
+}
+
+function responseReachedOutputLimit(response: unknown) {
+  if (!response || typeof response !== "object") {
+    return false;
+  }
+
+  const incompleteDetails = (response as { incomplete_details?: unknown }).incomplete_details;
+  return Boolean(
+    incompleteDetails &&
+      typeof incompleteDetails === "object" &&
+      (incompleteDetails as { reason?: unknown }).reason === "max_output_tokens"
+  );
+}
+
+function responseId(response: unknown) {
+  return cleanString(response && typeof response === "object" ? (response as { id?: unknown }).id : "");
+}
+
+function addGuidedLessonContinuation(transcriptText: string, continuationText: string) {
+  const base = transcriptText.trim();
+  const addition = continuationText.trim();
+
+  if (!addition) {
+    return base;
+  }
+
+  const headingPattern = /\n## (?:Worked Problems and Patterns|Common Mistakes and Uncertainty|Source Media Used|Textbook Context Used)\b/i;
+  const insertion = base.search(headingPattern);
+  const continuation = `\n\n## Additional Guided Lesson Detail\n\n${addition}`;
+
+  return insertion < 0
+    ? `${base}${continuation}`
+    : `${base.slice(0, insertion)}${continuation}\n\n${base.slice(insertion).trimStart()}`;
+}
+
+async function auditReconstructionCoverage({
+  client,
+  model,
+  previousResponseId
+}: {
+  client: OpenAI;
+  model: string;
+  previousResponseId: string;
+}) {
+  const response = await client.responses.create({
+    previous_response_id: previousResponseId,
+    input: "Audit the preceding source-grounded reconstruction against the original source bundle. Decide whether it omits any distinct, material topic, relationship, derivation, procedure, worked step, assumption, interpretation, or beginner-facing intuition needed to understand a dense or multi-topic lecture. Do not request expansion merely to make the response longer. Return every necessary missing topic in a compact list. If the lesson already teaches every material topic thoroughly, set needsExpansion to false and return an empty list.",
+    instructions: "You are a rigorous coverage auditor. Preserve source-grounding and prioritize complete, beginner-ready understanding over brevity.",
+    model,
+    max_output_tokens: MAX_RECONSTRUCTION_COVERAGE_AUDIT_TOKENS,
+    text: {
+      format: {
+        type: "json_schema",
+        name: "reconstruction_coverage_audit",
+        strict: true,
+        schema: RECONSTRUCTION_COVERAGE_AUDIT_SCHEMA
+      }
+    }
+  });
+
+  const audit = extractJson(response.output_text) as ReconstructionCoverageAudit;
+  return { audit, response };
+}
+
+async function continueReconstructionArtifact({
+  client,
+  model,
+  previousResponseId,
+  missingTopics
+}: {
+  client: OpenAI;
+  model: string;
+  previousResponseId: string;
+  missingTopics: string[];
+}) {
+  return client.responses.create({
+    previous_response_id: previousResponseId,
+    input: [
+      "Extend the preceding reconstruction with the missing material listed below. Write only the source-grounded guided-lesson prose and subheadings that should be inserted into the existing Guided Lesson; do not repeat material that is already taught.",
+      "Teach each listed item for a beginner without omitting its formal detail, assumptions, derivation or procedure, interpretation, and relevant checks or edge cases. Use helpful supplied figures inline only when they are genuinely needed and not reproducible clearly in KaTeX.",
+      `Missing material:\n${missingTopics.map((topic) => `- ${topic}`).join("\n")}`
+    ].join("\n\n"),
+    instructions: LECTURE_AI_INSTRUCTIONS,
+    model,
+    max_output_tokens: MAX_RECONSTRUCTION_OUTPUT_TOKENS,
+    text: {
+      format: {
+        type: "json_schema",
+        name: "lecture_reconstruction_continuation",
+        strict: true,
+        schema: RECONSTRUCTION_CONTINUATION_SCHEMA
+      }
+    }
+  });
 }
 
 function normalizedFigureCrop(value: unknown) {
@@ -1259,10 +1395,12 @@ export async function POST(request: Request) {
         filename: cleanString(courseSyllabus?.name) || "course-syllabus.pdf"
       }] : []),
     ];
-    const response = await client.responses.create({
+    const lectureModel = process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL;
+    let response = await client.responses.create({
       input: [{ role: "user", content }],
       instructions: LECTURE_AI_INSTRUCTIONS,
-      model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
+      model: lectureModel,
+      max_output_tokens: MAX_RECONSTRUCTION_OUTPUT_TOKENS,
       text: {
         format: {
           type: "json_schema",
@@ -1274,19 +1412,89 @@ export async function POST(request: Request) {
     });
     totalUsage = addUsage(totalUsage, usageFromOpenAI(response.usage));
 
-    let artifact: {
-      reconstructionTitle?: string;
-      summary?: string;
-      transcriptText?: string;
-      concepts?: Array<{ title?: string; detail?: string; sourceMediaId?: string }>;
-      evidence?: ReconstructionEvidence;
-      syllabusMapping?: SyllabusMapping;
-    };
+    // Do not persist a shortened or malformed JSON artifact when a single
+    // model response reaches its physical output ceiling. Ask a fresh response
+    // in the same source conversation for a complete artifact instead.
+    if (responseReachedOutputLimit(response)) {
+      const incompleteResponseId = responseId(response);
 
-    artifact = extractJson(response.output_text);
+      if (!incompleteResponseId) {
+        throw new Error("The reconstruction reached its output limit without a resumable response id.");
+      }
+
+      response = await client.responses.create({
+        previous_response_id: incompleteResponseId,
+        input: "The preceding reconstruction reached its single-response output limit before it could be saved. Return one complete, valid reconstruction artifact from the original source bundle. Preserve all material source-grounded coverage; do not turn it into a short summary to fit the response.",
+        instructions: LECTURE_AI_INSTRUCTIONS,
+        model: lectureModel,
+        max_output_tokens: MAX_RECONSTRUCTION_OUTPUT_TOKENS,
+        text: {
+          format: {
+            type: "json_schema",
+            name: "lecture_reconstruction",
+            strict: true,
+            schema: LECTURE_RECONSTRUCTION_SCHEMA
+          }
+        }
+      });
+      totalUsage = addUsage(totalUsage, usageFromOpenAI(response.usage));
+
+      if (responseReachedOutputLimit(response)) {
+        throw new Error("The reconstruction remains larger than one complete response. It was not saved in a shortened form; please try again after the continuation service is available.");
+      }
+    }
+
+    let artifact: ReconstructionArtifact;
+
+    artifact = extractJson(response.output_text) as ReconstructionArtifact;
 
     let artifactTranscriptText =
       cleanString(artifact.transcriptText) || audioTranscripts.join("\n\n");
+
+    // A dense lecture can legitimately need more than the first well-formed
+    // lesson supplies. The audit sees the same source conversation, returns a
+    // coverage-based list (not a length target), and a continuation fills it.
+    const primaryResponseId = responseId(response);
+    if (primaryResponseId) {
+      const { audit, response: auditResponse } = await auditReconstructionCoverage({
+        client,
+        model: lectureModel,
+        previousResponseId: primaryResponseId
+      });
+      totalUsage = addUsage(totalUsage, usageFromOpenAI(auditResponse.usage));
+
+      const missingTopics = Array.isArray(audit.missingTopics)
+        ? audit.missingTopics.map(cleanString).filter(Boolean)
+        : [];
+
+      if (audit.needsExpansion && missingTopics.length) {
+        const auditResponseId = responseId(auditResponse);
+        if (!auditResponseId) {
+          throw new Error("The reconstruction coverage audit did not return a resumable response id.");
+        }
+
+        const continuationResponse = await continueReconstructionArtifact({
+          client,
+          model: lectureModel,
+          previousResponseId: auditResponseId,
+          missingTopics
+        });
+        totalUsage = addUsage(totalUsage, usageFromOpenAI(continuationResponse.usage));
+
+        if (responseReachedOutputLimit(continuationResponse)) {
+          throw new Error("The required reconstruction continuation reached its output limit. It was not saved as an incomplete lesson.");
+        }
+
+        const continuation = extractJson(continuationResponse.output_text) as {
+          transcriptText?: string;
+        };
+        artifactTranscriptText = addGuidedLessonContinuation(
+          artifactTranscriptText,
+          cleanString(continuation.transcriptText)
+        );
+      }
+    }
+
     // A dedicated visual pass is the only path that may create a textbook
     // image. It is intentionally selective: no qualifying diagram means no
     // embedded visual, rather than a page crop.
