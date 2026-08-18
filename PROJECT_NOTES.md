@@ -1,5 +1,11 @@
 # LectureVault Project Notes
 
+## 2026-08-18 - Package Textbook Pixels in Vercel Functions
+
+- The live repair for **Impulse Invariant Method and Pole-Zero Mapping in Digital Filter Design** correctly re-ran selection but returned no visual because Vercel could not load `@napi-rs/canvas`. The page renderer and embedded-image extractor used webpack-ignored imports, so Next did not trace that declared native dependency into the function.
+- The canvas imports are now traceable, matching the existing `serverExternalPackages` configuration. This restores both rendered-page crops and isolated textbook image extraction in production. No source PDF is reuploaded, copied, or changed.
+- The visual contract now explicitly rejects any future return to a webpack-ignored canvas import in either visual extraction or textbook indexing.
+
 ## 2026-08-18 - Preserve Isolated Textbook Figures in Visual Selection
 
 - The page-evidence extractor already produced isolated embedded textbook image assets, but the reconstruction and repair routes discarded them before the visual selector ran. This made figure-rich lessons depend entirely on a hard full-page crop path and could return no visual aids.

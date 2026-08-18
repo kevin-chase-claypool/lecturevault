@@ -196,5 +196,13 @@ assert.equal(
   true,
   "Visual indexing must run by default and a refresh must continue with deferred pages from the existing textbook instead of repeating the first batch."
 );
+assert.equal(
+  pageEvidenceSource.includes('import("@napi-rs/canvas")') &&
+    textbookExtractionSource.includes('import("@napi-rs/canvas")') &&
+    !pageEvidenceSource.includes('webpackIgnore: true */ "@napi-rs/canvas"') &&
+    !textbookExtractionSource.includes('webpackIgnore: true */ "@napi-rs/canvas"'),
+  true,
+  "The production PDF renderer must keep its canvas dependency traceable so Vercel can supply actual candidate pixels."
+);
 
 console.log("Textbook visual contract passed.");

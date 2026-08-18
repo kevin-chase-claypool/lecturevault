@@ -20,9 +20,10 @@ async function extractPdfText(buffer: Uint8Array) {
   // pdf-parse embeds its PDF.js worker as a data URL, avoiding Vercel's
   // external-worker and pnpm symlink resolution problems while retaining
   // page-wise text results for retrieval and evidence indexing.
-  const { DOMMatrix, ImageData, Path2D } = await import(
-    /* webpackIgnore: true */ "@napi-rs/canvas"
-  );
+  // This has to remain traceable by Next. A webpack-ignored import is not
+  // packaged in the Vercel function, which breaks both visual indexing and
+  // later figure extraction even though the dependency is declared.
+  const { DOMMatrix, ImageData, Path2D } = await import("@napi-rs/canvas");
   const canvasGlobals = globalThis as unknown as Record<string, unknown>;
   canvasGlobals.DOMMatrix ||= DOMMatrix;
   canvasGlobals.ImageData ||= ImageData;

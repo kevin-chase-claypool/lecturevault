@@ -102,9 +102,11 @@ async function loadPdfJsWithInlineWorker() {
 
 async function extractEmbeddedImages(pageBytes: Uint8Array, stem: string) {
   try {
-    const { createCanvas, ImageData } = await import(
-      /* webpackIgnore: true */ "@napi-rs/canvas"
-    );
+    // Keep this import visible to Next's file tracer. `webpackIgnore` made
+    // the local development import work while omitting the native canvas
+    // package from the Vercel function, which left every textbook visual
+    // candidate without pixels in production.
+    const { createCanvas, ImageData } = await import("@napi-rs/canvas");
     const pdfjs = await loadPdfJsWithInlineWorker();
     const loadingTask = pdfjs.getDocument({
       // PDF.js transfers this buffer to its worker. Keep the original bytes
@@ -159,9 +161,7 @@ async function extractEmbeddedImages(pageBytes: Uint8Array, stem: string) {
 
 async function renderPageImage(pageBytes: Uint8Array) {
   try {
-    const { createCanvas, DOMMatrix, ImageData, Path2D } = await import(
-      /* webpackIgnore: true */ "@napi-rs/canvas"
-    );
+    const { createCanvas, DOMMatrix, ImageData, Path2D } = await import("@napi-rs/canvas");
     const globals = globalThis as unknown as Record<string, unknown>;
     globals.DOMMatrix ||= DOMMatrix;
     globals.ImageData ||= ImageData;
@@ -203,9 +203,7 @@ export async function cropTextbookFigure({
 }) {
   if (!dataUrl) return "";
   try {
-    const { createCanvas, loadImage } = await import(
-      /* webpackIgnore: true */ "@napi-rs/canvas"
-    );
+    const { createCanvas, loadImage } = await import("@napi-rs/canvas");
     const image = await loadImage(dataUrl);
     const expandedCrop = expandTextbookFigureCrop(crop);
     if (!expandedCrop) return "";
