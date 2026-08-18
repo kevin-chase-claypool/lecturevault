@@ -53,6 +53,18 @@ type VisualSelectionResponse = {
   }>;
 };
 
+export type TextbookVisualCandidate = TextbookVisualCitation & {
+  imageDataUrl: string;
+  imageFilename?: string;
+};
+
+type VisualVerificationResponse = {
+  verdicts?: Array<{
+    approved?: unknown;
+    visualIndex?: unknown;
+  }>;
+};
+
 const TEXTBOOK_VISUAL_SELECTION_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -91,6 +103,28 @@ const TEXTBOOK_VISUAL_SELECTION_SCHEMA = {
   }
 } as const;
 
+const TEXTBOOK_VISUAL_VERIFICATION_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["verdicts"],
+  properties: {
+    verdicts: {
+      type: "array",
+      minItems: 0,
+      maxItems: 3,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["visualIndex", "approved"],
+        properties: {
+          visualIndex: { type: "number", minimum: 1 },
+          approved: { type: "boolean" }
+        }
+      }
+    }
+  }
+} as const;
+
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -106,6 +140,22 @@ function parseVisualSelection(value: string): VisualSelectionResponse {
 
   try {
     return JSON.parse(raw) as VisualSelectionResponse;
+  } catch {
+    return {};
+  }
+}
+
+function parseVisualVerification(value: string): VisualVerificationResponse {
+  const raw = cleanString(value)
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
+
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw) as VisualVerificationResponse;
   } catch {
     return {};
   }
@@ -267,6 +317,77 @@ export async function selectTextbookVisualCitations({
   });
 
   return { citations, usage: response.usage };
+}
+
+export async function verifyTextbookVisualCitations({
+  candidates,
+  client,
+  model
+}: {
+  candidates: TextbookVisualCandidate[];
+  client: OpenAI;
+  model: string;
+}) {
+  const usableCandidates = candidates.filter((candidate) =>
+    Boolean(cleanString(candidate.imageDataUrl)) &&
+    isTextbookVisualKind(candidate.visualKind)
+  );
+
+  if (!usableCandidates.length) {
+    return { citations: [] as TextbookVisualCandidate[], usage: undefined };
+  }
+
+  try {
+    const response = await client.responses.create({
+      input: [{
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: [
+              "Verify each supplied textbook crop before it is displayed inline in a reconstruction.",
+              "Approve only when the crop pixels themselves clearly show the stated non-KaTeX visual: a block/signal-flow diagram with connecting structure, schematic, graph or plot with axes/traces, geometry diagram, map/chart, or photo/illustration.",
+              "Reject a crop that is prose, a section heading, caption, formula, worked calculation, table of text, book/page furniture, a blank area, or a page fragment. A heading that says 'system block diagram' is not a diagram and must be rejected. Do not infer a figure from surrounding text that is not visible in the crop.",
+              "Figure 8.5's actual Direct Form II block diagram is approvable; a crop of the sentence or heading referring to that figure is not.",
+              "Candidates:\n" + usableCandidates.map((candidate, index) =>
+                `Visual ${index + 1}: ${candidate.visualKind}; ${candidate.description}; ${candidate.whyNotKaTeX}`
+              ).join("\n")
+            ].join("\n\n")
+          },
+          ...usableCandidates.map((candidate) => ({
+            type: "input_image" as const,
+            image_url: candidate.imageDataUrl,
+            detail: "high" as const
+          }))
+        ]
+      }],
+      instructions: "Return only the requested strict JSON. Reject when uncertain; a missing textbook visual is better than an incorrect one.",
+      model,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "textbook_visual_verification",
+          strict: true,
+          schema: TEXTBOOK_VISUAL_VERIFICATION_SCHEMA
+        }
+      }
+    });
+    const approvedIndexes = new Set(
+      (parseVisualVerification(response.output_text).verdicts || [])
+        .filter((verdict) => verdict.approved === true)
+        .map((verdict) => Math.floor(Number(verdict.visualIndex)) - 1)
+        .filter((index) => index >= 0 && index < usableCandidates.length)
+    );
+
+    return {
+      citations: usableCandidates.filter((_, index) => approvedIndexes.has(index)),
+      usage: response.usage
+    };
+  } catch {
+    // Verification failure is deliberately fail-closed: the lecture itself is
+    // still usable, but an unverified image must never be displayed.
+    return { citations: [] as TextbookVisualCandidate[], usage: undefined };
+  }
 }
 
 export function ensureTextbookVisualAnchors(

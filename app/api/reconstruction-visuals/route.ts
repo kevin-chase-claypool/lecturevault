@@ -9,7 +9,8 @@ import {
 } from "../../../lib/textbook-page-evidence";
 import {
   ensureTextbookVisualAnchors,
-  selectTextbookVisualCitations
+  selectTextbookVisualCitations,
+  verifyTextbookVisualCitations
 } from "../../../lib/textbook-visual-selection";
 
 export const runtime = "nodejs";
@@ -148,7 +149,14 @@ export async function POST(request: Request) {
         };
       })
     );
-    const usableCitations = textbookCitations.filter((citation) => Boolean(citation.imageDataUrl));
+    const verification = await verifyTextbookVisualCitations({
+      candidates: textbookCitations.filter((citation): citation is typeof citation & { imageDataUrl: string } =>
+        Boolean(citation.imageDataUrl)
+      ),
+      client,
+      model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL
+    });
+    const usableCitations = verification.citations;
 
     return Response.json({
       evidence: { textbookCitations: usableCitations },
@@ -156,9 +164,9 @@ export async function POST(request: Request) {
       usage: {
         input_tokens:
           (embedding.usage?.prompt_tokens || 0) + (selection.usage?.input_tokens || 0) || undefined,
-        output_tokens: selection.usage?.output_tokens,
+        output_tokens: (selection.usage?.output_tokens || 0) + (verification.usage?.output_tokens || 0) || undefined,
         total_tokens:
-          (embedding.usage?.total_tokens || 0) + (selection.usage?.total_tokens || 0) || undefined
+          (embedding.usage?.total_tokens || 0) + (selection.usage?.total_tokens || 0) + (verification.usage?.total_tokens || 0) || undefined
       }
     });
   } catch (error) {

@@ -24,7 +24,9 @@ import {
 import {
   ensureTextbookVisualAnchors,
   isTextbookVisualKind,
-  selectTextbookVisualCitations
+  selectTextbookVisualCitations,
+  verifyTextbookVisualCitations,
+  type TextbookVisualCitation
 } from "../../../lib/textbook-visual-selection";
 
 export const runtime = "nodejs";
@@ -1089,19 +1091,52 @@ export async function POST(request: Request) {
       });
       totalUsage = addUsage(totalUsage, usageFromOpenAI(visualSelection.usage));
 
-      if (visualSelection.citations.length) {
+      const visualPageByKey = new Map(
+        textbookVisualPages.map((page) => [
+          `${page.textbookName.toLowerCase()}:${page.pageNumber}`,
+          page
+        ])
+      );
+      const visualCandidates = (await Promise.all(
+        visualSelection.citations.map(async (citation) => {
+          const page = visualPageByKey.get(
+            `${citation.textbookName.toLowerCase()}:${citation.pageStart}`
+          );
+          const imageDataUrl = page?.pageImageDataUrl && citation.imageCrop
+            ? await cropTextbookFigure({ crop: citation.imageCrop, dataUrl: page.pageImageDataUrl })
+            : null;
+
+          return imageDataUrl
+            ? {
+                ...citation,
+                imageDataUrl,
+                imageFilename: `textbook-figure-p-${citation.pageStart}.jpg`
+              }
+            : null;
+        })
+      )).filter((citation): citation is TextbookVisualCitation & { imageDataUrl: string; imageFilename: string } =>
+        Boolean(citation?.imageDataUrl)
+      );
+      const visualVerification = await verifyTextbookVisualCitations({
+        candidates: visualCandidates,
+        client,
+        model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL
+      });
+      totalUsage = addUsage(totalUsage, usageFromOpenAI(visualVerification.usage));
+
+      if (visualVerification.citations.length) {
         artifact.evidence = {
           ...(artifact.evidence || {}),
           textbookCitations: [
             ...(Array.isArray(artifact.evidence?.textbookCitations)
               ? artifact.evidence.textbookCitations.map((citation) => ({ ...citation, imageCrop: null }))
               : []),
-            ...visualSelection.citations
+            ...visualVerification.citations
           ]
         };
         artifactTranscriptText = ensureTextbookVisualAnchors(
           artifactTranscriptText,
-          visualSelection.citations
+          visualVerification.citations
         );
       }
     }
