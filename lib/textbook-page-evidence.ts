@@ -31,6 +31,56 @@ function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+const FIGURE_SAFETY_MARGIN = 18;
+
+/**
+ * Adds a small, bounded whitespace rim around a model-selected figure box.
+ * Vision models often place a box directly on a diagram's outermost arrow,
+ * axis label, or connection. Keeping that box verbatim makes the result look
+ * clipped even when the selected figure was otherwise correct. A missing or
+ * invalid crop deliberately produces no image: textbook pages must never be
+ * used as a fallback visual.
+ */
+export function expandTextbookFigureCrop(crop: {
+  height?: number;
+  width?: number;
+  x?: number;
+  y?: number;
+}) {
+  const rawX = Number(crop.x);
+  const rawY = Number(crop.y);
+  const rawWidth = Number(crop.width);
+  const rawHeight = Number(crop.height);
+
+  if (
+    ![rawX, rawY, rawWidth, rawHeight].every(Number.isFinite) ||
+    rawX < 0 ||
+    rawY < 0 ||
+    rawWidth < 90 ||
+    rawHeight < 90 ||
+    rawX + rawWidth > 1000 ||
+    rawY + rawHeight > 1000
+  ) {
+    return null;
+  }
+
+  const x = Math.max(0, Math.floor(rawX));
+  const y = Math.max(0, Math.floor(rawY));
+  const right = Math.min(1000, Math.ceil(rawX + rawWidth));
+  const bottom = Math.min(1000, Math.ceil(rawY + rawHeight));
+  const paddedX = Math.max(0, x - FIGURE_SAFETY_MARGIN);
+  const paddedY = Math.max(0, y - FIGURE_SAFETY_MARGIN);
+  const paddedRight = Math.min(1000, right + FIGURE_SAFETY_MARGIN);
+  const paddedBottom = Math.min(1000, bottom + FIGURE_SAFETY_MARGIN);
+
+  return {
+    x: paddedX,
+    y: paddedY,
+    width: paddedRight - paddedX,
+    height: paddedBottom - paddedY
+  };
+}
+
 function safeFileStem(value: string) {
   return (
     value
@@ -157,10 +207,9 @@ export async function cropTextbookFigure({
       /* webpackIgnore: true */ "@napi-rs/canvas"
     );
     const image = await loadImage(dataUrl);
-    const x = Math.max(0, Math.min(900, Number(crop.x) || 0));
-    const y = Math.max(0, Math.min(900, Number(crop.y) || 0));
-    const width = Math.max(100, Math.min(1000 - x, Number(crop.width) || 1000));
-    const height = Math.max(100, Math.min(1000 - y, Number(crop.height) || 1000));
+    const expandedCrop = expandTextbookFigureCrop(crop);
+    if (!expandedCrop) return "";
+    const { x, y, width, height } = expandedCrop;
     const sourceX = Math.round((x / 1000) * image.width);
     const sourceY = Math.round((y / 1000) * image.height);
     const sourceWidth = Math.max(1, Math.round((width / 1000) * image.width));
