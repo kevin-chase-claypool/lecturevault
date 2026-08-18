@@ -117,6 +117,17 @@ assert.deepEqual(
   "A bounded interior figure crop must remain eligible for pixel and relevance audits."
 );
 assert.equal(
+  selectionSource.includes("may cover no more than 36% of the page"),
+  true,
+  "The selector must receive the same maximum crop area as the server, so valid candidates are not silently discarded."
+);
+assert.equal(
+  lectureRouteSource.includes("MAX_TEXTBOOK_VISUAL_SELECTION_ATTEMPTS = 2") &&
+    lectureRouteSource.includes("retry: attempt === 1"),
+  true,
+  "A lesson with relevant textbook pages must receive one refined visual-selection attempt when its first pass produces no safe visual."
+);
+assert.equal(
   selectionSource.includes("Do not provide the selector's claimed visual kind, rationale, textbook page, or teaching anchor"),
   true,
   "The pixel-quality audit must be blind to the selector's claims so it cannot rubber-stamp a broad page crop."

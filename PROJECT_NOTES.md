@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-08-18 - Recover Source Figures After a Safe-Selection Miss
+
+- Aligned the visual-selector instruction with the server's actual crop contract: a source figure must be an interior crop no larger than 36% of its page. The previous 48% instruction could lead the model to propose a crop that the server then silently discarded.
+- When relevant textbook pages are available but the first select-and-audit sequence yields no safe figure, the reconstruction now performs one figure-focused refinement pass over the same source pages. This is a recovery pass, not a cap on visual aids; every complete, relevant source figure can still be included.
+- The refinement continues to fail closed on prose, cropped pages, partial figures, generic topical matches, and unverified evidence.
+- Verification: `node scripts/verify-textbook-visual-contract.mjs`, `pnpm typecheck`, `pnpm build`, and `git diff --check`.
+
 ## 2026-08-18 - Fail Closed on Broad or Biased Textbook Figure Selection
 
 - Replaced the single context-aware textbook visual approval with two independent gates: a blind pixel audit that receives no selector rationale, page number, claimed visual type, or lesson anchor; then a separate relevance audit that compares the independently identified figure subject with the exact teaching paragraph.

@@ -45,6 +45,10 @@ const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
 const MAX_IMAGE_INPUTS = 30;
 const MAX_AUDIO_INPUTS = 3;
 const MAX_DOCUMENT_INPUTS = 5;
+// This is a quality-recovery attempt, not a cap on useful figures. A retry is
+// warranted when relevant textbook pages exist but the first pass produces no
+// safely displayable visual at all.
+const MAX_TEXTBOOK_VISUAL_SELECTION_ATTEMPTS = 2;
 // Keep retrieval and original-page verification aligned: every retrieved context
 // candidate can be backed by its actual textbook page in the same model request.
 const MAX_TEXTBOOK_CONTEXT = 8;
@@ -703,6 +707,76 @@ async function normalizeEvidence(
   return { audioClips, figures, textbookCitations };
 }
 
+async function selectAndVerifyTextbookVisuals({
+  client,
+  selectionModel,
+  transcriptText,
+  verificationModel,
+  pages
+}: {
+  client: OpenAI;
+  selectionModel: string;
+  transcriptText: string;
+  verificationModel: string;
+  pages: Array<{
+    textbookName: string;
+    pageNumber: number;
+    pageImageDataUrl?: string;
+  }>;
+}) {
+  const visualPageByKey = new Map(
+    pages.map((page) => [
+      `${page.textbookName.toLowerCase()}:${page.pageNumber}`,
+      page
+    ])
+  );
+  let usage: TokenUsage = {};
+
+  for (let attempt = 0; attempt < MAX_TEXTBOOK_VISUAL_SELECTION_ATTEMPTS; attempt += 1) {
+    const visualSelection = await selectTextbookVisualCitations({
+      client,
+      model: selectionModel,
+      pages,
+      retry: attempt === 1,
+      transcriptText
+    });
+    usage = addUsage(usage, usageFromOpenAI(visualSelection.usage));
+
+    const visualCandidates = (await Promise.all(
+      visualSelection.citations.map(async (citation) => {
+        const page = visualPageByKey.get(
+          `${citation.textbookName.toLowerCase()}:${citation.pageStart}`
+        );
+        const imageDataUrl = page?.pageImageDataUrl && citation.imageCrop
+          ? await cropTextbookFigure({ crop: citation.imageCrop, dataUrl: page.pageImageDataUrl })
+          : null;
+
+        return imageDataUrl
+          ? {
+              ...citation,
+              imageDataUrl,
+              imageFilename: `textbook-figure-p-${citation.pageStart}.jpg`
+            }
+          : null;
+      })
+    )).filter((citation): citation is TextbookVisualCitation & { imageDataUrl: string; imageFilename: string } =>
+      Boolean(citation?.imageDataUrl)
+    );
+    const visualVerification = await verifyTextbookVisualCitations({
+      candidates: visualCandidates,
+      client,
+      model: verificationModel
+    });
+    usage = addUsage(usage, usageFromOpenAI(visualVerification.usage));
+
+    if (visualVerification.citations.length) {
+      return { citations: visualVerification.citations, usage };
+    }
+  }
+
+  return { citations: [], usage };
+}
+
 export async function POST(request: Request) {
   const authError = requireAuthenticatedRequest(request);
 
@@ -1115,59 +1189,27 @@ export async function POST(request: Request) {
     // image. It is intentionally selective: no qualifying diagram means no
     // embedded visual, rather than a page crop.
     if (textbookVisualPages.some((page) => page.pageImageDataUrl)) {
-      const visualSelection = await selectTextbookVisualCitations({
+      const textbookVisuals = await selectAndVerifyTextbookVisuals({
         client,
-        model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
+        selectionModel: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
         pages: textbookVisualPages.map((page) => ({
           textbookName: page.textbookName,
           pageNumber: page.pageNumber,
           pageImageDataUrl: page.pageImageDataUrl
         })),
-        transcriptText: artifactTranscriptText
+        transcriptText: artifactTranscriptText,
+        verificationModel: process.env.OPENAI_TEXTBOOK_VISUAL_VERIFICATION_MODEL || DEFAULT_TEXTBOOK_VISUAL_VERIFICATION_MODEL
       });
-      totalUsage = addUsage(totalUsage, usageFromOpenAI(visualSelection.usage));
+      totalUsage = addUsage(totalUsage, textbookVisuals.usage);
 
-      const visualPageByKey = new Map(
-        textbookVisualPages.map((page) => [
-          `${page.textbookName.toLowerCase()}:${page.pageNumber}`,
-          page
-        ])
-      );
-      const visualCandidates = (await Promise.all(
-        visualSelection.citations.map(async (citation) => {
-          const page = visualPageByKey.get(
-            `${citation.textbookName.toLowerCase()}:${citation.pageStart}`
-          );
-          const imageDataUrl = page?.pageImageDataUrl && citation.imageCrop
-            ? await cropTextbookFigure({ crop: citation.imageCrop, dataUrl: page.pageImageDataUrl })
-            : null;
-
-          return imageDataUrl
-            ? {
-                ...citation,
-                imageDataUrl,
-                imageFilename: `textbook-figure-p-${citation.pageStart}.jpg`
-              }
-            : null;
-        })
-      )).filter((citation): citation is TextbookVisualCitation & { imageDataUrl: string; imageFilename: string } =>
-        Boolean(citation?.imageDataUrl)
-      );
-      const visualVerification = await verifyTextbookVisualCitations({
-        candidates: visualCandidates,
-        client,
-        model: process.env.OPENAI_TEXTBOOK_VISUAL_VERIFICATION_MODEL || DEFAULT_TEXTBOOK_VISUAL_VERIFICATION_MODEL
-      });
-      totalUsage = addUsage(totalUsage, usageFromOpenAI(visualVerification.usage));
-
-      if (visualVerification.citations.length) {
+      if (textbookVisuals.citations.length) {
         artifact.evidence = {
           ...(artifact.evidence || {}),
           textbookCitations: [
             ...(Array.isArray(artifact.evidence?.textbookCitations)
               ? artifact.evidence.textbookCitations.map((citation) => ({ ...citation, imageCrop: null }))
               : []),
-            ...visualVerification.citations.map((citation) => ({
+            ...textbookVisuals.citations.map((citation) => ({
               ...citation,
               visualAuditVersion: TEXTBOOK_VISUAL_AUDIT_VERSION
             }))
@@ -1175,7 +1217,7 @@ export async function POST(request: Request) {
         };
         artifactTranscriptText = ensureTextbookVisualAnchors(
           artifactTranscriptText,
-          visualVerification.citations
+          textbookVisuals.citations
         );
       }
     }

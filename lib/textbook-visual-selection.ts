@@ -297,11 +297,13 @@ export async function selectTextbookVisualCitations({
   client,
   model,
   pages,
-  transcriptText
+  transcriptText,
+  retry = false
 }: {
   client: OpenAI;
   model: string;
   pages: TextbookVisualPage[];
+  retry?: boolean;
   transcriptText: string;
 }) {
   const usablePages = pages.filter(
@@ -326,10 +328,13 @@ export async function selectTextbookVisualCitations({
       type: "input_text",
       text: [
         "You select only non-KaTeX textbook visuals for a saved engineering/math reconstruction.",
+        retry
+          ? "A prior visual pass did not produce any safely displayable figure. Reinspect every supplied page carefully for complete source diagrams, schematics, plots, or illustrations that directly teach the lesson. Do not reuse a broad region: choose a smaller, complete figure crop or return an empty array if none exists."
+          : "Inspect every supplied page carefully before deciding that no visual qualifies.",
         "Return [] only when no supplied page contains a self-contained block diagram, signal-flow diagram, schematic, graph/plot, geometry diagram, map/chart, or photo/illustration that directly improves intuition. It is correct to return [] for pages containing only prose, equations, worked algebra, tables, or page layouts.",
         "Be comprehensive rather than minimal: inspect every supplied page and select every distinct qualifying visual that materially supports a different beginner-facing explanation, process, or worked step. There is no numeric visual quota. Dense source material can legitimately need several visuals. You may select multiple figures from one page only when they are separate complete visual elements with distinct instructional value; do not repeat a figure or select a merely decorative visual.",
         "A valid benchmark is Figure 8.5 in Roberts: crop the system-realization block diagram itself, not the textbook page around it. A valid crop must tightly bound one complete figure element with no surrounding explanatory paragraphs, no unrelated equations, no book/page header or footer, and no page margins. Include every arrow, curve, axis, label, and connection that belongs to that figure; leave a small whitespace rim on all four sides so no visual element is cut off. Reject a crop that would show only part of a figure, multiple partial figures, or any diagram element running into a crop edge. Keep a short figure label only if it is inseparable from the diagram.",
-        "Never select a book cover, whole page, cropped page, equation, worked calculation, table of text, or paragraph. If the diagram can be written clearly as ordinary KaTeX, do not select it. The crop may cover no more than 48% of the page.",
+        "Never select a book cover, whole page, cropped page, equation, worked calculation, table of text, or paragraph. If the diagram can be written clearly as ordinary KaTeX, do not select it. The crop may cover no more than 36% of the page and must leave at least 24 page-coordinate units of whitespace on every side.",
         "Choose the anchorIndex for the exact Structured Notes, Guided Lesson, Worked Problems, or Common Mistakes paragraph that this visual should appear after. Never choose Source Media Used or Textbook Context Used: those are provenance sections, not explanation.",
         "Use the imageIndex from this manifest. The server, not you, will bind that index to the exact textbook and page:\n" + pageManifest,
         "Use the anchorIndex from this exact paragraph manifest:\n" + anchors.map((anchor, index) => `Anchor ${index + 1}: ${anchor}`).join("\n"),
