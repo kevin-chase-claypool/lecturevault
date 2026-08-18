@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import ts from "typescript";
 
 const selectionSource = await readFile(
   new URL("../lib/textbook-visual-selection.ts", import.meta.url),
@@ -12,6 +13,17 @@ const rendererSource = await readFile(
 const lectureRouteSource = await readFile(
   new URL("../app/api/lecture-ai/route.ts", import.meta.url),
   "utf8"
+);
+const visualContractSource = await readFile(
+  new URL("../lib/textbook-visual-contract.ts", import.meta.url),
+  "utf8"
+);
+const visualContractModule = await import(
+  "data:text/javascript;base64," + Buffer.from(
+    ts.transpileModule(visualContractSource, {
+      compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
+    }).outputText
+  ).toString("base64")
 );
 
 assert.equal(
@@ -83,6 +95,51 @@ assert.equal(
   lectureRouteSource.includes("OPENAI_TEXTBOOK_VISUAL_VERIFICATION_MODEL"),
   true,
   "Visual verification must be independently configurable from the lecture-generation model."
+);
+assert.equal(
+  visualContractSource.includes("TEXTBOOK_VISUAL_AUDIT_VERSION = 2"),
+  true,
+  "Only figures that pass the current audited-figure contract may be rendered."
+);
+assert.equal(
+  visualContractModule.normalizeTightTextbookFigureCrop({ x: 15, y: 50, width: 970, height: 900 }),
+  null,
+  "A broad near-full-page textbook crop must be rejected before visual auditing."
+);
+assert.equal(
+  visualContractModule.normalizeTightTextbookFigureCrop({ x: 200, y: 120, width: 760, height: 520 }),
+  null,
+  "A crop covering more than the permitted portion of a page must be rejected."
+);
+assert.deepEqual(
+  visualContractModule.normalizeTightTextbookFigureCrop({ x: 80, y: 120, width: 760, height: 360 }),
+  { x: 80, y: 120, width: 760, height: 360 },
+  "A bounded interior figure crop must remain eligible for pixel and relevance audits."
+);
+assert.equal(
+  selectionSource.includes("Do not provide the selector's claimed visual kind, rationale, textbook page, or teaching anchor"),
+  true,
+  "The pixel-quality audit must be blind to the selector's claims so it cannot rubber-stamp a broad page crop."
+);
+assert.equal(
+  selectionSource.includes("specificSubject"),
+  true,
+  "The pixel-quality audit must identify the actual figure subject, not merely accept a generic topical match."
+);
+assert.equal(
+  selectionSource.includes("const relevanceAudit = await client.responses.create"),
+  true,
+  "A separately audited figure must also pass exact teaching-anchor relevance before it can render."
+);
+assert.equal(
+  lectureRouteSource.includes("visualAuditVersion: TEXTBOOK_VISUAL_AUDIT_VERSION"),
+  true,
+  "Only newly audited textbook figures may carry the current rendering approval version."
+);
+assert.equal(
+  rendererSource.includes("citation.visualAuditVersion === TEXTBOOK_VISUAL_AUDIT_VERSION"),
+  true,
+  "The client must fail closed and hide unversioned textbook crops from older reconstructions."
 );
 
 console.log("Textbook visual contract passed.");

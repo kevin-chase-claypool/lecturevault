@@ -35,6 +35,7 @@ import {
   LECTURE_AI_OUTPUT_CONTRACT,
   TEXTBOOK_REFERENCE_POLICY
 } from "../lib/lecture-ai-context";
+import { TEXTBOOK_VISUAL_AUDIT_VERSION } from "../lib/textbook-visual-contract";
 import { mergeCollectionState, stableSerialize } from "../lib/state-sync";
 
 type Screen =
@@ -226,6 +227,7 @@ type ReconstructionEvidence = {
   imageCrop?: { x?: number; y?: number; width?: number; height?: number } | null;
   visualKind?: string;
   whyNotKaTeX?: string;
+  visualAuditVersion?: number;
   }>;
 };
 
@@ -251,6 +253,7 @@ function isInlineTextbookVisual(
   return Boolean(
     citation.imageDataUrl &&
     citation.visualKind &&
+    citation.visualAuditVersion === TEXTBOOK_VISUAL_AUDIT_VERSION &&
     INLINE_TEXTBOOK_VISUAL_KINDS.has(citation.visualKind)
   );
 }

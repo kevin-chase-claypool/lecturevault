@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-08-18 - Fail Closed on Broad or Biased Textbook Figure Selection
+
+- Replaced the single context-aware textbook visual approval with two independent gates: a blind pixel audit that receives no selector rationale, page number, claimed visual type, or lesson anchor; then a separate relevance audit that compares the independently identified figure subject with the exact teaching paragraph.
+- Textbook crops must now be interior, bounded figure regions (at most 36% of a page). Broad page crops, code/prose fragments, table-of-contents regions, and crop-edge diagrams are rejected before either model audit.
+- Every approved figure carries the current visual-audit version. The client renders inline textbook images only when that version is present, so previously saved/unversioned crops disappear rather than continuing to display as if they passed the current safety contract.
+- Verification: `node scripts/verify-textbook-visual-contract.mjs`, `pnpm typecheck`, `pnpm build`, and `git diff --check`.
+
 ## 2026-08-18 - Browse Allocations Before Creating a Review
 
 - The Courses screen now exposes a browse-only allocation view inside each course's Exam Sections disclosure. Each section shows its allocated reconstruction count and expands into a bounded list of those reconstructions.

@@ -28,6 +28,10 @@ import {
   verifyTextbookVisualCitations,
   type TextbookVisualCitation
 } from "../../../lib/textbook-visual-selection";
+import {
+  TEXTBOOK_VISUAL_AUDIT_VERSION,
+  normalizeTightTextbookFigureCrop
+} from "../../../lib/textbook-visual-contract";
 
 export const runtime = "nodejs";
 
@@ -146,6 +150,7 @@ type ReconstructionEvidence = {
     imageCrop?: { x?: number; y?: number; width?: number; height?: number } | null;
     visualKind?: string;
     whyNotKaTeX?: string;
+    visualAuditVersion?: number;
   }>;
 };
 
@@ -517,26 +522,9 @@ function extractJson(text: string) {
 }
 
 function normalizedFigureCrop(value: unknown) {
-  if (!value || typeof value !== "object") return undefined;
-  const record = value as Record<string, unknown>;
-  const x = Number(record.x);
-  const y = Number(record.y);
-  const width = Number(record.width);
-  const height = Number(record.height);
-  const area = width * height;
-
-  // A textbook visual is a diagram or figure, never an almost-complete page.
-  // Reject the prior default-style crop (for example 15,50,970,900) instead of
-  // quietly reintroducing the full-PDF-page behavior the user rejected.
-  if (
-    ![x, y, width, height].every(Number.isFinite) ||
-    x < 0 || y < 0 || width < 90 || height < 90 ||
-    x + width > 1000 || y + height > 1000 || area > 480000
-  ) {
-    return undefined;
-  }
-
-  return { x, y, width, height };
+  return normalizeTightTextbookFigureCrop(
+    value && typeof value === "object" ? value as Record<string, unknown> : undefined
+  ) || undefined;
 }
 
 function fallbackArtifact(transcriptText: string, media: LectureMediaItem[], title: string) {
@@ -674,6 +662,8 @@ async function normalizeEvidence(
       const visualKind = isTextbookVisualKind(citation.visualKind)
         ? citation.visualKind
         : undefined;
+      const visualAuditVersion = Number(citation.visualAuditVersion);
+      const isCurrentVisualAudit = visualAuditVersion === TEXTBOOK_VISUAL_AUDIT_VERSION;
 
       return {
         textbookName: cleanString(source.textbookName),
@@ -681,11 +671,12 @@ async function normalizeEvidence(
         pageEnd: Math.max(pageStart, pageEnd),
         description: cleanString(citation.description),
         inlineAnchor: cleanString(citation.inlineAnchor) || undefined,
-        imageDataUrl: visualKind ? cleanString(citation.imageDataUrl) || undefined : undefined,
-        imageFilename: visualKind ? cleanString(citation.imageFilename) || undefined : undefined,
-        imageCrop: visualKind ? normalizedFigureCrop(citation.imageCrop) : undefined,
-        visualKind,
-        whyNotKaTeX: visualKind ? cleanString(citation.whyNotKaTeX) || undefined : undefined
+        imageDataUrl: visualKind && isCurrentVisualAudit ? cleanString(citation.imageDataUrl) || undefined : undefined,
+        imageFilename: visualKind && isCurrentVisualAudit ? cleanString(citation.imageFilename) || undefined : undefined,
+        imageCrop: visualKind && isCurrentVisualAudit ? normalizedFigureCrop(citation.imageCrop) : undefined,
+        visualKind: visualKind && isCurrentVisualAudit ? visualKind : undefined,
+        whyNotKaTeX: visualKind && isCurrentVisualAudit ? cleanString(citation.whyNotKaTeX) || undefined : undefined,
+        visualAuditVersion: isCurrentVisualAudit ? TEXTBOOK_VISUAL_AUDIT_VERSION : undefined
       };
     })
     .filter((citation): citation is NonNullable<typeof citation> => Boolean(citation));
@@ -1176,7 +1167,10 @@ export async function POST(request: Request) {
             ...(Array.isArray(artifact.evidence?.textbookCitations)
               ? artifact.evidence.textbookCitations.map((citation) => ({ ...citation, imageCrop: null }))
               : []),
-            ...visualVerification.citations
+            ...visualVerification.citations.map((citation) => ({
+              ...citation,
+              visualAuditVersion: TEXTBOOK_VISUAL_AUDIT_VERSION
+            }))
           ]
         };
         artifactTranscriptText = ensureTextbookVisualAnchors(

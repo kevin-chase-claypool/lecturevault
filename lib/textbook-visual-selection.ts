@@ -1,5 +1,9 @@
 import OpenAI from "openai";
 import type { ResponseInputMessageContentList } from "openai/resources/responses/responses";
+import {
+  TEXTBOOK_VISUAL_AUDIT_VERSION,
+  normalizeTightTextbookFigureCrop
+} from "./textbook-visual-contract";
 
 export type TextbookVisualPage = {
   pageImageDataUrl?: string;
@@ -56,6 +60,7 @@ type VisualSelectionResponse = {
 export type TextbookVisualCandidate = TextbookVisualCitation & {
   imageDataUrl: string;
   imageFilename?: string;
+  visualAuditVersion?: number;
 };
 
 type VisualVerificationResponse = {
@@ -65,6 +70,14 @@ type VisualVerificationResponse = {
     containsSubstantialProse?: unknown;
     hasCutOffVisualElements?: unknown;
     hasUnrelatedVisualFragments?: unknown;
+    observedVisualKind?: unknown;
+    specificSubject?: unknown;
+    visualIndex?: unknown;
+  }>;
+};
+
+type VisualRelevanceResponse = {
+  verdicts?: Array<{
     supportsInlineAnchor?: unknown;
     visualIndex?: unknown;
   }>;
@@ -125,7 +138,8 @@ const TEXTBOOK_VISUAL_VERIFICATION_SCHEMA = {
           "containsSubstantialProse",
           "hasCutOffVisualElements",
           "hasUnrelatedVisualFragments",
-          "supportsInlineAnchor"
+          "observedVisualKind",
+          "specificSubject"
         ],
         properties: {
           visualIndex: { type: "number", minimum: 1 },
@@ -134,6 +148,28 @@ const TEXTBOOK_VISUAL_VERIFICATION_SCHEMA = {
           containsSubstantialProse: { type: "boolean" },
           hasCutOffVisualElements: { type: "boolean" },
           hasUnrelatedVisualFragments: { type: "boolean" },
+          observedVisualKind: { type: "string", enum: [...TEXTBOOK_VISUAL_KINDS, "none"] },
+          specificSubject: { type: "string" }
+        }
+      }
+    }
+  }
+} as const;
+
+const TEXTBOOK_VISUAL_RELEVANCE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["verdicts"],
+  properties: {
+    verdicts: {
+      type: "array",
+      minItems: 0,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["visualIndex", "supportsInlineAnchor"],
+        properties: {
+          visualIndex: { type: "number", minimum: 1 },
           supportsInlineAnchor: { type: "boolean" }
         }
       }
@@ -177,6 +213,22 @@ function parseVisualVerification(value: string): VisualVerificationResponse {
   }
 }
 
+function parseVisualRelevance(value: string): VisualRelevanceResponse {
+  const raw = cleanString(value)
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
+
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw) as VisualRelevanceResponse;
+  } catch {
+    return {};
+  }
+}
+
 function isApprovedVisualVerdict(
   verdict: NonNullable<VisualVerificationResponse["verdicts"]>[number]
 ) {
@@ -186,37 +238,13 @@ function isApprovedVisualVerdict(
     verdict.containsSubstantialProse === false &&
     verdict.hasCutOffVisualElements === false &&
     verdict.hasUnrelatedVisualFragments === false &&
-    verdict.supportsInlineAnchor === true
+    isTextbookVisualKind(verdict.observedVisualKind) &&
+    cleanString(verdict.specificSubject).length >= 12
   );
 }
 
 function normalizedCrop(value: NonNullable<VisualSelectionResponse["textbookCitations"]>[number]["imageCrop"]) {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const x = Number(value.x);
-  const y = Number(value.y);
-  const width = Number(value.width);
-  const height = Number(value.height);
-  const cropArea = width * height;
-
-  if (
-    ![x, y, width, height].every(Number.isFinite) ||
-    x < 0 ||
-    y < 0 ||
-    width < 90 ||
-    height < 90 ||
-    x + width > 1000 ||
-    y + height > 1000 ||
-    // A figure can be wide or tall, but it cannot be a cropped textbook page.
-    // Figure 8.5 (the system-realization diagram) is well within this bound.
-    cropArea > 480000
-  ) {
-    return null;
-  }
-
-  return { x, y, width, height };
+  return normalizeTightTextbookFigureCrop(value);
 }
 
 function inlineAnchorCandidates(transcriptText: string) {
@@ -379,21 +407,23 @@ export async function verifyTextbookVisualCitations({
   }
 
   try {
-    const response = await client.responses.create({
+    // This pass receives pixels only. It deliberately does not see the
+    // selector's claimed figure type, page number, rationale, or lesson
+    // anchor, because those claims were biasing it into approving broad page
+    // regions that looked generally related to the topic.
+    const pixelAudit = await client.responses.create({
       input: [{
         role: "user",
         content: [
           {
             type: "input_text",
             text: [
-              "Verify each supplied textbook crop before it is displayed inline in a reconstruction.",
-              "Audit every candidate independently and set every boolean from the crop pixels, not from its page number or description. approved may be true only when all of these are true: containsExactlyOneCompleteVisual; containsSubstantialProse is false; hasCutOffVisualElements is false; hasUnrelatedVisualFragments is false; and supportsInlineAnchor is true.",
+              "Blind pixel audit for textbook crops. Do not provide the selector's claimed visual kind, rationale, textbook page, or teaching anchor; judge only the pixels in each crop.",
+              "Audit every candidate independently. approved may be true only when all of these are true: containsExactlyOneCompleteVisual; containsSubstantialProse is false; hasCutOffVisualElements is false; and hasUnrelatedVisualFragments is false.",
               "containsExactlyOneCompleteVisual is true only for one self-contained non-KaTeX block/signal-flow diagram with connecting structure, schematic, graph/plot with axes/traces, geometry diagram, map/chart, or photo/illustration. A page heading, figure caption, equation, worked calculation, table of text, list of contents, exercise wording, or prose is never a visual. A short title inseparable from the selected diagram is allowed; axis labels, node labels, and callouts do not count as prose.",
-              "containsSubstantialProse is true when the crop includes any paragraph, exercise question, table of contents, chapter/section heading, page header/footer, or other book furniture. hasCutOffVisualElements is true when any intended arrow, axis, trace, label, connection, or diagram body reaches or is cut by a crop edge. hasUnrelatedVisualFragments is true when the crop includes another partial diagram, graph, or illustration. supportsInlineAnchor is true only when the complete visual directly teaches the exact nearby explanation; general topical similarity is not enough.",
-              "Reject a crop whenever any audit condition is uncertain. Figure 8.5's actual Direct Form II block diagram is approvable only if it is fully present; a crop of the heading, prose referring to it, a partial diagram, or a neighboring figure is not. Do not impose a numeric approval quota.",
-              "Candidates:\n" + usableCandidates.map((candidate, index) =>
-                `Visual ${index + 1}: ${candidate.visualKind}; teaching anchor: ${candidate.inlineAnchor}; selection rationale: ${candidate.description}; non-KaTeX rationale: ${candidate.whyNotKaTeX}`
-              ).join("\n")
+              "containsSubstantialProse is true when the crop includes any paragraph, exercise question, table of contents, chapter/section heading, page header/footer, code listing, or other book furniture. hasCutOffVisualElements is true when any intended arrow, axis, trace, label, connection, or diagram body reaches or is cut by a crop edge. hasUnrelatedVisualFragments is true when the crop includes another partial diagram, graph, or illustration.",
+              "observedVisualKind must name the one visible visual type, or none. specificSubject must identify what this particular visual depicts with enough precision to distinguish it from a generic topic; for example, say 'windowed FIR side-lobe response' rather than 'frequency response graph'. Reject a crop whenever any audit condition is uncertain. A missing figure is better than a page fragment. Do not impose a numeric approval quota.",
+              "Candidates: " + usableCandidates.map((_, index) => `Visual ${index + 1}`).join(", ")
             ].join("\n\n")
           },
           ...usableCandidates.map((candidate) => ({
@@ -414,16 +444,82 @@ export async function verifyTextbookVisualCitations({
         }
       }
     });
-    const approvedIndexes = new Set(
-      (parseVisualVerification(response.output_text).verdicts || [])
-        .filter(isApprovedVisualVerdict)
+    const pixelAuditedCandidates = (parseVisualVerification(pixelAudit.output_text).verdicts || [])
+      .flatMap((verdict) => {
+        const index = Math.floor(Number(verdict.visualIndex)) - 1;
+        const candidate = usableCandidates[index];
+        const observedVisualKind = isTextbookVisualKind(verdict.observedVisualKind)
+          ? verdict.observedVisualKind
+          : null;
+        const specificSubject = cleanString(verdict.specificSubject);
+
+        if (
+          !candidate ||
+          !isApprovedVisualVerdict(verdict) ||
+          !observedVisualKind ||
+          observedVisualKind !== candidate.visualKind ||
+          !specificSubject
+        ) {
+          return [];
+        }
+
+        return [{
+          ...candidate,
+          visualAuditVersion: TEXTBOOK_VISUAL_AUDIT_VERSION,
+          visualSubject: specificSubject
+        }];
+      });
+
+    if (!pixelAuditedCandidates.length) {
+      return { citations: [] as TextbookVisualCandidate[], usage: pixelAudit.usage };
+    }
+
+    // Relevance is intentionally a separate decision from pixel quality. It
+    // gets the independently observed subject—not the selector's rationale—so
+    // a generic graph about an adjacent textbook topic cannot be attached to a
+    // more specific explanation such as active RLC biquad realization.
+    const relevanceAudit = await client.responses.create({
+      input: [{
+        role: "user",
+        content: [{
+          type: "input_text",
+          text: [
+            "Decide whether each already pixel-audited textbook figure directly teaches its exact reconstruction paragraph.",
+            "supportsInlineAnchor may be true only when the specific visual subject explains the exact paragraph, process, or worked step. General topical overlap is not enough: a windowed-FIR response graph does not teach an active-RLC biquad or pole-zero-realization explanation merely because both concern frequency response.",
+            "Reject when the stated figure subject is generic, tangential, or insufficiently specific. Do not infer relevance from a textbook page number or a selector rationale.",
+            "Candidates:\n" + pixelAuditedCandidates.map((candidate, index) =>
+              `Visual ${index + 1}: subject: ${candidate.visualSubject}; exact paragraph: ${candidate.inlineAnchor}`
+            ).join("\n")
+          ].join("\n\n")
+        }]
+      }],
+      instructions: "Return only the requested strict JSON. Reject when uncertain.",
+      model,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "textbook_visual_relevance",
+          strict: true,
+          schema: TEXTBOOK_VISUAL_RELEVANCE_SCHEMA
+        }
+      }
+    });
+    const relevantIndexes = new Set(
+      (parseVisualRelevance(relevanceAudit.output_text).verdicts || [])
+        .filter((verdict) => verdict.supportsInlineAnchor === true)
         .map((verdict) => Math.floor(Number(verdict.visualIndex)) - 1)
-        .filter((index) => index >= 0 && index < usableCandidates.length)
+        .filter((index) => index >= 0 && index < pixelAuditedCandidates.length)
     );
 
     return {
-      citations: usableCandidates.filter((_, index) => approvedIndexes.has(index)),
-      usage: response.usage
+      citations: pixelAuditedCandidates
+        .filter((_, index) => relevantIndexes.has(index))
+        .map(({ visualSubject: _visualSubject, ...candidate }) => candidate),
+      usage: {
+        input_tokens: (pixelAudit.usage?.input_tokens || 0) + (relevanceAudit.usage?.input_tokens || 0) || undefined,
+        output_tokens: (pixelAudit.usage?.output_tokens || 0) + (relevanceAudit.usage?.output_tokens || 0) || undefined,
+        total_tokens: (pixelAudit.usage?.total_tokens || 0) + (relevanceAudit.usage?.total_tokens || 0) || undefined
+      }
     };
   } catch {
     // Verification failure is deliberately fail-closed: the lecture itself is
