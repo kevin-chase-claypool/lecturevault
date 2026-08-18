@@ -1,5 +1,11 @@
 # LectureVault Project Notes
 
+## 2026-08-17 - Fix Strict Reconstruction Citation Schema
+
+- OpenAI rejected the reconstruction request because strict JSON schemas require every declared property to be listed in `required`. The textbook citation object declared `inlineAnchor` but omitted it from that list.
+- The route now requires the model to return an `inlineAnchor` string (empty when no anchor is applicable), matching the existing normalizer's optional handling.
+- Verification: schema regression check, `npm run typecheck`, and `npm run build` from `LectureVault`.
+
 ## 2026-08-17 - Layer Reconstructions and Persist Syllabus Mapping
 
 - Reconstruction AI now returns one notes-first, guided-lesson-second Markdown artifact. Outside pedagogical additions must be visibly labelled as Enrichment, while uncertainty remains explicit and source-grounded.

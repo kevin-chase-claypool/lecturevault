@@ -212,7 +212,7 @@ const LECTURE_RECONSTRUCTION_SCHEMA = {
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["textbookName", "pageStart", "pageEnd", "description", "imageCrop"],
+            required: ["textbookName", "pageStart", "pageEnd", "description", "inlineAnchor", "imageCrop"],
             properties: {
               textbookName: { type: "string" },
               pageStart: { type: "number" },
