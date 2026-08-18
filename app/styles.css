@@ -1986,6 +1986,39 @@ button.review-draft-button:disabled {
   font-weight: 750;
 }
 
+.course-textbook-visual-refresh-note {
+  max-width: 78ch;
+  margin: 7px 0 0;
+  color: #46647a;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.42;
+}
+
+.course-textbook-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.course-textbook-actions button {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 0.76rem;
+}
+
+.course-textbook-actions .course-textbook-visual-refresh {
+  border-color: #a9c8dd;
+  background: #edf6fc;
+  color: var(--primary-dark);
+}
+
+.course-textbook-actions .course-textbook-visual-refresh:hover:not(:disabled) {
+  border-color: #75a6ca;
+  background: #e5f2fb;
+}
+
 .course-textbook-details {
   margin-top: 7px;
   border-top: 1px solid #dbe6ef;
@@ -4675,6 +4708,15 @@ input[type="range"] {
 }
 
 @media (max-width: 640px) {
+  .course-textbook-item {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .course-textbook-actions {
+    justify-content: flex-start;
+  }
+
   .exam-section-editor {
     grid-template-columns: 1fr;
     align-items: stretch;
@@ -11299,6 +11341,16 @@ summary:focus-visible {
 :root[data-theme="dark"] .course-syllabus-item small,
 :root[data-theme="dark"] .course-textbook-item small {
   color: #b2c3d0;
+}
+
+:root[data-theme="dark"] .course-textbook-visual-refresh-note {
+  color: #b9d5e8;
+}
+
+:root[data-theme="dark"] .course-textbook-actions .course-textbook-visual-refresh {
+  border-color: #517b9a;
+  background: #203d50;
+  color: #d9edfa;
 }
 
 /* Dashboard actions are workflow destinations, not explorer selections. */

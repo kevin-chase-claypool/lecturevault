@@ -6451,7 +6451,15 @@ export default function LectureVaultApp() {
                     <div className="course-textbook-list">
                       {state.textbooks
                         .filter((textbook) => textbook.courseId === course.id)
-                        .map((textbook) => (
+                        .map((textbook) => {
+                          const deferredVisualPageCount = Math.max(
+                            0,
+                            textbook.visualIndexDeferredPageCount || 0
+                          );
+                          const needsVisualEvidenceRefresh = deferredVisualPageCount > 0;
+                          const canReindex = !textbook.pageEvidenceCount || needsVisualEvidenceRefresh;
+
+                          return (
                           <div className="course-textbook-item" key={textbook.id}>
                             <div>
                               <strong>{textbook.name}</strong>
@@ -6459,6 +6467,11 @@ export default function LectureVaultApp() {
                                 {formatFileSize(textbook.size)} - {textbook.pageCount || 0} pages -{" "}
                                 {textbook.indexedChunkCount || 0} indexed sections - {textbook.pageEvidenceCount || 0} canonical page records
                               </small>
+                              {needsVisualEvidenceRefresh ? (
+                                <p className="course-textbook-visual-refresh-note">
+                                  {deferredVisualPageCount} visual page{deferredVisualPageCount === 1 ? "" : "s"} still await{deferredVisualPageCount === 1 ? "s" : ""} visual evidence. Refresh uses the PDF already stored in Supabase—no re-upload or duplicate file.
+                                </p>
+                              ) : null}
                               <details className="course-textbook-details">
                                 <summary>Storage and indexing details</summary>
                                 <div className="course-textbook-details-grid">
@@ -6484,24 +6497,32 @@ export default function LectureVaultApp() {
                                 </div>
                               </details>
                             </div>
-                            {!textbook.pageEvidenceCount ? (
+                            <div className="course-textbook-actions">
+                              {canReindex ? (
+                                <button
+                                  className={needsVisualEvidenceRefresh ? "course-textbook-visual-refresh" : undefined}
+                                  type="button"
+                                  disabled={Boolean(textbookProcessingCourseId)}
+                                  title={
+                                    needsVisualEvidenceRefresh
+                                      ? "Refresh deferred visual evidence from the PDF already stored in Supabase. This never uploads or duplicates the file."
+                                      : "Create the one-time canonical page index without uploading the PDF again"
+                                  }
+                                  onClick={() => void reindexCourseTextbook(textbook.id)}
+                                >
+                                  {needsVisualEvidenceRefresh ? "Refresh visual evidence" : "Reindex once"}
+                                </button>
+                              ) : null}
                               <button
                                 type="button"
-                                disabled={Boolean(textbookProcessingCourseId)}
-                                title="Create the one-time canonical page index without uploading the PDF again"
-                                onClick={() => void reindexCourseTextbook(textbook.id)}
+                                onClick={() => void deleteTextbook(textbook.id)}
                               >
-                                Reindex once
+                                Remove
                               </button>
-                            ) : null}
-                            <button
-                              type="button"
-                              onClick={() => void deleteTextbook(textbook.id)}
-                            >
-                              Remove
-                            </button>
+                            </div>
                           </div>
-                        ))}
+                          );
+                        })}
                     </div>
                   ) : null}
                 </div>
