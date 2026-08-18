@@ -71,6 +71,13 @@ type TextbookContextChunk = {
 
 type TextbookSource = TextbookPageSource;
 
+type CourseSyllabusSource = {
+  name?: string;
+  mimeType?: string;
+  storageBucket?: string;
+  storagePath?: string;
+};
+
 type OneNoteSource = {
   notebookName?: string;
   pageId?: string;
@@ -138,6 +145,12 @@ type ReconstructionEvidence = {
   }>;
 };
 
+type SyllabusMapping = {
+  units?: string[];
+  examRelevance?: "high" | "medium" | "low";
+  rationale?: string;
+};
+
 // The model's response is persisted as a study artifact. Enforce this shape at
 // generation time instead of relying on a best-effort JSON parse: a single
 // unescaped LaTeX command must never turn the complete JSON response into the
@@ -145,7 +158,7 @@ type ReconstructionEvidence = {
 const LECTURE_RECONSTRUCTION_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["reconstructionTitle", "summary", "transcriptText", "concepts", "evidence"],
+  required: ["reconstructionTitle", "summary", "transcriptText", "concepts", "evidence", "syllabusMapping"],
   properties: {
     reconstructionTitle: { type: "string" },
     summary: { type: "string" },
@@ -213,6 +226,16 @@ const LECTURE_RECONSTRUCTION_SCHEMA = {
             }
           }
         }
+      }
+    },
+    syllabusMapping: {
+      type: "object",
+      additionalProperties: false,
+      required: ["units", "examRelevance", "rationale"],
+      properties: {
+        units: { type: "array", items: { type: "string" } },
+        examRelevance: { type: "string", enum: ["high", "medium", "low"] },
+        rationale: { type: "string" }
       }
     }
   }
@@ -708,10 +731,12 @@ export async function POST(request: Request) {
       oneNoteSources?: OneNoteSource[];
       textbookContext?: TextbookContextChunk[];
       textbookSources?: TextbookSource[];
+      courseSyllabus?: CourseSyllabusSource;
     };
     const mediaItems = Array.isArray(body.mediaItems) ? body.mediaItems : [];
     const oneNoteSources = Array.isArray(body.oneNoteSources) ? body.oneNoteSources : [];
     const textbookSources = Array.isArray(body.textbookSources) ? body.textbookSources : [];
+    const courseSyllabus = body.courseSyllabus;
     let textbookContext = Array.isArray(body.textbookContext)
       ? body.textbookContext.slice(0, 8)
       : [];
@@ -848,6 +873,12 @@ export async function POST(request: Request) {
           .map(async (item) => ({ dataUrl: await mediaVisualReference(item), item }))
       )
     ).filter(({ dataUrl }) => /^data:application\/pdf/.test(dataUrl) || /^https:\/\//.test(dataUrl));
+    const syllabusUrl = courseSyllabus?.storagePath
+      ? await storageObjectToSignedUrl({
+          bucket: courseSyllabus.storageBucket,
+          path: courseSyllabus.storagePath
+        })
+      : null;
     const figureCatalog = mediaItems
       .filter((item) => item.kind === "image" && cleanString(item.id))
       .map(
@@ -1008,6 +1039,9 @@ export async function POST(request: Request) {
           cleanString(body.courseStudyProfile)
             ? `Saved course study profile:\n${cleanString(body.courseStudyProfile)}`
             : "",
+          syllabusUrl
+            ? `The attached course syllabus is course-wide context. Use it to suggest a cautious topic/unit mapping; do not claim exam coverage that the syllabus does not state.`
+            : "No readable syllabus was attached; map only to source-supported topic labels.",
           cleanString(body.notes)
             ? `User notes/context:\n${cleanString(body.notes)}`
             : "",
@@ -1047,6 +1081,12 @@ export async function POST(request: Request) {
           : { file_data: dataUrl }),
         filename: cleanString(item.name) || "onenote-page.pdf"
       })),
+      ...(syllabusUrl ? [{
+        type: "input_file" as const,
+        detail: "high" as const,
+        file_url: syllabusUrl,
+        filename: cleanString(courseSyllabus?.name) || "course-syllabus.pdf"
+      }] : []),
     ];
     const response = await client.responses.create({
       input: [{ role: "user", content }],
@@ -1069,6 +1109,7 @@ export async function POST(request: Request) {
       transcriptText?: string;
       concepts?: Array<{ title?: string; detail?: string; sourceMediaId?: string }>;
       evidence?: ReconstructionEvidence;
+      syllabusMapping?: SyllabusMapping;
     };
 
     artifact = extractJson(response.output_text);
@@ -1169,6 +1210,15 @@ export async function POST(request: Request) {
       evidence,
       generatedBy: "openai",
       reconstructionTitle: cleanString(artifact.reconstructionTitle).slice(0, 120),
+      syllabusMapping: {
+        units: Array.isArray(artifact.syllabusMapping?.units)
+          ? artifact.syllabusMapping.units.map(cleanString).filter(Boolean).slice(0, 8)
+          : [],
+        examRelevance: ["high", "medium", "low"].includes(cleanString(artifact.syllabusMapping?.examRelevance))
+          ? cleanString(artifact.syllabusMapping?.examRelevance) as "high" | "medium" | "low"
+          : "medium",
+        rationale: cleanString(artifact.syllabusMapping?.rationale).slice(0, 500)
+      },
       sourceMediaIds: mediaItems.map((item) => cleanString(item.id)).filter(Boolean),
       summary: cleanString(artifact.summary),
       timedAudioSegments,

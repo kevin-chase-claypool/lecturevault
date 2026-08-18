@@ -459,13 +459,14 @@ export async function POST(request: Request) {
         "This is a second AI aggregation pass. Do not re-transcribe; use the saved transcripts, concepts, segments, media, and explicit user instructions.",
         "Preserve elapsed timestamps only when the selected source material provides actual timed audio evidence. Do not invent M:SS timestamps for image, PDF, document, or note-only material.",
         "Use only the selected exam workspace materials. Do not invent unsupported formulas, facts, theorems, or examples.",
-        "Prioritize high-yield concepts, formulas, assumptions, worked problem patterns, common mistakes, and practice steps.",
+        "Prioritize instructor evidence in this order when it is supplied: explicit exam/study instructions, assignment or rubric language, syllabus statements, then lecture emphasis inferred from the selected reconstructions. Do not claim a topic will be tested unless the source supports that claim.",
+        "Create a layered exam packet: begin with an exam blueprint and concept connections, then concise review notes, formulas, worked problem patterns, common mistakes, and representative practice prompts. This is not a measure of the student's mastery and must not claim to diagnose individual weakness.",
         "Use LaTeX math with \\(...\\) for inline math and complete \\[ equation \\] blocks for display math.",
         "Reference useful images by the provided labels such as Fig. 1 and Fig. 2.",
         "Use canonical textbook evidence only where it materially clarifies selected lecture content. When an original textbook page is attached because its initial scan was uncertain, use that page to recheck equations, diagrams, tables, notation, units, and page references before relying on it. Cite textbook support compactly as [Textbook Name, p. N]; do not invent textbook citations or repeat the same citation excessively.",
         "The Figure-Guided Review section must list every provided figure label, explain what it appears to support if visible, and say when an image is available only as archive metadata.",
         "The Source Map must include figure labels next to the lecture that provided them.",
-        "Include these top-level Markdown headings in order: ## Study Guide Overview, ## High-Yield Concepts, ## Formula Sheet, ## Worked Problems and Patterns, ## Figure-Guided Review, ## Common Mistakes, ## Practice Checklist, ## Source Map."
+        "Include these top-level Markdown headings in order: ## Exam Blueprint, ## Concept Connections, ## High-Yield Concepts, ## Formula Sheet, ## Worked Problems and Patterns, ## Figure-Guided Review, ## Common Mistakes, ## Practice Prompts, ## Source Map."
       ].join(" "),
       input: [{ role: "user", content }]
     });

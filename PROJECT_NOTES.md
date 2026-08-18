@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-08-17 - Layer Reconstructions and Persist Syllabus Mapping
+
+- Reconstruction AI now returns one notes-first, guided-lesson-second Markdown artifact. Outside pedagogical additions must be visibly labelled as Enrichment, while uncertainty remains explicit and source-grounded.
+- The course syllabus is attached as private, signed PDF context during reconstruction when available. AI suggests topic/unit labels and high/medium/low exam relevance; the saved reconstruction shows an editable mapping panel so the owner can correct it.
+- Exam review generation now treats explicit instructor evidence as stronger than inferred lecture emphasis and produces a layered exam packet without claiming to assess student mastery.
+- Verification: `npm run typecheck` and `npm run build` from `LectureVault`.
+
 ## 2026-08-17 - Initialize PDF.js Node Canvas Globals
 
 - The sequential extractor exposed a second runtime compatibility issue: PDF.js references `DOMMatrix` before page text extraction begins.

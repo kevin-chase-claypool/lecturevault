@@ -65,6 +65,11 @@ type Lecture = {
   title: string;
   date: string;
   summary: string;
+  syllabusMapping?: {
+    units: string[];
+    examRelevance: "high" | "medium" | "low";
+    rationale: string;
+  };
   createdAt: string;
 };
 
@@ -3964,6 +3969,7 @@ export default function LectureVaultApp() {
     let aiConcepts: ExtractedConcept[] | null = null;
     let aiSummary = "";
     let aiReconstructionTitle = "";
+    let aiSyllabusMapping: Lecture["syllabusMapping"] | undefined;
 
     try {
         activatePipelineStep(
@@ -3995,6 +4001,7 @@ export default function LectureVaultApp() {
             courseId: captureForm.courseId,
             date: captureForm.date,
             courseStudyProfile,
+            courseSyllabus: state.courses.find((course) => course.id === captureForm.courseId)?.syllabus,
             mediaItems,
             notes: [reconstructionBrief, pastedTranscript]
               .filter(Boolean)
@@ -4030,6 +4037,7 @@ export default function LectureVaultApp() {
           transcriptText?: string;
           usage?: TokenUsage | null;
           evidence?: ReconstructionEvidence;
+          syllabusMapping?: Lecture["syllabusMapping"];
           timedAudioSegments?: Array<{
             mediaItemId?: string;
             startSeconds?: number;
@@ -4076,6 +4084,7 @@ export default function LectureVaultApp() {
         transcribedMediaIds = data.transcribedMediaIds || [];
         aiReconstructionTitle = data.reconstructionTitle?.trim() || "";
         aiSummary = data.summary || "";
+        aiSyllabusMapping = data.syllabusMapping;
         aiConcepts =
           data.concepts?.map((concept, index) => ({
             detail: concept.detail || "No detail returned.",
@@ -4136,6 +4145,7 @@ export default function LectureVaultApp() {
           .slice(0, 2)
           .map((segment) => segment.text)
           .join(" "),
+      syllabusMapping: aiSyllabusMapping,
       createdAt
     };
 
@@ -6447,6 +6457,15 @@ export default function LectureVaultApp() {
               setSelectedCourseId(selectedLecture.courseId);
               setSelectedArchiveFolderId(selectedLecture.folderId || "all");
               setScreen("archive");
+            }}
+            onUpdateSyllabusMapping={(lectureId, syllabusMapping) => {
+              setState((current) => ({
+                ...current,
+                lectures: current.lectures.map((item) =>
+                  item.id === lectureId ? { ...item, syllabusMapping } : item
+                )
+              }));
+              setStatus("Saved syllabus and exam relevance mapping.");
             }}
           />
         ) : null}
@@ -8955,7 +8974,8 @@ function LectureDetail({
   concepts,
   onAddToReviewDraft,
   onOpenLecture,
-  onBackToVault
+  onBackToVault,
+  onUpdateSyllabusMapping
 }: {
   lecture: Lecture;
   courseLabel: (id: string) => string;
@@ -8970,6 +8990,7 @@ function LectureDetail({
   onAddToReviewDraft: (lectureId: string) => void;
   onOpenLecture: (lectureId: string) => void;
   onBackToVault: () => void;
+  onUpdateSyllabusMapping: (lectureId: string, mapping: NonNullable<Lecture["syllabusMapping"]>) => void;
 }) {
   const [explorerQuery, setExplorerQuery] = useState("");
   const [explorerSortKey, setExplorerSortKey] = useState<ArchiveSortKey>("date");
@@ -8978,6 +8999,14 @@ function LectureDetail({
   const [isStudyBrowserOpen, setIsStudyBrowserOpen] = useState(false);
   const [transcriptQuery, setTranscriptQuery] = useState("");
   const [activeTranscriptSegmentId, setActiveTranscriptSegmentId] = useState<string | null>(null);
+  const [mappingUnitsDraft, setMappingUnitsDraft] = useState((lecture.syllabusMapping?.units || []).join(", "));
+  const [mappingRelevanceDraft, setMappingRelevanceDraft] = useState<"high" | "medium" | "low">(lecture.syllabusMapping?.examRelevance || "medium");
+  const [mappingRationaleDraft, setMappingRationaleDraft] = useState(lecture.syllabusMapping?.rationale || "");
+  useEffect(() => {
+    setMappingUnitsDraft((lecture.syllabusMapping?.units || []).join(", "));
+    setMappingRelevanceDraft(lecture.syllabusMapping?.examRelevance || "medium");
+    setMappingRationaleDraft(lecture.syllabusMapping?.rationale || "");
+  }, [lecture.id, lecture.syllabusMapping]);
   const recoveredArtifact = useMemo(
     () => recoverStoredReconstructionArtifact(transcript?.text || lecture.summary),
     [lecture.summary, transcript?.text]
@@ -9385,6 +9414,30 @@ function LectureDetail({
         <p>
           <MathPreview text={displayedLectureSummary} />
         </p>
+
+        <section className="usage-panel" aria-label="Syllabus and exam mapping">
+          <div>
+            <span className="pill">Editable mapping</span>
+            <h4>Syllabus and exam relevance</h4>
+            <p>AI suggests this mapping from the lecture sources; confirm or adjust it before using it to prioritize an exam review.</p>
+          </div>
+          <label>Syllabus units / topics
+            <input value={mappingUnitsDraft} onChange={(event) => setMappingUnitsDraft(event.target.value)} placeholder="Unit 3, Laplace transforms" />
+          </label>
+          <label>Exam relevance
+            <select value={mappingRelevanceDraft} onChange={(event) => setMappingRelevanceDraft(event.target.value as "high" | "medium" | "low")}>
+              <option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>
+            </select>
+          </label>
+          <label>Why this is relevant
+            <input value={mappingRationaleDraft} onChange={(event) => setMappingRationaleDraft(event.target.value)} placeholder="Source-grounded rationale" />
+          </label>
+          <button type="button" onClick={() => onUpdateSyllabusMapping(lecture.id, {
+            units: mappingUnitsDraft.split(",").map((unit) => unit.trim()).filter(Boolean),
+            examRelevance: mappingRelevanceDraft,
+            rationale: mappingRationaleDraft.trim()
+          })}>Save mapping</button>
+        </section>
 
         <section className="usage-panel" aria-label="Transcription usage">
           <div>
