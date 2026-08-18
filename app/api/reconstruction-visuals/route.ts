@@ -192,6 +192,12 @@ export async function POST(request: Request) {
         model: process.env.OPENAI_TEXTBOOK_VISUAL_VERIFICATION_MODEL || DEFAULT_TEXTBOOK_VISUAL_VERIFICATION_MODEL
       });
       visualUsage = addUsage(visualUsage, verification.usage);
+      console.info("[reconstruction-visuals] selected visual candidates", selection.citations.map((citation) => ({
+        imageCrop: citation.imageCrop,
+        pageNumber: citation.pageStart,
+        sourceKind: citation.sourceKind,
+        visualKind: citation.visualKind
+      })));
       visualDiagnostics.selectionAttempts.push({
         candidateCount: textbookCitations.filter((citation) => Boolean(citation.imageDataUrl)).length,
         selectedCount: selection.citations.length,

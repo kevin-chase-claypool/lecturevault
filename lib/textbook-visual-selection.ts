@@ -532,7 +532,17 @@ export async function verifyTextbookVisualCitations({
         }
       }
     });
-    const pixelAuditedCandidates = (parseVisualVerification(pixelAudit.output_text).verdicts || [])
+    const pixelVerdicts = parseVisualVerification(pixelAudit.output_text).verdicts || [];
+    console.info("[textbook-visual-selection] pixel audit", pixelVerdicts.map((verdict) => ({
+      approved: verdict.approved === true,
+      containsExactlyOneCompleteVisual: verdict.containsExactlyOneCompleteVisual === true,
+      containsSubstantialProse: verdict.containsSubstantialProse === true,
+      hasCutOffVisualElements: verdict.hasCutOffVisualElements === true,
+      hasUnrelatedVisualFragments: verdict.hasUnrelatedVisualFragments === true,
+      observedVisualKind: cleanString(verdict.observedVisualKind),
+      visualIndex: Number(verdict.visualIndex)
+    })));
+    const pixelAuditedCandidates = pixelVerdicts
       .flatMap((verdict) => {
         const index = Math.floor(Number(verdict.visualIndex)) - 1;
         const candidate = usableCandidates[index];

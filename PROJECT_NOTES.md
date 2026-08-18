@@ -6,6 +6,7 @@
 - The canvas imports are now traceable, matching the existing `serverExternalPackages` configuration. This restores both rendered-page crops and isolated textbook image extraction in production. No source PDF is reuploaded, copied, or changed.
 - PDF.js is also given an explicit app-level canvas factory. That avoids its internal pnpm-relative `require`, which cannot reliably see the application dependency inside Vercel's traced function bundle.
 - The saved-reconstruction visual refresh now records candidate counts (semantic matches, source pages, rendered pages, embedded assets, selections, and audit approvals) in its production diagnostics. This makes a no-visual result actionable rather than indistinguishable from a renderer failure.
+- Visual audit diagnostics also record only structural rejection signals (complete visual, prose, clipping, unrelated fragments, and observed kind) and selected crop geometry. They do not log textbook pixels or source text.
 - The visual contract now explicitly rejects any future return to a webpack-ignored canvas import in either visual extraction or textbook indexing.
 
 ## 2026-08-18 - Preserve Isolated Textbook Figures in Visual Selection
