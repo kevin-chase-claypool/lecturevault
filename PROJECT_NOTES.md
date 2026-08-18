@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-08-18 - Browse Allocations Before Creating a Review
+
+- The Courses screen now exposes a browse-only allocation view inside each course's Exam Sections disclosure. Each section shows its allocated reconstruction count and expands into a bounded list of those reconstructions.
+- Every row opens that reconstruction directly in Study View. This lets the owner inspect the precise material assigned to an exam without creating, naming, or modifying a review.
+- Review creation remains a distinct New Review workflow; no review is pre-filled or created from the allocation browser.
+- Verification: `pnpm typecheck`; production build and deployment pending this change set.
+
 ## 2026-08-18 - Add Rolling Exam Sections and Fail-Closed Review Scope
 
 - Courses now own named Exam Sections (for example Exam 1, Exam 2, Exam 3, and Final Exam). A reconstruction can be allocated to one or more of those sections from its study view.

@@ -6381,6 +6381,69 @@ export default function LectureVaultApp() {
                         </button>
                       </div>
                     </div>
+                    {(course.examSections || []).length ? (
+                      <div className="course-section-allocation-list" aria-label={`${course.code} exam section allocations`}>
+                        <div className="course-section-allocation-heading">
+                          <div>
+                            <h4>Allocated reconstructions</h4>
+                            <p>Inspect each section before you start a review.</p>
+                          </div>
+                        </div>
+                        {(course.examSections || []).map((section) => {
+                          const allocatedLectures = state.lectures
+                            .filter(
+                              (lecture) =>
+                                lecture.courseId === course.id &&
+                                lecture.examSectionIds?.includes(section.id)
+                            )
+                            .sort((left, right) => right.date.localeCompare(left.date));
+
+                          return (
+                            <details className="course-section-allocation" key={section.id}>
+                              <summary>
+                                <span>
+                                  <strong>{section.name}</strong>
+                                  <small>
+                                    {allocatedLectures.length} reconstruction{allocatedLectures.length === 1 ? "" : "s"}
+                                  </small>
+                                </span>
+                                <span className="course-section-allocation-state">
+                                  {allocatedLectures.length ? "Allocated" : "No allocations"}
+                                </span>
+                              </summary>
+                              <div className="course-section-allocation-content">
+                                {allocatedLectures.length ? (
+                                  <div className="course-section-reconstruction-list">
+                                    {allocatedLectures.map((lecture) => (
+                                      <button
+                                        className="course-section-reconstruction"
+                                        key={lecture.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedLectureId(lecture.id);
+                                          setStudyLectureIds([lecture.id]);
+                                          setScreen("lecture");
+                                        }}
+                                      >
+                                        <span>
+                                          <strong>{lecture.title}</strong>
+                                          <small>{lecture.date}</small>
+                                        </span>
+                                        <span>Open study view</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="exam-section-empty">
+                                    Allocate reconstructions from their study view to make this section reviewable.
+                                  </p>
+                                )}
+                              </div>
+                            </details>
+                          );
+                        })}
+                      </div>
+                    ) : null}
                   </details>
                   {textbookCount ? (
                     <div className="course-textbook-list">

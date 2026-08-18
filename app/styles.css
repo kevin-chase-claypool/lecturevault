@@ -4243,6 +4243,162 @@ input[type="range"] {
   line-height: 1.4;
 }
 
+.course-section-allocation-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  border-top: 1px solid #dde6ef;
+  padding-top: 13px;
+}
+
+.course-section-allocation-heading h4 {
+  margin: 0;
+  color: var(--primary-dark);
+  font-size: 0.85rem;
+}
+
+.course-section-allocation-heading p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.79rem;
+}
+
+.course-section-allocation {
+  overflow: hidden;
+  border: 1px solid #d4e1eb;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+}
+
+.course-section-allocation > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.course-section-allocation > summary::-webkit-details-marker {
+  display: none;
+}
+
+.course-section-allocation > summary::before {
+  color: var(--primary);
+  content: "+";
+  font-weight: 900;
+}
+
+.course-section-allocation[open] > summary::before {
+  content: "–";
+}
+
+.course-section-allocation > summary > span:first-of-type {
+  display: grid;
+  min-width: 0;
+  margin-right: auto;
+  gap: 2px;
+}
+
+.course-section-allocation > summary strong {
+  color: var(--text);
+  font-size: 0.84rem;
+}
+
+.course-section-allocation > summary small {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.course-section-allocation-state {
+  flex: 0 0 auto;
+  border: 1px solid #c9ddec;
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: #edf6fc;
+  color: var(--primary-dark);
+  font-size: 0.7rem;
+  font-weight: 820;
+  white-space: nowrap;
+}
+
+.course-section-allocation-content {
+  display: grid;
+  gap: 9px;
+  border-top: 1px solid #e2ebf2;
+  padding: 10px;
+  background: #f8fbfe;
+}
+
+.course-section-allocation-content .button-row {
+  margin: 0;
+}
+
+.course-section-allocation-content .button-row button {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 0.76rem;
+}
+
+.course-section-reconstruction-list {
+  display: grid;
+  overflow: auto;
+  max-height: 240px;
+  border: 1px solid #dce7ef;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+}
+
+.course-section-reconstruction {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 0;
+  border-bottom: 1px solid #e2ebf2;
+  border-radius: 0;
+  padding: 9px 10px;
+  background: transparent;
+  color: var(--primary-dark);
+  text-align: left;
+}
+
+.course-section-reconstruction:last-child {
+  border-bottom: 0;
+}
+
+.course-section-reconstruction:hover {
+  background: #edf6fc;
+}
+
+.course-section-reconstruction > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.course-section-reconstruction strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-section-reconstruction small,
+.course-section-reconstruction > span:last-child {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.course-section-reconstruction > span:last-child {
+  flex: 0 0 auto;
+  color: var(--primary);
+  font-weight: 800;
+}
+
 /* Allocation lives with the reconstruction, but is intentionally a compact
    checklist rather than another large configuration panel. */
 .reconstruction-exam-allocation {
@@ -4436,6 +4592,7 @@ input[type="range"] {
 
 :root[data-theme="dark"] .course-exam-sections,
 :root[data-theme="dark"] .exam-section-row,
+:root[data-theme="dark"] .course-section-allocation,
 :root[data-theme="dark"] .reconstruction-exam-allocation,
 :root[data-theme="dark"] .review-scope-selector {
   border-color: #3b566a;
@@ -4448,6 +4605,8 @@ input[type="range"] {
 }
 
 :root[data-theme="dark"] .exam-section-row,
+:root[data-theme="dark"] .course-section-allocation,
+:root[data-theme="dark"] .course-section-allocation-content,
 :root[data-theme="dark"] .review-scope-selector,
 :root[data-theme="dark"] .reconstruction-exam-allocation {
   background: #172633;
@@ -4457,6 +4616,7 @@ input[type="range"] {
 :root[data-theme="dark"] .exam-section-row input:hover,
 :root[data-theme="dark"] .exam-section-row input:focus,
 :root[data-theme="dark"] .exam-section-checkboxes > label,
+:root[data-theme="dark"] .course-section-reconstruction-list,
 :root[data-theme="dark"] .review-scope-option,
 :root[data-theme="dark"] .review-scope-selector > button,
 :root[data-theme="dark"] .review-scope-empty {
@@ -4466,6 +4626,7 @@ input[type="range"] {
 }
 
 :root[data-theme="dark"] .exam-section-checkboxes > label:hover,
+:root[data-theme="dark"] .course-section-reconstruction:hover,
 :root[data-theme="dark"] .review-scope-option:hover {
   border-color: #6a98ba;
   background: #233b4b;
