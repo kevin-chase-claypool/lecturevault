@@ -10,7 +10,8 @@ import {
 import {
   ensureTextbookVisualAnchors,
   selectTextbookVisualCitations,
-  verifyTextbookVisualCitations
+  verifyTextbookVisualCitations,
+  type TextbookVisualRejection
 } from "../../../lib/textbook-visual-selection";
 import { TEXTBOOK_VISUAL_AUDIT_VERSION } from "../../../lib/textbook-visual-contract";
 
@@ -35,10 +36,26 @@ type MatchTextbookChunk = {
   textbook_name?: string;
 };
 
+type TextbookCitationHint = {
+  pageEnd?: unknown;
+  page_end?: unknown;
+  pageStart?: unknown;
+  page_start?: unknown;
+  textbookName?: unknown;
+  textbook_name?: unknown;
+};
+
 type VisualRepairSource = TextbookPageSource;
 
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function textbookNameKey(value: unknown) {
+  return cleanString(value)
+    .toLowerCase()
+    .replace(/\.pdf$/i, "")
+    .replace(/[^a-z0-9]+/g, "");
 }
 
 function jsonError(message: string, status: number) {
@@ -71,6 +88,58 @@ function validSources(value: unknown): VisualRepairSource[] {
   });
 }
 
+function citedPageRequests(
+  citations: unknown,
+  sources: VisualRepairSource[]
+): TextbookPageRequest[] {
+  if (!Array.isArray(citations)) return [];
+
+  return citations.flatMap((citation) => {
+    const record = citation && typeof citation === "object"
+      ? citation as TextbookCitationHint
+      : {};
+    const citationName = cleanString(record.textbookName ?? record.textbook_name);
+    const pageStart = Math.max(1, Math.floor(Number(record.pageStart ?? record.page_start) || 0));
+    const pageEnd = Math.max(pageStart, Math.floor(Number(record.pageEnd ?? record.page_end) || pageStart));
+    const citationKey = textbookNameKey(citationName);
+    const source = sources.find((candidate) => {
+      const sourceKey = textbookNameKey(candidate.name);
+      return sourceKey && citationKey && (sourceKey === citationKey || sourceKey.includes(citationKey) || citationKey.includes(sourceKey));
+    });
+
+    return source && pageStart
+      ? [{
+          textbookId: cleanString(source.textbookId),
+          textbookName: cleanString(source.name) || citationName,
+          pageEnd,
+          pageStart
+        }]
+      : [];
+  });
+}
+
+function individualPageRequests(requests: TextbookPageRequest[]) {
+  const pages = new Map<string, TextbookPageRequest>();
+
+  for (const request of requests) {
+    const textbookId = cleanString(request.textbookId);
+    const textbookName = cleanString(request.textbookName);
+    const pageStart = Math.max(1, Math.floor(Number(request.pageStart) || 0));
+    const pageEnd = Math.max(pageStart, Math.floor(Number(request.pageEnd) || pageStart));
+
+    if (!textbookId || !textbookName || !pageStart) continue;
+
+    for (let pageNumber = pageStart; pageNumber <= pageEnd; pageNumber += 1) {
+      const key = `${textbookId}:${pageNumber}`;
+      if (!pages.has(key)) {
+        pages.set(key, { textbookId, textbookName, pageStart: pageNumber, pageEnd: pageNumber });
+      }
+    }
+  }
+
+  return [...pages.values()];
+}
+
 export async function POST(request: Request) {
   const authError = requireAuthenticatedRequest(request);
 
@@ -85,6 +154,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as {
       courseId?: unknown;
+      textbookCitations?: unknown;
       textbookSources?: unknown;
       title?: unknown;
       transcriptText?: unknown;
@@ -120,7 +190,7 @@ export async function POST(request: Request) {
       return jsonError(error.message, 500);
     }
 
-    const pageRequests = (Array.isArray(data) ? data : [])
+    const semanticPageRequests = (Array.isArray(data) ? data : [])
       .map((chunk) => chunk as MatchTextbookChunk)
       .flatMap((chunk) => {
         const textbookId = cleanString(chunk.textbook_id);
@@ -132,36 +202,51 @@ export async function POST(request: Request) {
           ? [{ textbookId, textbookName, pageStart, pageEnd }]
           : [];
       }) as TextbookPageRequest[];
+    // A saved reconstruction has already identified the exact textbook pages
+    // used in its explanation.  Those pages must be inspected before an
+    // embedding-nearest neighbour: the latter can be topical but contain no
+    // relevant diagram (the cause of the false block-diagram selection on
+    // this repair flow).
+    const citedRequests = individualPageRequests(citedPageRequests(body.textbookCitations, sources));
+    const pageRequests = individualPageRequests([
+      ...citedRequests,
+      ...semanticPageRequests
+    ]).slice(0, MAX_TEXTBOOK_VISUAL_PAGES);
     const visualPages = await textbookPageEvidence({
-      requests: pageRequests.slice(0, MAX_TEXTBOOK_VISUAL_PAGES),
+      requests: pageRequests,
       sources
     });
     const visualPagesForSelection = visualPages.map((page) => ({
       textbookName: page.textbookName,
       pageNumber: page.pageNumber,
       embeddedImages: page.images,
-      pageImageDataUrl: page.pageImageDataUrl
+      pageImageDataUrl: page.pageImageDataUrl,
+      selectionImageDataUrl: page.selectionImageDataUrl
     }));
     const visualDiagnostics = {
       embeddedImageCount: visualPages.reduce((count, page) => count + page.images.length, 0),
+      citedPageCount: citedRequests.length,
       matchedChunkCount: Array.isArray(data) ? data.length : 0,
       pageRenderCount: visualPages.filter((page) => Boolean(page.pageImageDataUrl)).length,
       requestedPageCount: pageRequests.length,
       retrievedPageCount: visualPages.length,
       selectionAttempts: [] as Array<{
         candidateCount: number;
+        rejectedCount: number;
         selectedCount: number;
         verifiedCount: number;
       }>
     };
     let visualUsage: TokenUsage = {};
     let verifiedCitations: Awaited<ReturnType<typeof verifyTextbookVisualCitations>>["citations"] = [];
+    let previousRejections: TextbookVisualRejection[] = [];
 
     for (let attempt = 0; attempt < MAX_TEXTBOOK_VISUAL_SELECTION_ATTEMPTS; attempt += 1) {
       const selection = await selectTextbookVisualCitations({
         client,
         model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
         pages: visualPagesForSelection,
+        previousRejections,
         retry: attempt === 1,
         transcriptText
       });
@@ -200,6 +285,7 @@ export async function POST(request: Request) {
       })));
       visualDiagnostics.selectionAttempts.push({
         candidateCount: textbookCitations.filter((citation) => Boolean(citation.imageDataUrl)).length,
+        rejectedCount: verification.rejections.length,
         selectedCount: selection.citations.length,
         verifiedCount: verification.citations.length
       });
@@ -208,6 +294,8 @@ export async function POST(request: Request) {
         verifiedCitations = verification.citations;
         break;
       }
+
+      previousRejections = verification.rejections;
     }
     const usableCitations = verifiedCitations.map((citation) => ({
       ...citation,

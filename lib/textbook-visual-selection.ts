@@ -13,6 +13,7 @@ export type TextbookVisualPage = {
     width?: number;
   }>;
   pageImageDataUrl?: string;
+  selectionImageDataUrl?: string;
   pageNumber: number;
   textbookName: string;
 };
@@ -34,6 +35,7 @@ export type TextbookVisualSelectionCitation = TextbookVisualCitation & {
   sourceDataUrl: string;
   sourceFilename?: string;
   sourceKind: TextbookVisualSourceKind;
+  sourceKey: string;
 };
 
 // These are intentionally limited to visuals that KaTeX cannot usefully
@@ -74,7 +76,17 @@ type VisualSelectionResponse = {
 export type TextbookVisualCandidate = TextbookVisualCitation & {
   imageDataUrl: string;
   imageFilename?: string;
+  sourceKey?: string;
   visualAuditVersion?: number;
+};
+
+export type TextbookVisualRejection = {
+  imageCrop: TextbookVisualCitation["imageCrop"];
+  pageNumber: number;
+  reason: string;
+  sourceKey?: string;
+  sourceKind?: TextbookVisualSourceKind;
+  textbookName: string;
 };
 
 type VisualVerificationResponse = {
@@ -204,6 +216,7 @@ type TextbookVisualSource = {
   dataUrl: string;
   filename?: string;
   pageNumber: number;
+  selectionDataUrl?: string;
   sourceKey: string;
   sourceKind: TextbookVisualSourceKind;
   textbookName: string;
@@ -225,11 +238,13 @@ export function textbookVisualSources(pages: TextbookVisualPage[]): TextbookVisu
     const pageKey = `${textbookName.toLowerCase()}:${pageNumber}`;
     const sources: TextbookVisualSource[] = [];
     const pageImageDataUrl = cleanString(page.pageImageDataUrl);
+    const selectionImageDataUrl = cleanString(page.selectionImageDataUrl);
 
     if (pageImageDataUrl) {
       sources.push({
         dataUrl: pageImageDataUrl,
         pageNumber,
+        selectionDataUrl: selectionImageDataUrl || pageImageDataUrl,
         sourceKey: `${pageKey}:page`,
         sourceKind: "page_crop",
         textbookName
@@ -323,6 +338,28 @@ function normalizedCrop(value: NonNullable<VisualSelectionResponse["textbookCita
   return normalizeTightTextbookFigureCrop(value);
 }
 
+function cropOverlap(
+  left: NonNullable<TextbookVisualCitation["imageCrop"]>,
+  right: NonNullable<TextbookVisualCitation["imageCrop"]>
+) {
+  const horizontal = Math.max(0, Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x));
+  const vertical = Math.max(0, Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y));
+  const intersection = horizontal * vertical;
+  const union = left.width * left.height + right.width * right.height - intersection;
+  return union > 0 ? intersection / union : 0;
+}
+
+function rejectionReason(
+  verdict: NonNullable<VisualVerificationResponse["verdicts"]>[number] | undefined
+) {
+  if (!verdict) return "The pixel audit did not return a verdict for this crop.";
+  if (verdict.containsSubstantialProse === true) return "The crop contains textbook prose or page furniture rather than an isolated figure.";
+  if (verdict.containsExactlyOneCompleteVisual !== true) return "The crop does not contain exactly one complete non-KaTeX visual.";
+  if (verdict.hasCutOffVisualElements === true) return "The crop cuts off a required diagram, graph, or label.";
+  if (verdict.hasUnrelatedVisualFragments === true) return "The crop includes unrelated visual fragments.";
+  return "The pixel audit could not verify this crop as a displayable textbook figure.";
+}
+
 function inlineAnchorCandidates(transcriptText: string) {
   const candidates: string[] = [];
   let inDisplayMath = false;
@@ -374,11 +411,13 @@ export async function selectTextbookVisualCitations({
   model,
   pages,
   transcriptText,
-  retry = false
+  retry = false,
+  previousRejections = []
 }: {
   client: OpenAI;
   model: string;
   pages: TextbookVisualPage[];
+  previousRejections?: TextbookVisualRejection[];
   retry?: boolean;
   transcriptText: string;
 }) {
@@ -401,18 +440,32 @@ export async function selectTextbookVisualCitations({
         : `Source ${index + 1}: rendered textbook page ${source.textbookName}, p. ${source.pageNumber}. Use a tight imageCrop.`
     )
     .join("\n");
+  const retryFeedback = previousRejections
+    .slice(0, 12)
+    .map((rejection) => {
+      const sourceIndex = usableSources.findIndex((source) => source.sourceKey === rejection.sourceKey) + 1;
+      const sourceLabel = sourceIndex
+        ? `Source ${sourceIndex}`
+        : `${rejection.textbookName}, p. ${rejection.pageNumber}`;
+      const crop = rejection.imageCrop
+        ? ` at x=${rejection.imageCrop.x}, y=${rejection.imageCrop.y}, width=${rejection.imageCrop.width}, height=${rejection.imageCrop.height}`
+        : "";
+      return `${sourceLabel}${crop} was rejected: ${rejection.reason}`;
+    })
+    .join("\n");
   const content: ResponseInputMessageContentList = [
     {
       type: "input_text",
       text: [
         "You select only non-KaTeX textbook visuals for a saved engineering/math reconstruction.",
         retry
-          ? "A prior visual pass did not produce any safely displayable figure. Reinspect every supplied source carefully for complete source diagrams, schematics, plots, or illustrations that directly teach the lesson. Do not reuse a broad region: choose a smaller, complete figure crop or return an empty array if none exists."
+          ? "A prior visual pass did not produce any safely displayable figure. Reinspect every supplied source carefully for complete source diagrams, schematics, plots, or illustrations that directly teach the lesson. Do not reuse an exact rejected crop. If it was rejected for prose or no complete visual, abandon that region and choose a different figure; only revise a crop on the same page when the new tight bounds clearly remove the stated defect."
           : "Inspect every supplied source carefully before deciding that no visual qualifies.",
         "Return [] only when no supplied source contains a self-contained block diagram, signal-flow diagram, schematic, graph/plot, geometry diagram, map/chart, or photo/illustration that directly improves intuition. It is correct to return [] for sources containing only prose, equations, worked algebra, tables, or page layouts.",
         "Be comprehensive rather than minimal: inspect every supplied page and select every distinct qualifying visual that materially supports a different beginner-facing explanation, process, or worked step. There is no numeric visual quota. Dense source material can legitimately need several visuals. You may select multiple figures from one page only when they are separate complete visual elements with distinct instructional value; do not repeat a figure or select a merely decorative visual.",
         "A valid benchmark is Figure 8.5 in Roberts: crop the system-realization block diagram itself, not the textbook page around it. A valid crop must tightly bound one complete figure element with no surrounding explanatory paragraphs, no unrelated equations, no book/page header or footer, and no page margins. Include every arrow, curve, axis, label, and connection that belongs to that figure; leave a small whitespace rim on all four sides so no visual element is cut off. Reject a crop that would show only part of a figure, multiple partial figures, or any diagram element running into a crop edge. Keep a short figure label only if it is inseparable from the diagram.",
-        "Never select a book cover, whole page, cropped page, equation, worked calculation, table of text, or paragraph. If the diagram can be written clearly as ordinary KaTeX, do not select it. A rendered-page crop may cover no more than 36% of the page and must leave at least 24 page-coordinate units of whitespace on every side. For an isolated embedded textbook figure, select it only when the asset itself is exactly one complete visual and set imageCrop to null.",
+        "Never select a book cover, whole page, cropped page, equation, worked calculation, table of text, or paragraph. If the diagram can be written clearly as ordinary KaTeX, do not select it. A rendered-page crop may cover no more than 36% of the page and must leave at least 24 page-coordinate units of whitespace on every side. Rendered-page sources include a faint orange coordinate grid: it is a selection guide only, not textbook content. Use the 0–1000 labels to specify the actual figure bounds precisely. For an isolated embedded textbook figure, select it only when the asset itself is exactly one complete visual and set imageCrop to null.",
+        retryFeedback ? `Pixel-audit feedback from the prior pass:\n${retryFeedback}` : "",
         "Choose the anchorIndex for the exact Structured Notes, Guided Lesson, Worked Problems, or Common Mistakes paragraph that this visual should appear after. Never choose Source Media Used or Textbook Context Used: those are provenance sections, not explanation.",
         "Use the sourceIndex from this manifest. The server, not you, will bind that index to the exact textbook asset and page:\n" + sourceManifest,
         "Use the anchorIndex from this exact paragraph manifest:\n" + anchors.map((anchor, index) => `Anchor ${index + 1}: ${anchor}`).join("\n"),
@@ -421,7 +474,7 @@ export async function selectTextbookVisualCitations({
     },
     ...usableSources.map((source) => ({
       type: "input_image" as const,
-      image_url: source.dataUrl,
+      image_url: source.selectionDataUrl || source.dataUrl,
       detail: "high" as const
     }))
   ];
@@ -440,7 +493,8 @@ export async function selectTextbookVisualCitations({
     }
   });
   const selected = parseVisualSelection(response.output_text).textbookCitations || [];
-  const seenSources = new Set<string>();
+  const seenEmbeddedSources = new Set<string>();
+  const selectedCropsBySource = new Map<string, NonNullable<TextbookVisualCitation["imageCrop"]>[]>();
   const citations = selected.flatMap((citation) => {
     const source = usableSources[Math.floor(Number(citation.sourceIndex)) - 1];
     const inlineAnchor = anchors[Math.floor(Number(citation.anchorIndex)) - 1] || "";
@@ -453,11 +507,27 @@ export async function selectTextbookVisualCitations({
         : citation.imageCrop === null
     );
 
-    if (!source || !isValidSourceSelection || !inlineAnchor || !visualKind || !whyNotKaTeX || seenSources.has(source.sourceKey)) {
+    const priorCrops = crop ? selectedCropsBySource.get(source?.sourceKey || "") || [] : [];
+    const repeatsExistingPageVisual = Boolean(crop && priorCrops.some((priorCrop) => cropOverlap(priorCrop, crop) >= 0.7));
+    const repeatsEmbeddedVisual = source?.sourceKind === "embedded_image" && seenEmbeddedSources.has(source.sourceKey);
+
+    if (
+      !source ||
+      !isValidSourceSelection ||
+      !inlineAnchor ||
+      !visualKind ||
+      !whyNotKaTeX ||
+      repeatsExistingPageVisual ||
+      repeatsEmbeddedVisual
+    ) {
       return [];
     }
 
-    seenSources.add(source.sourceKey);
+    if (crop) {
+      selectedCropsBySource.set(source.sourceKey, [...priorCrops, crop]);
+    } else {
+      seenEmbeddedSources.add(source.sourceKey);
+    }
     return [{
       description: cleanString(citation.description) || "Textbook visual selected to clarify the nearby explanation.",
       imageCrop: crop,
@@ -467,6 +537,7 @@ export async function selectTextbookVisualCitations({
       sourceDataUrl: source.dataUrl,
       sourceFilename: source.filename,
       sourceKind: source.sourceKind,
+      sourceKey: source.sourceKey,
       textbookName: source.textbookName,
       visualKind,
       whyNotKaTeX
@@ -491,7 +562,11 @@ export async function verifyTextbookVisualCitations({
   );
 
   if (!usableCandidates.length) {
-    return { citations: [] as TextbookVisualCandidate[], usage: undefined };
+    return {
+      citations: [] as TextbookVisualCandidate[],
+      rejections: [] as TextbookVisualRejection[],
+      usage: undefined
+    };
   }
 
   try {
@@ -542,6 +617,13 @@ export async function verifyTextbookVisualCitations({
       observedVisualKind: cleanString(verdict.observedVisualKind),
       visualIndex: Number(verdict.visualIndex)
     })));
+    const verdictByCandidateIndex = new Map<number, NonNullable<VisualVerificationResponse["verdicts"]>[number]>();
+    for (const verdict of pixelVerdicts) {
+      const index = Math.floor(Number(verdict.visualIndex)) - 1;
+      if (index >= 0 && index < usableCandidates.length && !verdictByCandidateIndex.has(index)) {
+        verdictByCandidateIndex.set(index, verdict);
+      }
+    }
     const pixelAuditedCandidates = pixelVerdicts
       .flatMap((verdict) => {
         const index = Math.floor(Number(verdict.visualIndex)) - 1;
@@ -567,9 +649,35 @@ export async function verifyTextbookVisualCitations({
           visualSubject: specificSubject
         }];
       });
+    const pixelRejections = usableCandidates.flatMap((candidate, index) => {
+      const verdict = verdictByCandidateIndex.get(index);
+      const observedVisualKind = isTextbookVisualKind(verdict?.observedVisualKind)
+        ? verdict.observedVisualKind
+        : null;
+      const isApproved = Boolean(
+        verdict &&
+        isApprovedVisualVerdict(verdict) &&
+        observedVisualKind === candidate.visualKind &&
+        cleanString(verdict.specificSubject)
+      );
+
+      return isApproved
+        ? []
+        : [{
+            imageCrop: candidate.imageCrop,
+            pageNumber: candidate.pageStart,
+            reason: rejectionReason(verdict),
+            sourceKey: candidate.sourceKey,
+            textbookName: candidate.textbookName
+          }];
+    });
 
     if (!pixelAuditedCandidates.length) {
-      return { citations: [] as TextbookVisualCandidate[], usage: pixelAudit.usage };
+      return {
+        citations: [] as TextbookVisualCandidate[],
+        rejections: pixelRejections,
+        usage: pixelAudit.usage
+      };
     }
 
     // Relevance is intentionally a separate decision from pixel quality. It
@@ -609,10 +717,23 @@ export async function verifyTextbookVisualCitations({
         .filter((index) => index >= 0 && index < pixelAuditedCandidates.length)
     );
 
+    const relevanceRejections = pixelAuditedCandidates.flatMap((candidate, index) =>
+      relevantIndexes.has(index)
+        ? []
+        : [{
+            imageCrop: candidate.imageCrop,
+            pageNumber: candidate.pageStart,
+            reason: "The complete figure did not directly teach its selected explanation paragraph.",
+            sourceKey: candidate.sourceKey,
+            textbookName: candidate.textbookName
+          }]
+    );
+
     return {
       citations: pixelAuditedCandidates
         .filter((_, index) => relevantIndexes.has(index))
-        .map(({ visualSubject: _visualSubject, ...candidate }) => candidate),
+        .map(({ visualSubject: _visualSubject, sourceKey: _sourceKey, ...candidate }) => candidate),
+      rejections: [...pixelRejections, ...relevanceRejections],
       usage: {
         input_tokens: (pixelAudit.usage?.input_tokens || 0) + (relevanceAudit.usage?.input_tokens || 0) || undefined,
         output_tokens: (pixelAudit.usage?.output_tokens || 0) + (relevanceAudit.usage?.output_tokens || 0) || undefined,
@@ -622,7 +743,11 @@ export async function verifyTextbookVisualCitations({
   } catch {
     // Verification failure is deliberately fail-closed: the lecture itself is
     // still usable, but an unverified image must never be displayed.
-    return { citations: [] as TextbookVisualCandidate[], usage: undefined };
+    return {
+      citations: [] as TextbookVisualCandidate[],
+      rejections: [] as TextbookVisualRejection[],
+      usage: undefined
+    };
   }
 }
 

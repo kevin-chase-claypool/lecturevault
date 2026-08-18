@@ -3,7 +3,7 @@
  * in a reconstruction. Keeping this outside the OpenAI/server module lets the
  * renderer reject legacy or partially audited evidence as well.
  */
-export const TEXTBOOK_VISUAL_AUDIT_VERSION = 2;
+export const TEXTBOOK_VISUAL_AUDIT_VERSION = 3;
 
 // Coordinates use the 0–1000 page coordinate system sent to the visual model.
 // A useful figure can be large, but it may not be a broad textbook-page region.

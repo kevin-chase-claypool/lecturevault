@@ -26,7 +26,8 @@ import {
   isTextbookVisualKind,
   selectTextbookVisualCitations,
   verifyTextbookVisualCitations,
-  type TextbookVisualPage
+  type TextbookVisualPage,
+  type TextbookVisualRejection
 } from "../../../lib/textbook-visual-selection";
 import {
   TEXTBOOK_VISUAL_AUDIT_VERSION,
@@ -721,12 +722,14 @@ async function selectAndVerifyTextbookVisuals({
   pages: TextbookVisualPage[];
 }) {
   let usage: TokenUsage = {};
+  let previousRejections: TextbookVisualRejection[] = [];
 
   for (let attempt = 0; attempt < MAX_TEXTBOOK_VISUAL_SELECTION_ATTEMPTS; attempt += 1) {
     const visualSelection = await selectTextbookVisualCitations({
       client,
       model: selectionModel,
       pages,
+      previousRejections,
       retry: attempt === 1,
       transcriptText
     });
@@ -760,6 +763,8 @@ async function selectAndVerifyTextbookVisuals({
     if (visualVerification.citations.length) {
       return { citations: visualVerification.citations, usage };
     }
+
+    previousRejections = visualVerification.rejections;
   }
 
   return { citations: [], usage };
@@ -1184,7 +1189,8 @@ export async function POST(request: Request) {
           textbookName: page.textbookName,
           pageNumber: page.pageNumber,
           embeddedImages: page.images,
-          pageImageDataUrl: page.pageImageDataUrl
+          pageImageDataUrl: page.pageImageDataUrl,
+          selectionImageDataUrl: page.selectionImageDataUrl
         })),
         transcriptText: artifactTranscriptText,
         verificationModel: process.env.OPENAI_TEXTBOOK_VISUAL_VERIFICATION_MODEL || DEFAULT_TEXTBOOK_VISUAL_VERIFICATION_MODEL

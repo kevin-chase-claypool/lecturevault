@@ -23,6 +23,11 @@ export type TextbookPageEvidence = {
   textbookName: string;
   images: Array<{ dataUrl: string; filename: string; width: number; height: number }>;
   pageImageDataUrl?: string;
+  // The selector sees this coordinate-labelled copy, while every final crop
+  // is still taken from pageImageDataUrl.  That distinction lets the model
+  // place a tight box around a figure without ever displaying guide marks to
+  // a student.
+  selectionImageDataUrl?: string;
   pageImageHeight?: number;
   pageImageWidth?: number;
 };
@@ -288,6 +293,56 @@ export async function cropTextbookFigure({
   }
 }
 
+/**
+ * Give the visual selector an unambiguous 0–1000 coordinate guide over a
+ * rendered page.  Previously the model was asked for normalized coordinates
+ * without having any visual reference for them, which made it prone to
+ * choosing a nearby paragraph-sized region instead of the diagram itself.
+ * The guide is deliberately used only during selection; the persisted image
+ * is cropped from the clean, unmarked page.
+ */
+export async function textbookFigureSelectionGuide(dataUrl?: string) {
+  if (!dataUrl) return "";
+
+  try {
+    const { createCanvas, loadImage } = await import("@napi-rs/canvas");
+    const image = await loadImage(dataUrl);
+    const canvas = createCanvas(image.width, image.height);
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0, image.width, image.height);
+
+    context.save();
+    context.strokeStyle = "rgba(185, 58, 33, 0.42)";
+    context.fillStyle = "rgba(145, 43, 25, 0.9)";
+    context.lineWidth = Math.max(1, Math.round(Math.min(image.width, image.height) / 1000));
+    context.font = `${Math.max(11, Math.round(Math.min(image.width, image.height) / 52))}px sans-serif`;
+
+    for (let coordinate = 0; coordinate <= 1000; coordinate += 100) {
+      const x = Math.round((coordinate / 1000) * image.width);
+      const y = Math.round((coordinate / 1000) * image.height);
+
+      context.beginPath();
+      context.moveTo(x, 0);
+      context.lineTo(x, image.height);
+      context.moveTo(0, y);
+      context.lineTo(image.width, y);
+      context.stroke();
+
+      if (coordinate < 1000) {
+        context.fillText(String(coordinate), Math.min(x + 3, image.width - 34), 14);
+        context.fillText(String(coordinate), 3, Math.min(y + 14, image.height - 3));
+      }
+    }
+
+    context.restore();
+    return canvas.toDataURL("image/jpeg", 0.84);
+  } catch {
+    // Cropping from the original render remains safe if a guide cannot be
+    // produced; selection will simply fall back to the clean page image.
+    return dataUrl;
+  }
+}
+
 function requestedPages(requests: TextbookPageRequest[]) {
   const pages = new Map<string, { pageNumber: number; textbookId: string; textbookName: string }>();
 
@@ -367,6 +422,7 @@ export async function textbookPageEvidence({
 
         const dataUrl = `data:application/pdf;base64,${Buffer.from(bytes).toString("base64")}`;
         const renderedPage = await renderPageImage(bytes);
+        const pageImageDataUrl = renderedPage?.dataUrl;
         evidence.push({
           dataUrl,
           filename: `${stem}.pdf`,
@@ -374,7 +430,8 @@ export async function textbookPageEvidence({
           textbookId,
           textbookName,
           images: await extractEmbeddedImages(bytes, stem),
-          pageImageDataUrl: renderedPage?.dataUrl,
+          pageImageDataUrl,
+          selectionImageDataUrl: await textbookFigureSelectionGuide(pageImageDataUrl),
           pageImageHeight: renderedPage?.height,
           pageImageWidth: renderedPage?.width
         });

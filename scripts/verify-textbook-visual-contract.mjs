@@ -44,9 +44,9 @@ assert.equal(
   "Textbook visual selection must not impose a fixed number of visual aids."
 );
 assert.equal(
-  selectionSource.includes("const seenSources = new Set<string>();"),
+  selectionSource.includes("const selectedCropsBySource = new Map<string"),
   true,
-  "Textbook visual selection must deduplicate exact source visuals rather than whole textbook pages."
+  "Textbook visual selection must deduplicate overlapping figures without blocking distinct figures on one page."
 );
 assert.equal(
   selectionSource.includes("new Set(candidates)].slice"),
@@ -109,7 +109,7 @@ assert.equal(
   "Visual verification must be independently configurable from the lecture-generation model."
 );
 assert.equal(
-  visualContractSource.includes("TEXTBOOK_VISUAL_AUDIT_VERSION = 2"),
+  visualContractSource.includes("TEXTBOOK_VISUAL_AUDIT_VERSION = 3"),
   true,
   "Only figures that pass the current audited-figure contract may be rendered."
 );
@@ -179,9 +179,23 @@ assert.equal(
 );
 assert.equal(
   visualRepairRouteSource.includes("MAX_TEXTBOOK_VISUAL_SELECTION_ATTEMPTS = 2") &&
-    visualRepairRouteSource.includes("retry: attempt === 1"),
+    visualRepairRouteSource.includes("retry: attempt === 1") &&
+    visualRepairRouteSource.includes("previousRejections"),
   true,
-  "Refreshing an existing reconstruction must receive the same safe visual-selection retry as a newly generated reconstruction."
+  "Refreshing an existing reconstruction must retry with pixel-audit feedback instead of blindly repeating a failed crop."
+);
+assert.equal(
+  visualRepairRouteSource.includes("citedPageRequests(body.textbookCitations, sources)") &&
+    rendererSource.includes("textbookCitations: transcript?.evidence?.textbookCitations || []"),
+  true,
+  "Visual repair must inspect the reconstruction's cited textbook pages before semantic nearest-neighbour pages."
+);
+assert.equal(
+  selectionSource.includes("Rendered-page sources include a faint orange coordinate grid") &&
+    pageEvidenceSource.includes("textbookFigureSelectionGuide") &&
+    selectionSource.includes("selectionImageDataUrl"),
+  true,
+  "The selector must receive a coordinate-guided page image while final figures are cropped from the clean page render."
 );
 assert.equal(
   rendererSource.includes("Refresh textbook visual aids") &&

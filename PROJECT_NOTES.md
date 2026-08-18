@@ -1858,3 +1858,11 @@ For archive organization changes, manually verify:
 - Table-of-contents regions, exercise text, headers, equations, prose around a figure, and partial diagrams are rejected even when their page is semantically related to the lecture.
 - The visual-verification pass uses `OPENAI_TEXTBOOK_VISUAL_VERIFICATION_MODEL` when configured and otherwise `gpt-4.1`, independently of the economical lecture-generation model. If verification is uncertain or unavailable, no textbook image is displayed.
 - Verification: `node scripts/verify-textbook-visual-contract.mjs`, `pnpm typecheck`, and `pnpm build`.
+
+## 2026-08-18 - Repair textbook figures from the right pages and bounds
+
+- Visual repair now prioritizes the textbook pages already cited by the saved reconstruction before adding semantically similar retrieval results. This prevents a topical-but-unrelated page from displacing the source page that actually supports the explanation.
+- Rendered textbook pages include a coordinate-labelled selection-only guide. The visual model uses that guide to return precise normalized figure bounds, while the final inline image is cropped from the clean original render—never from the guide or a full page.
+- A rejected crop now produces structured feedback for the retry. The second pass knows whether it contained prose, lacked one complete visual, was cut off, or was irrelevant to its anchor, and must choose a different figure or a genuinely corrected tight crop.
+- Multiple separate figures on one page remain possible; only substantially overlapping crops are treated as duplicates. There is still no numerical limit on qualifying inline visual aids.
+- Verification: `node scripts/verify-textbook-visual-contract.mjs`, `pnpm typecheck`, `git diff --check`, and production build before deployment.

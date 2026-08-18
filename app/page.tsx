@@ -3789,6 +3789,7 @@ export default function LectureVaultApp() {
       const response = await fetch("/api/reconstruction-visuals", {
         body: JSON.stringify({
           courseId: lecture.courseId,
+          textbookCitations: transcript?.evidence?.textbookCitations || [],
           textbookSources: storedTextbooks,
           title: lecture.title,
           transcriptText
