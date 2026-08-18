@@ -19,9 +19,9 @@ import { TEXTBOOK_VISUAL_AUDIT_VERSION } from "../../../lib/textbook-visual-cont
 export const runtime = "nodejs";
 
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
-const DEFAULT_LECTURE_MODEL = "gpt-4.1-mini";
+const DEFAULT_TEXTBOOK_VISUAL_SELECTION_MODEL = "gpt-4.1";
 const DEFAULT_TEXTBOOK_VISUAL_VERIFICATION_MODEL = "gpt-4.1";
-const MAX_TEXTBOOK_VISUAL_PAGES = 8;
+const MAX_TEXTBOOK_VISUAL_PAGES = 12;
 const MAX_TEXTBOOK_VISUAL_SELECTION_ATTEMPTS = 2;
 
 type TokenUsage = {
@@ -161,6 +161,23 @@ function individualPageRequests(requests: TextbookPageRequest[]) {
   return [...pages.values()];
 }
 
+function titleVisualSearchPhrases(title: string) {
+  const ignored = new Set([
+    "analysis", "and", "application", "design", "for", "from", "in", "method", "of", "the", "to", "using", "with"
+  ]);
+  const terms = title.toLowerCase().match(/[a-z0-9]{3,}/g)?.filter((term) => !ignored.has(term)) || [];
+  const phrases = new Set<string>();
+
+  for (let index = 0; index < terms.length - 1; index += 1) {
+    phrases.add(`${terms[index]} ${terms[index + 1]}`);
+  }
+  for (let index = 0; index < terms.length - 2; index += 1) {
+    phrases.add(`${terms[index]} ${terms[index + 1]} ${terms[index + 2]}`);
+  }
+
+  return [...phrases].filter((phrase) => phrase.length >= 9);
+}
+
 export async function POST(request: Request) {
   const authError = requireAuthenticatedRequest(request);
 
@@ -211,6 +228,34 @@ export async function POST(request: Request) {
       return jsonError(error.message, 500);
     }
 
+    // An embedding of a long reconstruction can be dominated by generic
+    // terms such as "system" or "response". Add a small lexical pass from
+    // the reconstruction title so a lesson called "Impulse Invariant ..."
+    // actually reaches the textbook's impulse-invariant figures instead of
+    // merely nearby LTI prose. These pages are source candidates only; every
+    // image still faces the independent visual and relevance audits.
+    const titlePhrases = titleVisualSearchPhrases(title);
+    const { data: directTitleMatches } = titlePhrases.length
+      ? await supabase
+          .from("textbook_chunks")
+          .select("page_end, page_start, textbook_id, textbook_name")
+          .eq("course_id", courseId)
+          .or(titlePhrases.map((phrase) => `content.ilike.%${phrase}%`).join(","))
+          .limit(MAX_TEXTBOOK_VISUAL_PAGES)
+      : { data: [] as unknown[] };
+    const directTitlePageRequests = (Array.isArray(directTitleMatches) ? directTitleMatches : [])
+      .map((chunk) => chunk as MatchTextbookChunk)
+      .flatMap((chunk) => {
+        const textbookId = cleanString(chunk.textbook_id);
+        const textbookName = cleanString(chunk.textbook_name);
+        const pageStart = Math.max(1, Math.floor(Number(chunk.page_start) || 0));
+        const pageEnd = Math.max(pageStart, Math.floor(Number(chunk.page_end) || pageStart));
+
+        return textbookId && textbookName && pageStart
+          ? [{ textbookId, textbookName, pageStart, pageEnd }]
+          : [];
+      }) as TextbookPageRequest[];
+
     const semanticPageRequests = (Array.isArray(data) ? data : [])
       .map((chunk) => chunk as MatchTextbookChunk)
       .flatMap((chunk) => {
@@ -230,6 +275,7 @@ export async function POST(request: Request) {
     // this repair flow).
     const citedRequests = individualPageRequests(citedPageRequests(body.textbookCitations, sources));
     const pageRequests = individualPageRequests([
+      ...directTitlePageRequests,
       ...citedRequests,
       ...semanticPageRequests
     ]).slice(0, MAX_TEXTBOOK_VISUAL_PAGES);
@@ -247,6 +293,7 @@ export async function POST(request: Request) {
     const visualDiagnostics = {
       embeddedImageCount: visualPages.reduce((count, page) => count + page.images.length, 0),
       citedPageCount: citedRequests.length,
+      directTitleMatchCount: individualPageRequests(directTitlePageRequests).length,
       matchedChunkCount: Array.isArray(data) ? data.length : 0,
       pageRenderCount: visualPages.filter((page) => Boolean(page.pageImageDataUrl)).length,
       requestedPageCount: pageRequests.length,
@@ -265,7 +312,7 @@ export async function POST(request: Request) {
     for (let attempt = 0; attempt < MAX_TEXTBOOK_VISUAL_SELECTION_ATTEMPTS; attempt += 1) {
       const selection = await selectTextbookVisualCitations({
         client,
-        model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
+        model: process.env.OPENAI_TEXTBOOK_VISUAL_SELECTION_MODEL || DEFAULT_TEXTBOOK_VISUAL_SELECTION_MODEL,
         pages: visualPagesForSelection,
         previousRejections,
         retry: attempt === 1,
@@ -326,7 +373,7 @@ export async function POST(request: Request) {
       // still has to pass the same pixel and teaching-anchor audits.
       const selection = await discoverTextbookVisualCitations({
         client,
-        model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
+        model: process.env.OPENAI_TEXTBOOK_VISUAL_SELECTION_MODEL || DEFAULT_TEXTBOOK_VISUAL_SELECTION_MODEL,
         pages: visualPagesForSelection,
         transcriptText
       });
@@ -378,7 +425,7 @@ export async function POST(request: Request) {
         // graph or diagram simply because it included nearby prose.
         const refinedSelection = await discoverTextbookVisualCitations({
           client,
-          model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
+          model: process.env.OPENAI_TEXTBOOK_VISUAL_SELECTION_MODEL || DEFAULT_TEXTBOOK_VISUAL_SELECTION_MODEL,
           pages: visualPagesForSelection,
           previousRejections: verification.rejections,
           transcriptText

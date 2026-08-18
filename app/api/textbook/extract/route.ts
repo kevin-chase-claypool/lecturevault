@@ -13,7 +13,11 @@ const CHUNK_SIZE = 2400;
 const CHUNK_OVERLAP = 280;
 const EMBEDDING_BATCH_SIZE = 48;
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
-const DEFAULT_VISUAL_INDEX_MODEL = "gpt-4.1-mini";
+// Page-level figure descriptions influence which source pages a later
+// reconstruction inspects. Use the stronger visual model here: an economical
+// text model repeatedly chose nearby prose pages instead of the actual graph
+// or diagram the lesson needed.
+const DEFAULT_VISUAL_INDEX_MODEL = "gpt-4.1";
 const MAX_VISUAL_INDEX_PAGES = 64;
 
 async function extractPdfText(buffer: Uint8Array) {
@@ -477,7 +481,9 @@ export async function POST(request: Request) {
       }
 
       if (pageEvidence.length) {
-        const { error } = await supabase.from("textbook_page_evidence").upsert(pageEvidence);
+        const { error } = await supabase
+          .from("textbook_page_evidence")
+          .upsert(pageEvidence, { onConflict: "textbook_id,page_number,source_kind" });
 
         if (error) {
           return jsonError(error.message, 500);

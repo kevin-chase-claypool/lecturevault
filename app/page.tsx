@@ -6670,7 +6670,13 @@ export default function LectureVaultApp() {
                             textbook.visualIndexDeferredPageCount || 0
                           );
                           const needsVisualEvidenceRefresh = deferredVisualPageCount > 0;
-                          const canReindex = !textbook.pageEvidenceCount || needsVisualEvidenceRefresh;
+                          // Textbooks indexed before the separate visual
+                          // evidence record existed display canonical pages
+                          // but no durable figure descriptions. Let their
+                          // owner repair that index from the one stored PDF.
+                          const needsInitialVisualEvidence = (textbook.visuallyIndexedPageCount || 0) === 0;
+                          const canReindex =
+                            !textbook.pageEvidenceCount || needsVisualEvidenceRefresh || needsInitialVisualEvidence;
 
                           return (
                           <div className="course-textbook-item" key={textbook.id}>
@@ -6680,9 +6686,11 @@ export default function LectureVaultApp() {
                                 {formatFileSize(textbook.size)} - {textbook.pageCount || 0} pages -{" "}
                                 {textbook.indexedChunkCount || 0} indexed sections - {textbook.pageEvidenceCount || 0} canonical page records
                               </small>
-                              {needsVisualEvidenceRefresh ? (
+                              {needsVisualEvidenceRefresh || needsInitialVisualEvidence ? (
                                 <p className="course-textbook-visual-refresh-note">
-                                  {deferredVisualPageCount} visual page{deferredVisualPageCount === 1 ? "" : "s"} still await{deferredVisualPageCount === 1 ? "s" : ""} visual evidence. Refresh uses the PDF already stored in Supabase—no re-upload or duplicate file.
+                                  {needsVisualEvidenceRefresh
+                                    ? `${deferredVisualPageCount} visual page${deferredVisualPageCount === 1 ? "" : "s"} still await${deferredVisualPageCount === 1 ? "s" : ""} visual evidence.`
+                                    : "Visual figure descriptions have not yet been created for this stored textbook."} Refresh uses the PDF already stored in Supabase—no re-upload or duplicate file.
                                 </p>
                               ) : null}
                               <details className="course-textbook-details">
@@ -6713,17 +6721,17 @@ export default function LectureVaultApp() {
                             <div className="course-textbook-actions">
                               {canReindex ? (
                                 <button
-                                  className={needsVisualEvidenceRefresh ? "course-textbook-visual-refresh" : undefined}
+                                  className={needsVisualEvidenceRefresh || needsInitialVisualEvidence ? "course-textbook-visual-refresh" : undefined}
                                   type="button"
                                   disabled={Boolean(textbookProcessingCourseId)}
                                   title={
-                                    needsVisualEvidenceRefresh
+                                    needsVisualEvidenceRefresh || needsInitialVisualEvidence
                                       ? "Refresh deferred visual evidence from the PDF already stored in Supabase. This never uploads or duplicates the file."
                                       : "Create the one-time canonical page index without uploading the PDF again"
                                   }
                                   onClick={() => void reindexCourseTextbook(textbook.id)}
                                 >
-                                  {needsVisualEvidenceRefresh ? "Refresh visual evidence" : "Reindex once"}
+                                  {needsVisualEvidenceRefresh || needsInitialVisualEvidence ? "Refresh visual evidence" : "Reindex once"}
                                 </button>
                               ) : null}
                               <button

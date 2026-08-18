@@ -26,6 +26,14 @@ const pageEvidenceSource = await readFile(
   new URL("../lib/textbook-page-evidence.ts", import.meta.url),
   "utf8"
 );
+const canonicalEvidenceSource = await readFile(
+  new URL("../lib/textbook-canonical-evidence.ts", import.meta.url),
+  "utf8"
+);
+const textbookRetrievalSql = await readFile(
+  new URL("../supabase/textbook_retrieval.sql", import.meta.url),
+  "utf8"
+);
 const textbookExtractionSource = await readFile(
   new URL("../app/api/textbook/extract/route.ts", import.meta.url),
   "utf8"
@@ -238,6 +246,22 @@ assert.equal(
     !textbookExtractionSource.includes('webpackIgnore: true */ "@napi-rs/canvas"'),
   true,
   "The production PDF renderer must keep its canvas dependency traceable and provide it directly to PDF.js so Vercel can supply actual candidate pixels."
+);
+assert.equal(
+  textbookRetrievalSql.includes("primary key (textbook_id, page_number, source_kind)") &&
+    textbookRetrievalSql.includes("drop constraint if exists textbook_page_evidence_pkey") &&
+    textbookExtractionSource.includes('onConflict: "textbook_id,page_number,source_kind"') &&
+    canonicalEvidenceSource.includes('record.sourceKind === "visual_index"'),
+  true,
+  "Native page text and durable visual descriptions must coexist for the same textbook page, and reconstruction context must prefer the visual description when it exists."
+);
+assert.equal(
+  visualRepairRouteSource.includes("titleVisualSearchPhrases") &&
+    visualRepairRouteSource.includes("OPENAI_TEXTBOOK_VISUAL_SELECTION_MODEL") &&
+    lectureRouteSource.includes("titleVisualSearchPhrases") &&
+    lectureRouteSource.includes("OPENAI_TEXTBOOK_VISUAL_SELECTION_MODEL"),
+  true,
+  "Visual retrieval must reach title-specific figure pages with a strong visual selector instead of relying only on a long generic transcript embedding."
 );
 
 console.log("Textbook visual contract passed.");

@@ -38,6 +38,7 @@ import {
 export const runtime = "nodejs";
 
 const DEFAULT_LECTURE_MODEL = "gpt-4.1-mini";
+const DEFAULT_TEXTBOOK_VISUAL_SELECTION_MODEL = "gpt-4.1";
 // A textbook visual needs a strict pixel-level review. Keep that decision
 // independent from the economical lecture-writing model so a weak visual
 // approval cannot publish a page fragment, prose, or cut-off figure.
@@ -54,7 +55,7 @@ const MAX_TEXTBOOK_VISUAL_SELECTION_ATTEMPTS = 2;
 // Keep retrieval and original-page verification aligned: every retrieved context
 // candidate can be backed by its actual textbook page in the same model request.
 const MAX_TEXTBOOK_CONTEXT = 8;
-const MAX_TEXTBOOK_VISUAL_PAGES = 8;
+const MAX_TEXTBOOK_VISUAL_PAGES = 12;
 // Leave reliable headroom below the Audio API's 25 MB request limit. These chunks
 // are created only for transcription; the original source remains in Supabase.
 const MAX_TRANSCRIPTION_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -258,6 +259,23 @@ const LECTURE_RECONSTRUCTION_SCHEMA = {
 
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function titleVisualSearchPhrases(title: string) {
+  const ignored = new Set([
+    "analysis", "and", "application", "design", "for", "from", "in", "method", "of", "the", "to", "using", "with"
+  ]);
+  const terms = title.toLowerCase().match(/[a-z0-9]{3,}/g)?.filter((term) => !ignored.has(term)) || [];
+  const phrases = new Set<string>();
+
+  for (let index = 0; index < terms.length - 1; index += 1) {
+    phrases.add(`${terms[index]} ${terms[index + 1]}`);
+  }
+  for (let index = 0; index < terms.length - 2; index += 1) {
+    phrases.add(`${terms[index]} ${terms[index + 1]} ${terms[index + 2]}`);
+  }
+
+  return [...phrases].filter((phrase) => phrase.length >= 9);
 }
 
 function stripNonAudioTimestampPrefixes(text: string) {
@@ -1082,8 +1100,38 @@ export async function POST(request: Request) {
           query_embedding: embeddingResponse.data[0]?.embedding || []
         });
 
-        if (Array.isArray(data) && data.length) {
-          textbookContext = (data as MatchTextbookChunk[]).map((chunk) => ({
+        // A long transcript can overwhelm its title in a single embedding and
+        // retrieve generic LTI prose. Title phrases provide a second, exact
+        // path to the chapter that contains the lesson's diagrams (for
+        // example, impulse-invariant pole-zero mapping), while the model still
+        // decides which source pages actually support the reconstruction.
+        const titlePhrases = titleVisualSearchPhrases(cleanString(body.title));
+        const { data: directTitleMatches } = titlePhrases.length
+          ? await supabase
+              .from("textbook_chunks")
+              .select("content, id, page_end, page_start, textbook_id, textbook_name")
+              .eq("course_id", cleanString(body.courseId))
+              .or(titlePhrases.map((phrase) => `content.ilike.%${phrase}%`).join(","))
+              .limit(MAX_TEXTBOOK_CONTEXT)
+          : { data: [] as unknown[] };
+        const combinedTextbookMatches = [
+          ...(Array.isArray(directTitleMatches) ? directTitleMatches : []),
+          ...(Array.isArray(data) ? data : [])
+        ] as MatchTextbookChunk[];
+        const seenTextbookChunks = new Set<string>();
+        const distinctTextbookMatches = combinedTextbookMatches.filter((chunk) => {
+          const key = cleanString(chunk.id) || [
+            cleanString(chunk.textbook_id),
+            Number(chunk.page_start),
+            Number(chunk.page_end)
+          ].join(":");
+          if (!key || seenTextbookChunks.has(key)) return false;
+          seenTextbookChunks.add(key);
+          return true;
+        });
+
+        if (distinctTextbookMatches.length) {
+          textbookContext = distinctTextbookMatches.slice(0, MAX_TEXTBOOK_CONTEXT).map((chunk) => ({
             id: cleanString(chunk.id),
             pageEnd: typeof chunk.page_end === "number" ? chunk.page_end : undefined,
             pageStart:
@@ -1264,7 +1312,8 @@ export async function POST(request: Request) {
     if (textbookVisualPages.some((page) => page.pageImageDataUrl || page.images.length)) {
       const textbookVisuals = await selectAndVerifyTextbookVisuals({
         client,
-        selectionModel: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
+        selectionModel:
+          process.env.OPENAI_TEXTBOOK_VISUAL_SELECTION_MODEL || DEFAULT_TEXTBOOK_VISUAL_SELECTION_MODEL,
         pages: textbookVisualPages.map((page) => ({
           textbookName: page.textbookName,
           pageNumber: page.pageNumber,

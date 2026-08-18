@@ -42,14 +42,26 @@ create table if not exists public.textbook_page_evidence (
   requires_visual_verification boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  primary key (textbook_id, page_number)
+  primary key (textbook_id, page_number, source_kind)
 );
+
+-- Older deployments keyed this table only by textbook and page. That made a
+-- later native-text refresh overwrite the durable visual description for the
+-- same page, so visual retrieval silently lost the figure-aware record.
+alter table public.textbook_page_evidence
+  drop constraint if exists textbook_page_evidence_pkey;
+
+alter table public.textbook_page_evidence
+  add primary key (textbook_id, page_number, source_kind);
 
 create index if not exists textbook_page_evidence_course_id_idx
   on public.textbook_page_evidence (course_id);
 
 create index if not exists textbook_page_evidence_textbook_id_idx
   on public.textbook_page_evidence (textbook_id);
+
+create index if not exists textbook_page_evidence_visual_lookup_idx
+  on public.textbook_page_evidence (course_id, textbook_id, source_kind, page_number);
 
 alter table public.textbook_page_evidence enable row level security;
 

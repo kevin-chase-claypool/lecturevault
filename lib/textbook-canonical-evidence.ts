@@ -91,7 +91,7 @@ export async function canonicalTextbookPageEvidence({
     return { evidence: [], pageRequestsNeedingSource: requested };
   }
 
-  const evidence = data
+  const eligibleEvidence = data
     .map((record) => ({
       courseId: cleanString(record.course_id),
       evidenceText: cleanString(record.evidence_text),
@@ -108,16 +108,25 @@ export async function canonicalTextbookPageEvidence({
         Number.isInteger(record.pageNumber) &&
         requestedKeys.has(`${record.textbookId}:${record.pageNumber}`)
     );
+  // Native PDF text and a durable vision description are complementary
+  // records for a page. Reconstruction context should receive the visual
+  // description when it exists, rather than an arbitrary row order that can
+  // bury a figure's subject beneath OCR prose.
+  const evidenceByPage = new Map<string, CanonicalTextbookPageEvidence>();
+  for (const record of eligibleEvidence) {
+    const key = `${record.textbookId}:${record.pageNumber}`;
+    const existing = evidenceByPage.get(key);
+    if (!existing || record.sourceKind === "visual_index") {
+      evidenceByPage.set(key, record);
+    }
+  }
+  const evidence = [...evidenceByPage.values()];
   const evidenceKeys = new Set(evidence.map((record) => `${record.textbookId}:${record.pageNumber}`));
   const pageRequestsNeedingSource = requested.filter(
     (request) =>
       !evidenceKeys.has(`${cleanString(request.textbookId)}:${request.pageNumber}`) ||
-      evidence.some(
-        (record) =>
-          record.textbookId === cleanString(request.textbookId) &&
-          record.pageNumber === request.pageNumber &&
-          record.requiresVisualVerification
-      )
+      evidenceByPage.get(`${cleanString(request.textbookId)}:${request.pageNumber}`)
+        ?.requiresVisualVerification
   );
 
   return { evidence, pageRequestsNeedingSource };
