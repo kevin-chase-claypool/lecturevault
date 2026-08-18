@@ -29,5 +29,12 @@ assert.equal(
   true,
   "Reconstruction depth must scale with the number, density, and difficulty of source-grounded topics."
 );
+assert.equal(
+  lectureInstructionsSource.includes("a formula alone is never sufficient") &&
+    lectureInstructionsSource.includes("complete example walkthrough") &&
+    lectureInstructionsSource.includes("Do not skip from setup to answer"),
+  true,
+  "Math-heavy material must include intuition-led, step-by-step walkthroughs whenever the topic requires calculation or derivation."
+);
 
 console.log("Reconstruction depth contract passed.");
