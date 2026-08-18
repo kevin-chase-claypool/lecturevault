@@ -204,9 +204,18 @@ assert.equal(
   selectionSource.includes("Inspect exactly one textbook source") &&
     selectionSource.includes("discoverTextbookVisualCitations") &&
     visualRepairRouteSource.includes("focused visual candidates") &&
-    lectureRouteSource.includes("focusedSelection"),
+    visualRepairRouteSource.includes("refined visual candidates") &&
+    selectionSource.includes("Repair the crop rather than repeating it verbatim") &&
+    lectureRouteSource.includes("focusedSelection") &&
+    lectureRouteSource.includes("previousRejections: focusedVerification.rejections"),
   true,
-  "When whole-set selection fails, each retrieved textbook source must receive a focused tight-figure pass before the system concludes that no visual qualifies."
+  "When whole-set selection fails, each retrieved textbook source must receive a focused tight-figure pass and a feedback-guided crop refinement before the system concludes that no visual qualifies."
+);
+assert.equal(
+  selectionSource.includes("A named multi-panel figure counts as one cohesive visual") &&
+    selectionSource.includes("Do not call a graph's labels"),
+  true,
+  "The pixel audit must accept labels and cohesive multi-panel textbook figures while continuing to reject surrounding textbook prose."
 );
 assert.equal(
   rendererSource.includes("Refresh textbook visual aids") &&

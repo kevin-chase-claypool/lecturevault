@@ -804,6 +804,49 @@ async function selectAndVerifyTextbookVisuals({
     return { citations: focusedVerification.citations, usage };
   }
 
+  if (focusedVerification.rejections.length) {
+    // The initial focused scan has identified specific page regions, but the
+    // independent audit can still spot nearby prose or a clipped axis. Let
+    // the per-page selector repair those exact bounds before giving up on a
+    // legitimate textbook visual.
+    const refinedSelection = await discoverTextbookVisualCitations({
+      client,
+      model: selectionModel,
+      pages,
+      previousRejections: focusedVerification.rejections,
+      transcriptText
+    });
+    usage = addUsage(usage, usageFromOpenAI(refinedSelection.usage));
+    const refinedCandidates = (await Promise.all(
+      refinedSelection.citations.map(async (citation) => {
+        const { sourceDataUrl, sourceFilename, sourceKind, ...citationEvidence } = citation;
+        const imageDataUrl = sourceKind === "embedded_image"
+          ? sourceDataUrl
+          : citation.imageCrop
+            ? await cropTextbookFigure({ crop: citation.imageCrop, dataUrl: sourceDataUrl })
+            : "";
+
+        return imageDataUrl
+          ? {
+              ...citationEvidence,
+              imageDataUrl,
+              imageFilename: sourceFilename || `textbook-figure-p-${citation.pageStart}.jpg`
+            }
+          : null;
+      })
+    )).filter((citation): citation is NonNullable<typeof citation> => Boolean(citation?.imageDataUrl));
+    const refinedVerification = await verifyTextbookVisualCitations({
+      candidates: refinedCandidates,
+      client,
+      model: verificationModel
+    });
+    usage = addUsage(usage, usageFromOpenAI(refinedVerification.usage));
+
+    if (refinedVerification.citations.length) {
+      return { citations: refinedVerification.citations, usage };
+    }
+  }
+
   return { citations: [], usage };
 }
 

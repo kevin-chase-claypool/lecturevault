@@ -680,11 +680,13 @@ export async function discoverTextbookVisualCitations({
   client,
   model,
   pages,
+  previousRejections = [],
   transcriptText
 }: {
   client: OpenAI;
   model: string;
   pages: TextbookVisualPage[];
+  previousRejections?: TextbookVisualRejection[];
   transcriptText: string;
 }) {
   const usableSources = textbookVisualSources(pages);
@@ -695,6 +697,19 @@ export async function discoverTextbookVisualCitations({
   }
 
   const discoveries = await Promise.all(usableSources.map(async (source) => {
+    const rejectedCrops = previousRejections
+      .filter((rejection) => rejection.sourceKey === source.sourceKey && rejection.imageCrop)
+      .map((rejection) => ({ crop: rejection.imageCrop, reason: rejection.reason }));
+    const refinementFeedback = rejectedCrops.length
+      ? [
+          "A prior crop from this exact source was rejected by an independent pixel audit. Repair the crop rather than repeating it verbatim.",
+          ...rejectedCrops.map(({ crop, reason }) =>
+            `Rejected crop: x=${crop?.x}, y=${crop?.y}, width=${crop?.width}, height=${crop?.height}. Reason: ${reason}`
+          ),
+          "If the rejection says prose, remove surrounding paragraphs, exercise text, headers, footers, and page furniture while retaining figure-internal axis labels, legends, node labels, callouts, and a short inseparable Figure label. If it says cut off, expand only enough to include the missing visual element and whitespace rim. Do not return the same rejected bounds."
+        ].join("\n")
+      : "";
+
     try {
       const response = await client.responses.create({
       input: [{
@@ -707,7 +722,8 @@ export async function discoverTextbookVisualCitations({
               source.sourceKind === "embedded_image"
                 ? "This is an isolated embedded image. Return it only if it is exactly one complete, useful diagram, schematic, graph/plot, geometry figure, chart, or illustration; imageCrop must be null."
                 : "This is one rendered textbook page with a faint orange 0–1000 coordinate guide. Return every distinct complete diagram, schematic, graph/plot, geometry figure, chart, or illustration that is useful on its own. Use the guide to give tight bounds around one figure only.",
-              "Do not return a heading, caption paragraph, equation, worked algebra, table, book cover, broad page region, or decorative visual. A valid crop includes every required arrow, trace, axis, label, and connection plus a small whitespace rim, but no surrounding textbook prose, other figure fragments, header, footer, or margins. The guide is synthetic and will not appear in the final crop.",
+              "Do not return a heading, caption paragraph, equation, worked algebra, table, book cover, broad page region, or decorative visual. A valid crop includes every required arrow, trace, axis, label, legend, node label, in-figure formula, and connection plus a small whitespace rim, but no surrounding textbook prose, other figure fragments, header, footer, or margins. Text that belongs to the visual itself is allowed; narrative text outside the visual is not. A multi-panel graphic under one shared figure label counts as one figure when its panels jointly explain one concept. The guide is synthetic and will not appear in the final crop.",
+              refinementFeedback,
               "There is no numerical quota: return all distinct qualifying figures in this one source, or an empty array when it contains none."
             ].join("\n\n")
           },
@@ -874,8 +890,8 @@ export async function verifyTextbookVisualCitations({
             text: [
               "Blind pixel audit for textbook crops. Do not provide the selector's claimed visual kind, rationale, textbook page, or teaching anchor; judge only the pixels in each crop.",
               "Audit every candidate independently. approved may be true only when all of these are true: containsExactlyOneCompleteVisual; containsSubstantialProse is false; hasCutOffVisualElements is false; and hasUnrelatedVisualFragments is false.",
-              "containsExactlyOneCompleteVisual is true only for one self-contained non-KaTeX block/signal-flow diagram with connecting structure, schematic, graph/plot with axes/traces, geometry diagram, map/chart, or photo/illustration. A page heading, figure caption, equation, worked calculation, table of text, list of contents, exercise wording, or prose is never a visual. A short title inseparable from the selected diagram is allowed; axis labels, node labels, and callouts do not count as prose.",
-              "containsSubstantialProse is true when the crop includes any paragraph, exercise question, table of contents, chapter/section heading, page header/footer, code listing, or other book furniture. hasCutOffVisualElements is true when any intended arrow, axis, trace, label, connection, or diagram body reaches or is cut by a crop edge. hasUnrelatedVisualFragments is true when the crop includes another partial diagram, graph, or illustration.",
+              "containsExactlyOneCompleteVisual is true only for one cohesive, self-contained non-KaTeX figure: a block/signal-flow diagram with connecting structure, schematic, graph/plot with axes/traces, geometry diagram, map/chart, or photo/illustration. A named multi-panel figure counts as one cohesive visual when its panels share a legend, caption, or concept; do not reject it merely because it contains multiple related plots. A page heading, long caption paragraph, equation presented as the lesson content, worked calculation, table of text, list of contents, exercise wording, or prose is never a visual. A short Figure label, axis labels, legend text, node labels, in-figure equations, and callouts that belong to the diagram do not count as prose.",
+              "containsSubstantialProse is true only when the crop contains narrative textbook paragraphs, an exercise question, table of contents, chapter/section heading, page header/footer, code listing, or other book furniture outside the figure. Do not call a graph's labels, a diagram's callouts, or a short inseparable figure caption prose. hasCutOffVisualElements is true when any intended arrow, axis, trace, label, connection, or diagram body reaches or is cut by a crop edge. hasUnrelatedVisualFragments is true when the crop includes another partial diagram, graph, or illustration unrelated to the one cohesive figure.",
               "observedVisualKind must name the one visible visual type, or none. specificSubject must identify what this particular visual depicts with enough precision to distinguish it from a generic topic; for example, say 'windowed FIR side-lobe response' rather than 'frequency response graph'. Reject a crop whenever any audit condition is uncertain. A missing figure is better than a page fragment. Do not impose a numeric approval quota.",
               "Candidates: " + usableCandidates.map((_, index) => `Visual ${index + 1}`).join(", ")
             ].join("\n\n")
