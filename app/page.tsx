@@ -1027,6 +1027,7 @@ function ReviewMarkdownPreview({
 
   function appendVisualAids(sourceText: string) {
     const matches = visualAids.filter((aid) =>
+      !usedVisualLabels.has(aid.label) &&
       aid.tokens.some((token) => sourceText.toLowerCase().includes(token.toLowerCase()))
     );
     for (const aid of matches.slice(0, 2)) {
