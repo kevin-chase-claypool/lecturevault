@@ -8,6 +8,7 @@ import {
   type TextbookPageSource
 } from "../../../lib/textbook-page-evidence";
 import {
+  discoverTextbookVisualCitations,
   ensureTextbookVisualAnchors,
   selectTextbookVisualCitations,
   verifyTextbookVisualCitations,
@@ -316,6 +317,59 @@ export async function POST(request: Request) {
       }
 
       previousRejections = verification.rejections;
+    }
+
+    if (!verifiedCitations.length) {
+      // When comparison across several textbook pages still yields only
+      // rejected regions, inspect each source on its own. This is a focused
+      // precision fallback, not a gallery or a quota: every returned figure
+      // still has to pass the same pixel and teaching-anchor audits.
+      const selection = await discoverTextbookVisualCitations({
+        client,
+        model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
+        pages: visualPagesForSelection,
+        transcriptText
+      });
+      visualUsage = addUsage(visualUsage, selection.usage);
+      const textbookCitations = await Promise.all(
+        selection.citations.map(async (citation) => {
+          const { sourceDataUrl, sourceFilename, sourceKind, ...citationEvidence } = citation;
+          const imageDataUrl = sourceKind === "embedded_image"
+            ? sourceDataUrl
+            : citation.imageCrop
+              ? await cropTextbookFigure({ crop: citation.imageCrop, dataUrl: sourceDataUrl })
+              : undefined;
+
+          return {
+            ...citationEvidence,
+            imageDataUrl: imageDataUrl || undefined,
+            imageFilename: imageDataUrl
+              ? sourceFilename || `textbook-figure-p-${citation.pageStart}.jpg`
+              : undefined
+          };
+        })
+      );
+      const verification = await verifyTextbookVisualCitations({
+        candidates: textbookCitations.filter((citation): citation is typeof citation & { imageDataUrl: string } =>
+          Boolean(citation.imageDataUrl)
+        ),
+        client,
+        model: process.env.OPENAI_TEXTBOOK_VISUAL_VERIFICATION_MODEL || DEFAULT_TEXTBOOK_VISUAL_VERIFICATION_MODEL
+      });
+      visualUsage = addUsage(visualUsage, verification.usage);
+      console.info("[reconstruction-visuals] focused visual candidates", selection.citations.map((citation) => ({
+        imageCrop: citation.imageCrop,
+        pageNumber: citation.pageStart,
+        sourceKind: citation.sourceKind,
+        visualKind: citation.visualKind
+      })));
+      visualDiagnostics.selectionAttempts.push({
+        candidateCount: textbookCitations.filter((citation) => Boolean(citation.imageDataUrl)).length,
+        rejectedCount: verification.rejections.length,
+        selectedCount: selection.citations.length,
+        verifiedCount: verification.citations.length
+      });
+      verifiedCitations = verification.citations;
     }
     const usableCitations = verifiedCitations.map((citation) => ({
       ...citation,

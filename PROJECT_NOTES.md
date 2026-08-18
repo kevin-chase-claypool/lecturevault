@@ -1871,3 +1871,8 @@ For archive organization changes, manually verify:
 
 - Older reconstructions can retain their textbook citations only inside a saved structured-artifact JSON block. The visual-repair request now uses the same recovery function as the Vault renderer, so those cited pages are sent as first-priority visual evidence instead of silently falling back to semantic search alone.
 - Saving an audited visual also preserves recovered legacy citations in explicit evidence, preventing a successful repair from hiding the reconstruction's original textbook provenance.
+
+## 2026-08-18 - Focus visual discovery when a multi-page pass is ambiguous
+
+- A whole-set selector is efficient but can confuse textbook prose with a nearby graph when several dense, related pages are shown together. If both normal selection passes fail their pixel audits, the system now inspects each retrieved source independently using the coordinate guide, then attaches only the precisely discovered figures to exact lesson paragraphs.
+- This is a precision fallback, not a source gallery: it still rejects prose, equations, cropped pages, incomplete figures, and irrelevant images through the same blind pixel and relevance audits. There is no output quota; distinct helpful figures on any of the retrieved pages remain eligible.

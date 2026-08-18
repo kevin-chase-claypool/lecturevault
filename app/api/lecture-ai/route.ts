@@ -22,6 +22,7 @@ import {
   canonicalTextbookPageEvidence
 } from "../../../lib/textbook-canonical-evidence";
 import {
+  discoverTextbookVisualCitations,
   ensureTextbookVisualAnchors,
   isTextbookVisualKind,
   selectTextbookVisualCitations,
@@ -765,6 +766,42 @@ async function selectAndVerifyTextbookVisuals({
     }
 
     previousRejections = visualVerification.rejections;
+  }
+
+  const focusedSelection = await discoverTextbookVisualCitations({
+    client,
+    model: selectionModel,
+    pages,
+    transcriptText
+  });
+  usage = addUsage(usage, usageFromOpenAI(focusedSelection.usage));
+  const focusedCandidates = (await Promise.all(
+    focusedSelection.citations.map(async (citation) => {
+      const { sourceDataUrl, sourceFilename, sourceKind, ...citationEvidence } = citation;
+      const imageDataUrl = sourceKind === "embedded_image"
+        ? sourceDataUrl
+        : citation.imageCrop
+          ? await cropTextbookFigure({ crop: citation.imageCrop, dataUrl: sourceDataUrl })
+          : "";
+
+      return imageDataUrl
+        ? {
+            ...citationEvidence,
+            imageDataUrl,
+            imageFilename: sourceFilename || `textbook-figure-p-${citation.pageStart}.jpg`
+          }
+        : null;
+    })
+  )).filter((citation): citation is NonNullable<typeof citation> => Boolean(citation?.imageDataUrl));
+  const focusedVerification = await verifyTextbookVisualCitations({
+    candidates: focusedCandidates,
+    client,
+    model: verificationModel
+  });
+  usage = addUsage(usage, usageFromOpenAI(focusedVerification.usage));
+
+  if (focusedVerification.citations.length) {
+    return { citations: focusedVerification.citations, usage };
   }
 
   return { citations: [], usage };

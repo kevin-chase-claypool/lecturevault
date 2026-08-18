@@ -201,6 +201,14 @@ assert.equal(
   "The selector must receive a coordinate-guided page image while final figures are cropped from the clean page render."
 );
 assert.equal(
+  selectionSource.includes("Inspect exactly one textbook source") &&
+    selectionSource.includes("discoverTextbookVisualCitations") &&
+    visualRepairRouteSource.includes("focused visual candidates") &&
+    lectureRouteSource.includes("focusedSelection"),
+  true,
+  "When whole-set selection fails, each retrieved textbook source must receive a focused tight-figure pass before the system concludes that no visual qualifies."
+);
+assert.equal(
   rendererSource.includes("Refresh textbook visual aids") &&
     rendererSource.includes('fetch("/api/reconstruction-visuals"'),
   true,

@@ -73,6 +73,27 @@ type VisualSelectionResponse = {
   }>;
 };
 
+type VisualDiscoveryResponse = {
+  figures?: Array<{
+    description?: unknown;
+    visualKind?: unknown;
+    whyNotKaTeX?: unknown;
+    imageCrop?: {
+      height?: unknown;
+      width?: unknown;
+      x?: unknown;
+      y?: unknown;
+    } | null;
+  }>;
+};
+
+type VisualAnchorResponse = {
+  assignments?: Array<{
+    anchorIndex?: unknown;
+    visualIndex?: unknown;
+  }>;
+};
+
 export type TextbookVisualCandidate = TextbookVisualCitation & {
   imageDataUrl: string;
   imageFilename?: string;
@@ -145,6 +166,65 @@ const TEXTBOOK_VISUAL_SELECTION_SCHEMA = {
               { type: "null" }
             ]
           }
+        }
+      }
+    }
+  }
+} as const;
+
+const TEXTBOOK_VISUAL_DISCOVERY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["figures"],
+  properties: {
+    figures: {
+      type: "array",
+      minItems: 0,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["description", "visualKind", "whyNotKaTeX", "imageCrop"],
+        properties: {
+          description: { type: "string" },
+          visualKind: { type: "string", enum: TEXTBOOK_VISUAL_KINDS },
+          whyNotKaTeX: { type: "string" },
+          imageCrop: {
+            anyOf: [
+              {
+                type: "object",
+                additionalProperties: false,
+                required: ["x", "y", "width", "height"],
+                properties: {
+                  x: { type: "number", minimum: 0, maximum: 1000 },
+                  y: { type: "number", minimum: 0, maximum: 1000 },
+                  width: { type: "number", minimum: 90, maximum: 920 },
+                  height: { type: "number", minimum: 90, maximum: 920 }
+                }
+              },
+              { type: "null" }
+            ]
+          }
+        }
+      }
+    }
+  }
+} as const;
+
+const TEXTBOOK_VISUAL_ANCHOR_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["assignments"],
+  properties: {
+    assignments: {
+      type: "array",
+      minItems: 0,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["visualIndex", "anchorIndex"],
+        properties: {
+          visualIndex: { type: "number", minimum: 1 },
+          anchorIndex: { type: "number", minimum: 1 }
         }
       }
     }
@@ -288,6 +368,34 @@ function parseVisualSelection(value: string): VisualSelectionResponse {
   }
 }
 
+function parseVisualDiscovery(value: string): VisualDiscoveryResponse {
+  const raw = cleanString(value)
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
+
+  if (!raw) return {};
+
+  try {
+    return JSON.parse(raw) as VisualDiscoveryResponse;
+  } catch {
+    return {};
+  }
+}
+
+function parseVisualAnchors(value: string): VisualAnchorResponse {
+  const raw = cleanString(value)
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
+
+  if (!raw) return {};
+
+  try {
+    return JSON.parse(raw) as VisualAnchorResponse;
+  } catch {
+    return {};
+  }
+}
+
 function parseVisualVerification(value: string): VisualVerificationResponse {
   const raw = cleanString(value)
     .replace(/^```(?:json)?\s*/i, "")
@@ -358,6 +466,18 @@ function rejectionReason(
   if (verdict.hasCutOffVisualElements === true) return "The crop cuts off a required diagram, graph, or label.";
   if (verdict.hasUnrelatedVisualFragments === true) return "The crop includes unrelated visual fragments.";
   return "The pixel audit could not verify this crop as a displayable textbook figure.";
+}
+
+function combinedUsage(values: Array<{ input_tokens?: number; output_tokens?: number; total_tokens?: number } | undefined>) {
+  const input_tokens = values.reduce((total, usage) => total + (usage?.input_tokens || 0), 0);
+  const output_tokens = values.reduce((total, usage) => total + (usage?.output_tokens || 0), 0);
+  const total_tokens = values.reduce((total, usage) => total + (usage?.total_tokens || 0), 0);
+
+  return {
+    input_tokens: input_tokens || undefined,
+    output_tokens: output_tokens || undefined,
+    total_tokens: total_tokens || undefined
+  };
 }
 
 function inlineAnchorCandidates(transcriptText: string) {
@@ -545,6 +665,177 @@ export async function selectTextbookVisualCitations({
   });
 
   return { citations, usage: response.usage };
+}
+
+/**
+ * Fallback for dense or visually mixed textbook pages. The ordinary selector
+ * compares the full set of retrieved pages at once, which is economical but
+ * can confuse nearby prose with a figure when several pages show related
+ * engineering notation. This path has the model inspect every source alone,
+ * with the same coordinate guide, then assigns only discovered figures to
+ * lesson anchors. It never manufactures a visual and remains subject to the
+ * independent pixel and relevance audits below.
+ */
+export async function discoverTextbookVisualCitations({
+  client,
+  model,
+  pages,
+  transcriptText
+}: {
+  client: OpenAI;
+  model: string;
+  pages: TextbookVisualPage[];
+  transcriptText: string;
+}) {
+  const usableSources = textbookVisualSources(pages);
+  const anchors = inlineAnchorCandidates(transcriptText);
+
+  if (!usableSources.length || !anchors.length) {
+    return { citations: [] as TextbookVisualSelectionCitation[], usage: undefined };
+  }
+
+  const discoveries = await Promise.all(usableSources.map(async (source) => {
+    try {
+      const response = await client.responses.create({
+      input: [{
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: [
+              "Inspect exactly one textbook source for visual aids that cannot be written clearly in KaTeX.",
+              source.sourceKind === "embedded_image"
+                ? "This is an isolated embedded image. Return it only if it is exactly one complete, useful diagram, schematic, graph/plot, geometry figure, chart, or illustration; imageCrop must be null."
+                : "This is one rendered textbook page with a faint orange 0–1000 coordinate guide. Return every distinct complete diagram, schematic, graph/plot, geometry figure, chart, or illustration that is useful on its own. Use the guide to give tight bounds around one figure only.",
+              "Do not return a heading, caption paragraph, equation, worked algebra, table, book cover, broad page region, or decorative visual. A valid crop includes every required arrow, trace, axis, label, and connection plus a small whitespace rim, but no surrounding textbook prose, other figure fragments, header, footer, or margins. The guide is synthetic and will not appear in the final crop.",
+              "There is no numerical quota: return all distinct qualifying figures in this one source, or an empty array when it contains none."
+            ].join("\n\n")
+          },
+          {
+            type: "input_image",
+            image_url: source.selectionDataUrl || source.dataUrl,
+            detail: "high"
+          }
+        ]
+      }],
+      instructions: "Return only the requested strict JSON. Do not guess a figure when the pixels show only prose, equations, or page layout.",
+      model,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "textbook_visual_discovery",
+          strict: true,
+          schema: TEXTBOOK_VISUAL_DISCOVERY_SCHEMA
+        }
+      }
+    });
+
+      return {
+        figures: parseVisualDiscovery(response.output_text).figures || [],
+        source,
+        usage: response.usage
+      };
+    } catch {
+      // A transient model failure for one page must not prevent valid figures
+      // from the remaining cited pages from reaching the independent audit.
+      return { figures: [], source, usage: undefined };
+    }
+  }));
+  const usage = combinedUsage(discoveries.map((discovery) => discovery.usage));
+  const seenEmbeddedSources = new Set<string>();
+  const selectedCropsBySource = new Map<string, NonNullable<TextbookVisualCitation["imageCrop"]>[]>();
+  const discovered = discoveries.flatMap(({ figures, source }) => figures.flatMap((figure) => {
+    const crop = source.sourceKind === "page_crop" ? normalizedCrop(figure.imageCrop) : null;
+    const visualKind = isTextbookVisualKind(figure.visualKind) ? figure.visualKind : null;
+    const whyNotKaTeX = cleanString(figure.whyNotKaTeX);
+    const isValid = source.sourceKind === "page_crop" ? Boolean(crop) : figure.imageCrop === null;
+    const priorCrops = crop ? selectedCropsBySource.get(source.sourceKey) || [] : [];
+    const repeatsPageVisual = Boolean(crop && priorCrops.some((priorCrop) => cropOverlap(priorCrop, crop) >= 0.7));
+    const repeatsEmbeddedVisual = source.sourceKind === "embedded_image" && seenEmbeddedSources.has(source.sourceKey);
+
+    if (!isValid || !visualKind || !whyNotKaTeX || repeatsPageVisual || repeatsEmbeddedVisual) {
+      return [];
+    }
+
+    if (crop) {
+      selectedCropsBySource.set(source.sourceKey, [...priorCrops, crop]);
+    } else {
+      seenEmbeddedSources.add(source.sourceKey);
+    }
+
+    return [{
+      description: cleanString(figure.description) || "Textbook figure selected to clarify the nearby explanation.",
+      imageCrop: crop,
+      pageEnd: source.pageNumber,
+      pageStart: source.pageNumber,
+      source,
+      visualKind,
+      whyNotKaTeX
+    }];
+  }));
+
+  if (!discovered.length) {
+    return { citations: [] as TextbookVisualSelectionCitation[], usage };
+  }
+
+  const anchoring = await client.responses.create({
+    input: [{
+      role: "user",
+      content: [{
+        type: "input_text",
+        text: [
+          "Attach each textbook visual to an exact explanatory paragraph in this engineering reconstruction.",
+          "Assign a visual only when its described subject directly improves that specific beginner-facing explanation. Select all direct matches; there is no numerical quota. Do not select source/provenance paragraphs.",
+          "Discovered visuals:\n" + discovered.map((figure, index) =>
+            `Visual ${index + 1}: ${figure.visualKind}; ${figure.description}; why image not KaTeX: ${figure.whyNotKaTeX}`
+          ).join("\n"),
+          "Explanatory paragraphs:\n" + anchors.map((anchor, index) => `Anchor ${index + 1}: ${anchor}`).join("\n")
+        ].join("\n\n")
+      }]
+    }],
+    instructions: "Return only the requested strict JSON. Omit a visual if no exact explanatory anchor fits it.",
+    model,
+    text: {
+      format: {
+        type: "json_schema",
+        name: "textbook_visual_anchors",
+        strict: true,
+        schema: TEXTBOOK_VISUAL_ANCHOR_SCHEMA
+      }
+    }
+  });
+  const assignedVisualIndexes = new Set<number>();
+  const citations = (parseVisualAnchors(anchoring.output_text).assignments || []).flatMap((assignment) => {
+    const visualIndex = Math.floor(Number(assignment.visualIndex)) - 1;
+    const anchorIndex = Math.floor(Number(assignment.anchorIndex)) - 1;
+    const figure = discovered[visualIndex];
+    const inlineAnchor = anchors[anchorIndex] || "";
+
+    if (!figure || !inlineAnchor || assignedVisualIndexes.has(visualIndex)) {
+      return [];
+    }
+
+    assignedVisualIndexes.add(visualIndex);
+    return [{
+      description: figure.description,
+      imageCrop: figure.imageCrop,
+      inlineAnchor,
+      pageEnd: figure.pageEnd,
+      pageStart: figure.pageStart,
+      sourceDataUrl: figure.source.dataUrl,
+      sourceFilename: figure.source.filename,
+      sourceKey: figure.source.sourceKey,
+      sourceKind: figure.source.sourceKind,
+      textbookName: figure.source.textbookName,
+      visualKind: figure.visualKind,
+      whyNotKaTeX: figure.whyNotKaTeX
+    }];
+  });
+
+  return {
+    citations,
+    usage: combinedUsage([usage, anchoring.usage])
+  };
 }
 
 export async function verifyTextbookVisualCitations({
