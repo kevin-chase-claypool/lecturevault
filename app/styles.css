@@ -4086,6 +4086,406 @@ input[type="range"] {
   }
 }
 
+/* Rolling-course exam scope -------------------------------------------------
+   Exam sections are course metadata; keep their editor quiet and compact so a
+   course card remains easy to scan. The stronger visual treatment is reserved
+   for the review scope, where it protects the sources that may be used. */
+.course-exam-sections {
+  grid-column: 1 / -1;
+  border-top: 1px solid #dde6ef;
+  padding-top: 10px;
+}
+
+.course-exam-sections > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--primary-dark);
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 850;
+  list-style-position: inside;
+}
+
+.course-exam-sections > summary::marker {
+  color: var(--primary);
+}
+
+.course-exam-sections > p,
+.course-exam-sections .exam-section-help {
+  max-width: 76ch;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.exam-section-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 10px;
+}
+
+.exam-section-editor > label {
+  display: grid;
+  gap: 5px;
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.exam-section-editor input {
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 9px;
+}
+
+.exam-section-editor > button {
+  min-height: 36px;
+  padding: 7px 11px;
+  font-size: 0.78rem;
+}
+
+.exam-section-editor + .exam-section-list,
+.course-exam-sections .exam-section-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.exam-section-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid #d4e1eb;
+  border-radius: var(--radius-sm);
+  padding: 7px;
+  background: #f8fbfe;
+}
+
+.exam-section-row > label,
+.exam-section-row > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.exam-section-row input {
+  min-width: 0;
+  min-height: 34px;
+  border-color: transparent;
+  padding: 5px 7px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 780;
+}
+
+.exam-section-row input:hover {
+  border-color: #c3d6e5;
+  background: #ffffff;
+}
+
+.exam-section-row input:focus {
+  border-color: var(--primary);
+  background: #ffffff;
+}
+
+.exam-section-row > .button-row,
+.exam-section-row > div:last-child:not(:first-child) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.exam-section-row button {
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 0.73rem;
+}
+
+.exam-section-row button:last-child:not(.primary) {
+  color: #97433b;
+}
+
+.exam-section-row button:last-child:not(.primary):hover:not(:disabled) {
+  border-color: #d99f98;
+  background: #fff5f3;
+  color: var(--danger);
+}
+
+.exam-section-empty {
+  margin: 10px 0 0;
+  border: 1px dashed #c6d6e2;
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  background: #fbfdff;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+/* Allocation lives with the reconstruction, but is intentionally a compact
+   checklist rather than another large configuration panel. */
+.reconstruction-exam-allocation {
+  border-color: #c8dce9;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbfe 100%);
+}
+
+.reconstruction-exam-allocation h4 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.reconstruction-exam-allocation h4::before {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--primary);
+  content: "";
+}
+
+.exam-section-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.exam-section-checkboxes > label {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #cbdbe7;
+  border-radius: 999px;
+  padding: 6px 10px 6px 8px;
+  background: #ffffff;
+  color: var(--text);
+  font-size: 0.79rem;
+  font-weight: 780;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.exam-section-checkboxes > label:hover {
+  border-color: #8db4d1;
+  background: #f7fbfe;
+}
+
+.exam-section-checkboxes > label:has(input:checked) {
+  border-color: #83adcc;
+  background: #eaf4fb;
+  color: var(--primary-dark);
+  box-shadow: inset 0 0 0 1px rgba(31, 95, 145, 0.05);
+}
+
+.exam-section-checkboxes input {
+  width: 15px;
+  min-width: 15px;
+  height: 15px;
+}
+
+.reconstruction-exam-allocation .button-row {
+  margin-top: 1px;
+}
+
+.reconstruction-exam-allocation .button-row button {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+}
+
+/* A review can only see the chosen section(s). This control deliberately
+   reads as a boundary before it reads as a filter. */
+.review-scope-selector {
+  min-width: 0;
+  margin: 2px 0 0;
+  border: 1px solid #bfd5e6;
+  border-radius: var(--radius);
+  padding: 10px;
+  background: #f8fbfe;
+}
+
+.review-scope-selector > legend {
+  max-width: calc(100% - 14px);
+  padding: 0 5px;
+  color: var(--primary-dark);
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.review-scope-selector > p {
+  margin: 1px 0 9px;
+  color: var(--muted);
+  font-size: 0.77rem;
+  line-height: 1.42;
+}
+
+.review-scope-options {
+  display: grid;
+  gap: 6px;
+}
+
+.review-scope-option {
+  display: flex;
+  min-width: 0;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d4e1eb;
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  background: #ffffff;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+
+.review-scope-option:hover {
+  border-color: #8db4d1;
+  background: #f7fbfe;
+}
+
+.review-scope-option:has(input:checked),
+.review-scope-option.selected {
+  border-color: #75a6ca;
+  background: #eaf4fb;
+  color: var(--primary-dark);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.review-scope-option input {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+}
+
+.review-scope-option > span,
+.review-scope-option > strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.review-scope-selector > button {
+  min-height: 31px;
+  margin-top: 8px;
+  padding: 5px 8px;
+  border-color: #bed3e4;
+  background: #ffffff;
+  color: var(--primary-dark);
+  font-size: 0.73rem;
+}
+
+.review-scope-summary,
+.review-scope-empty {
+  margin: 9px 0 0;
+  border-radius: var(--radius-sm);
+  padding: 8px 9px;
+  font-size: 0.76rem;
+  font-weight: 760;
+  line-height: 1.4;
+}
+
+.review-scope-summary {
+  border: 1px solid #c9ddec;
+  background: #edf6fc;
+  color: var(--primary-dark);
+}
+
+.review-scope-empty {
+  border: 1px dashed #bdcedb;
+  background: #ffffff;
+  color: #526779;
+}
+
+.review-scope-empty strong,
+.review-scope-summary strong {
+  color: inherit;
+}
+
+.review-scope-selector :focus-visible,
+.course-exam-sections :focus-visible,
+.reconstruction-exam-allocation :focus-visible {
+  outline: 3px solid rgba(31, 95, 145, 0.22);
+  outline-offset: 2px;
+}
+
+:root[data-theme="dark"] .course-exam-sections,
+:root[data-theme="dark"] .exam-section-row,
+:root[data-theme="dark"] .reconstruction-exam-allocation,
+:root[data-theme="dark"] .review-scope-selector {
+  border-color: #3b566a;
+}
+
+:root[data-theme="dark"] .course-exam-sections > summary,
+:root[data-theme="dark"] .review-scope-selector > legend,
+:root[data-theme="dark"] .reconstruction-exam-allocation h4 {
+  color: #b9dafa;
+}
+
+:root[data-theme="dark"] .exam-section-row,
+:root[data-theme="dark"] .review-scope-selector,
+:root[data-theme="dark"] .reconstruction-exam-allocation {
+  background: #172633;
+}
+
+:root[data-theme="dark"] .exam-section-row input,
+:root[data-theme="dark"] .exam-section-row input:hover,
+:root[data-theme="dark"] .exam-section-row input:focus,
+:root[data-theme="dark"] .exam-section-checkboxes > label,
+:root[data-theme="dark"] .review-scope-option,
+:root[data-theme="dark"] .review-scope-selector > button,
+:root[data-theme="dark"] .review-scope-empty {
+  border-color: #3b566a;
+  background: #1d2f3d;
+  color: #edf5fa;
+}
+
+:root[data-theme="dark"] .exam-section-checkboxes > label:hover,
+:root[data-theme="dark"] .review-scope-option:hover {
+  border-color: #6a98ba;
+  background: #233b4b;
+}
+
+:root[data-theme="dark"] .exam-section-checkboxes > label:has(input:checked),
+:root[data-theme="dark"] .review-scope-option:has(input:checked),
+:root[data-theme="dark"] .review-scope-option.selected,
+:root[data-theme="dark"] .review-scope-summary {
+  border-color: #6a98ba;
+  background: #203d50;
+  color: #e5f2fc;
+}
+
+@media (max-width: 640px) {
+  .exam-section-editor {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .exam-section-editor > button {
+    justify-self: start;
+  }
+
+  .exam-section-row {
+    grid-template-columns: 1fr;
+  }
+
+  .exam-section-row > .button-row,
+  .exam-section-row > div:last-child:not(:first-child) {
+    justify-content: flex-start;
+  }
+}
+
 /* Tablet app-bar alignment: the tablet menu has its own three-column layout,
    so keep each control centered after the expanded navigation is inserted. */
 @media (min-width: 761px) and (max-width: 1120px) {
