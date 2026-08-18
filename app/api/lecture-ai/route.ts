@@ -34,6 +34,7 @@ import {
   TEXTBOOK_VISUAL_AUDIT_VERSION,
   normalizeTightTextbookFigureCrop
 } from "../../../lib/textbook-visual-contract";
+import { rankedTitleTextbookMatches } from "../../../lib/textbook-title-retrieval";
 
 export const runtime = "nodejs";
 
@@ -259,23 +260,6 @@ const LECTURE_RECONSTRUCTION_SCHEMA = {
 
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function titleVisualSearchPhrases(title: string) {
-  const ignored = new Set([
-    "analysis", "and", "application", "design", "for", "from", "in", "method", "of", "the", "to", "using", "with"
-  ]);
-  const terms = title.toLowerCase().match(/[a-z0-9]{3,}/g)?.filter((term) => !ignored.has(term)) || [];
-  const phrases = new Set<string>();
-
-  for (let index = 0; index < terms.length - 1; index += 1) {
-    phrases.add(`${terms[index]} ${terms[index + 1]}`);
-  }
-  for (let index = 0; index < terms.length - 2; index += 1) {
-    phrases.add(`${terms[index]} ${terms[index + 1]} ${terms[index + 2]}`);
-  }
-
-  return [...phrases].filter((phrase) => phrase.length >= 9);
 }
 
 function stripNonAudioTimestampPrefixes(text: string) {
@@ -1105,17 +1089,14 @@ export async function POST(request: Request) {
         // path to the chapter that contains the lesson's diagrams (for
         // example, impulse-invariant pole-zero mapping), while the model still
         // decides which source pages actually support the reconstruction.
-        const titlePhrases = titleVisualSearchPhrases(cleanString(body.title));
-        const { data: directTitleMatches } = titlePhrases.length
-          ? await supabase
-              .from("textbook_chunks")
-              .select("content, id, page_end, page_start, textbook_id, textbook_name")
-              .eq("course_id", cleanString(body.courseId))
-              .or(titlePhrases.map((phrase) => `content.ilike.%${phrase}%`).join(","))
-              .limit(MAX_TEXTBOOK_CONTEXT)
-          : { data: [] as unknown[] };
+        const directTitleMatches = await rankedTitleTextbookMatches({
+          courseId: cleanString(body.courseId),
+          limit: MAX_TEXTBOOK_CONTEXT,
+          supabase,
+          title: cleanString(body.title)
+        });
         const combinedTextbookMatches = [
-          ...(Array.isArray(directTitleMatches) ? directTitleMatches : []),
+          ...directTitleMatches,
           ...(Array.isArray(data) ? data : [])
         ] as MatchTextbookChunk[];
         const seenTextbookChunks = new Set<string>();

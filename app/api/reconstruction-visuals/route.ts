@@ -15,6 +15,7 @@ import {
   type TextbookVisualRejection
 } from "../../../lib/textbook-visual-selection";
 import { TEXTBOOK_VISUAL_AUDIT_VERSION } from "../../../lib/textbook-visual-contract";
+import { rankedTitleTextbookMatches } from "../../../lib/textbook-title-retrieval";
 
 export const runtime = "nodejs";
 
@@ -161,23 +162,6 @@ function individualPageRequests(requests: TextbookPageRequest[]) {
   return [...pages.values()];
 }
 
-function titleVisualSearchPhrases(title: string) {
-  const ignored = new Set([
-    "analysis", "and", "application", "design", "for", "from", "in", "method", "of", "the", "to", "using", "with"
-  ]);
-  const terms = title.toLowerCase().match(/[a-z0-9]{3,}/g)?.filter((term) => !ignored.has(term)) || [];
-  const phrases = new Set<string>();
-
-  for (let index = 0; index < terms.length - 1; index += 1) {
-    phrases.add(`${terms[index]} ${terms[index + 1]}`);
-  }
-  for (let index = 0; index < terms.length - 2; index += 1) {
-    phrases.add(`${terms[index]} ${terms[index + 1]} ${terms[index + 2]}`);
-  }
-
-  return [...phrases].filter((phrase) => phrase.length >= 9);
-}
-
 export async function POST(request: Request) {
   const authError = requireAuthenticatedRequest(request);
 
@@ -234,16 +218,13 @@ export async function POST(request: Request) {
     // actually reaches the textbook's impulse-invariant figures instead of
     // merely nearby LTI prose. These pages are source candidates only; every
     // image still faces the independent visual and relevance audits.
-    const titlePhrases = titleVisualSearchPhrases(title);
-    const { data: directTitleMatches } = titlePhrases.length
-      ? await supabase
-          .from("textbook_chunks")
-          .select("page_end, page_start, textbook_id, textbook_name")
-          .eq("course_id", courseId)
-          .or(titlePhrases.map((phrase) => `content.ilike.%${phrase}%`).join(","))
-          .limit(MAX_TEXTBOOK_VISUAL_PAGES)
-      : { data: [] as unknown[] };
-    const directTitlePageRequests = (Array.isArray(directTitleMatches) ? directTitleMatches : [])
+    const directTitleMatches = await rankedTitleTextbookMatches({
+      courseId,
+      limit: MAX_TEXTBOOK_VISUAL_PAGES,
+      supabase,
+      title
+    });
+    const directTitlePageRequests = directTitleMatches
       .map((chunk) => chunk as MatchTextbookChunk)
       .flatMap((chunk) => {
         const textbookId = cleanString(chunk.textbook_id);

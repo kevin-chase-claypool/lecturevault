@@ -38,6 +38,10 @@ const textbookExtractionSource = await readFile(
   new URL("../app/api/textbook/extract/route.ts", import.meta.url),
   "utf8"
 );
+const titleRetrievalSource = await readFile(
+  new URL("../lib/textbook-title-retrieval.ts", import.meta.url),
+  "utf8"
+);
 const visualContractModule = await import(
   "data:text/javascript;base64," + Buffer.from(
     ts.transpileModule(visualContractSource, {
@@ -256,12 +260,16 @@ assert.equal(
   "Native page text and durable visual descriptions must coexist for the same textbook page, and reconstruction context must prefer the visual description when it exists."
 );
 assert.equal(
-  visualRepairRouteSource.includes("titleVisualSearchPhrases") &&
+  visualRepairRouteSource.includes("rankedTitleTextbookMatches") &&
     visualRepairRouteSource.includes("OPENAI_TEXTBOOK_VISUAL_SELECTION_MODEL") &&
-    lectureRouteSource.includes("titleVisualSearchPhrases") &&
-    lectureRouteSource.includes("OPENAI_TEXTBOOK_VISUAL_SELECTION_MODEL"),
+    lectureRouteSource.includes("rankedTitleTextbookMatches") &&
+    lectureRouteSource.includes("OPENAI_TEXTBOOK_VISUAL_SELECTION_MODEL") &&
+    titleRetrievalSource.includes("visualEvidenceBonus") &&
+    titleRetrievalSource.includes(".ilike(\"content\", `%${phrase}%`)") &&
+    !visualRepairRouteSource.includes(".or(titlePhrases") &&
+    !lectureRouteSource.includes(".or(titlePhrases"),
   true,
-  "Visual retrieval must reach title-specific figure pages with a strong visual selector instead of relying only on a long generic transcript embedding."
+  "Visual retrieval must rank title-specific, figure-bearing pages before the render budget instead of relying on an unordered broad text query."
 );
 
 console.log("Textbook visual contract passed.");
