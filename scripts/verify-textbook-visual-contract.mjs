@@ -31,9 +31,29 @@ assert.equal(
   "The reconstruction renderer must not cap inline visuals per explanatory passage."
 );
 assert.equal(
+  rendererSource.includes("const remainingVisuals ="),
+  false,
+  "Source visuals must not fall back to an end-of-document gallery."
+);
+assert.equal(
+  /tokens:\s*\[citation\.inlineAnchor\s*\|\|\s*""\]\s*\.filter\(Boolean\)/.test(rendererSource),
+  true,
+  "Textbook figures must use their exact teaching anchor rather than a page citation fallback."
+);
+assert.equal(
+  rendererSource.includes("REFERENCE_ONLY_VISUAL_SECTIONS"),
+  true,
+  "Source and textbook provenance sections must never accept inline visual placement."
+);
+assert.equal(
   selectionSource.includes("There is no numeric visual quota."),
   true,
   "The visual selector must be explicitly comprehensive for dense source material."
+);
+assert.equal(
+  selectionSource.includes("referenceOnlySection"),
+  true,
+  "The visual selector must not offer provenance sections as figure anchors."
 );
 
 console.log("Textbook visual contract passed.");

@@ -191,9 +191,16 @@ function normalizedCrop(value: NonNullable<VisualSelectionResponse["textbookCita
 function inlineAnchorCandidates(transcriptText: string) {
   const candidates: string[] = [];
   let inDisplayMath = false;
+  let referenceOnlySection = false;
 
   for (const rawLine of transcriptText.split(/\r?\n/)) {
     const line = rawLine.trim();
+
+    const heading = line.match(/^#{1,4}\s+(.+)$/);
+    if (heading) {
+      referenceOnlySection = /^(?:source media used|textbook context used)$/i.test(heading[1].trim());
+      continue;
+    }
 
     if (line === "\\[") {
       inDisplayMath = true;
@@ -206,8 +213,10 @@ function inlineAnchorCandidates(transcriptText: string) {
     }
 
     // ReviewMarkdownPreview renders display math as its own block, so an image
-    // can only be placed reliably beside prose outside that block.
+    // can only be placed reliably beside prose outside that block. Provenance
+    // sections are evidence records, never teaching anchors.
     if (
+      referenceOnlySection ||
       inDisplayMath ||
       line.length < 28 ||
       line.length > 520 ||
@@ -262,7 +271,7 @@ export async function selectTextbookVisualCitations({
         "Be comprehensive rather than minimal: inspect every supplied page and select every distinct qualifying visual that materially supports a different beginner-facing explanation, process, or worked step. There is no numeric visual quota. Dense source material can legitimately need several visuals. You may select multiple figures from one page only when they are separate complete visual elements with distinct instructional value; do not repeat a figure or select a merely decorative visual.",
         "A valid benchmark is Figure 8.5 in Roberts: crop the system-realization block diagram itself, not the textbook page around it. A valid crop must tightly bound one complete figure element with no surrounding explanatory paragraphs, no unrelated equations, no book/page header or footer, and no page margins. Include every arrow, curve, axis, label, and connection that belongs to that figure; leave a small whitespace rim on all four sides so no visual element is cut off. Reject a crop that would show only part of a figure, multiple partial figures, or any diagram element running into a crop edge. Keep a short figure label only if it is inseparable from the diagram.",
         "Never select a book cover, whole page, cropped page, equation, worked calculation, table of text, or paragraph. If the diagram can be written clearly as ordinary KaTeX, do not select it. The crop may cover no more than 48% of the page.",
-        "Choose the anchorIndex for the exact reconstruction paragraph that this visual should appear after. Do not invent anchor text.",
+        "Choose the anchorIndex for the exact Structured Notes, Guided Lesson, Worked Problems, or Common Mistakes paragraph that this visual should appear after. Never choose Source Media Used or Textbook Context Used: those are provenance sections, not explanation.",
         "Use the imageIndex from this manifest. The server, not you, will bind that index to the exact textbook and page:\n" + pageManifest,
         "Use the anchorIndex from this exact paragraph manifest:\n" + anchors.map((anchor, index) => `Anchor ${index + 1}: ${anchor}`).join("\n"),
         "Reconstruction:\n" + transcriptText.slice(0, 18000)

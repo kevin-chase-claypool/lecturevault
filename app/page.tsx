@@ -1029,6 +1029,8 @@ type InlineVisualAid = {
   tokens: string[];
 };
 
+const REFERENCE_ONLY_VISUAL_SECTIONS = /^(?:source media used|textbook context used)$/i;
+
 function SourceLinkedMathPreview({
   text,
   sourceLinks = []
@@ -1105,9 +1107,14 @@ function ReviewMarkdownPreview({
   let numberedItems: string[] = [];
   let mathLines: string[] = [];
   let inDisplayMath = false;
+  let canPlaceVisualAids = true;
   const usedVisualLabels = new Set<string>();
 
   function appendVisualAids(sourceText: string) {
+    if (!canPlaceVisualAids) {
+      return;
+    }
+
     const matches = visualAids.filter((aid) =>
       !usedVisualLabels.has(aid.label) &&
       aid.tokens.some((token) => sourceText.toLowerCase().includes(token.toLowerCase()))
@@ -1128,15 +1135,19 @@ function ReviewMarkdownPreview({
       return;
     }
 
+    const renderedBullets = bullets;
     nodes.push(
       <ul key={`list-${nodes.length}`}>
-        {bullets.map((item, index) => (
+        {renderedBullets.map((item, index) => (
           <li key={`${item}-${index}`}>
             <SourceLinkedMathPreview sourceLinks={sourceLinks} text={stripInlineMarkdown(item)} />
           </li>
         ))}
       </ul>
     );
+    for (const item of renderedBullets) {
+      appendVisualAids(item);
+    }
     bullets = [];
   }
 
@@ -1145,15 +1156,19 @@ function ReviewMarkdownPreview({
       return;
     }
 
+    const renderedNumberedItems = numberedItems;
     nodes.push(
       <ol key={`ordered-list-${nodes.length}`}>
-        {numberedItems.map((item, index) => (
+        {renderedNumberedItems.map((item, index) => (
           <li key={`${item}-${index}`}>
             <SourceLinkedMathPreview sourceLinks={sourceLinks} text={stripInlineMarkdown(item)} />
           </li>
         ))}
       </ol>
     );
+    for (const item of renderedNumberedItems) {
+      appendVisualAids(item);
+    }
     numberedItems = [];
   }
 
@@ -1195,13 +1210,15 @@ function ReviewMarkdownPreview({
     if (heading) {
       flushBullets();
       flushNumberedItems();
+      const headingText = stripInlineMarkdown(heading[2]).trim();
+      canPlaceVisualAids = !REFERENCE_ONLY_VISUAL_SECTIONS.test(headingText);
       const HeadingTag = `h${Math.min(heading[1].length + 2, 5)}` as
         | "h3"
         | "h4"
         | "h5";
       nodes.push(
         <HeadingTag key={`heading-${nodes.length}`}>
-          <SourceLinkedMathPreview sourceLinks={sourceLinks} text={stripInlineMarkdown(heading[2])} />
+          <SourceLinkedMathPreview sourceLinks={sourceLinks} text={headingText} />
         </HeadingTag>
       );
       continue;
@@ -1233,24 +1250,6 @@ function ReviewMarkdownPreview({
 
   flushBullets();
   flushNumberedItems();
-
-  // Textbook visuals either land beside the explanation selected by their
-  // exact anchor or do not render. They must never fall back to a page-style
-  // gallery at the end of a reconstruction.
-  const remainingVisuals = visualAids.filter((aid) => !aid.inlineOnly && !usedVisualLabels.has(aid.label));
-  if (remainingVisuals.length) {
-    nodes.push(
-      <section className="inline-visual-aid-gallery" key="remaining-source-visuals">
-        <h4>Additional source visuals</h4>
-        {remainingVisuals.map((aid) => (
-          <figure className="inline-visual-aid" key={`remaining-${aid.label}`}>
-            <img src={aid.src} alt={aid.alt} loading="lazy" />
-            <figcaption>{aid.label}</figcaption>
-          </figure>
-        ))}
-      </section>
-    );
-  }
 
   return (
     <div className={`guide-rendered${compact ? " compact" : ""}${className ? ` ${className}` : ""}`}>
@@ -9219,62 +9218,6 @@ function EvidenceReferencePanel({
   );
 }
 
-function TextbookVisualInline({
-  citations,
-  textbooks,
-  sourceUrlForTextbook
-}: {
-  citations: TextbookCitationEvidence[];
-  textbooks: CourseTextbook[];
-  sourceUrlForTextbook: (textbook: CourseTextbook) => string;
-}) {
-  const pages = citations
-    .map((citation) => {
-      const textbook = textbooks.find(
-        (entry) => entry.name.trim().toLowerCase() === citation.textbookName.trim().toLowerCase()
-      );
-      if (!textbook) return null;
-      if (!isInlineTextbookVisual(citation)) return null;
-      const sourceUrl = sourceUrlForTextbook(textbook);
-      return { citation, sourceUrl, textbook };
-    })
-    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
-
-  if (!pages.length) return null;
-
-  return (
-    <section className="textbook-visual-inline" aria-label="Embedded textbook visuals">
-      <div className="section-heading compact-heading">
-        <div>
-          <span className="pill">Textbook visuals</span>
-          <h4>Embedded textbook figures</h4>
-        </div>
-        <span>{pages.length} figure{pages.length === 1 ? "" : "s"}</span>
-      </div>
-      <p className="section-note">
-        Figures extracted from the supplied textbooks are embedded directly beside the explanation. The page link preserves source provenance.
-      </p>
-      <div className="textbook-visual-inline-list">
-        {pages.map(({ citation, sourceUrl, textbook }, index) => {
-          const pageLabel = citation.pageEnd && citation.pageEnd !== citation.pageStart
-            ? `pp. ${citation.pageStart}-${citation.pageEnd}`
-            : `p. ${citation.pageStart}`;
-          return (
-            <figure className="textbook-visual-inline-card" key={`${textbook.id}-${citation.pageStart}-${index}`}>
-              <img src={citation.imageDataUrl} alt={`${textbook.name} figure from ${pageLabel}`} loading="lazy" />
-              <figcaption>
-                <strong>{textbook.name}, {pageLabel}</strong>
-                <span>{citation.description || "Visual context for the nearby explanation."}</span>
-                {sourceUrl ? <a href={`${sourceUrl}#page=${citation.pageStart}`} target="_blank" rel="noreferrer">Open source page</a> : null}
-              </figcaption>
-            </figure>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 function ReviewFigureReferences({ figures }: { figures: ReviewFigure[] }) {
   const storageReferences = useMemo(
     () =>
@@ -9671,6 +9614,7 @@ function LectureDetail({
       return src
         ? [{
             alt: figure.description || item?.name || figure.label,
+            inlineOnly: true,
             label: `${figure.label}: ${figure.description || item?.name || "Source visual"}`,
             src,
             tokens: [figure.label, `Figure ${figure.label.replace(/^Fig\.\s*/i, "")}`]
@@ -9684,11 +9628,7 @@ function LectureDetail({
             inlineOnly: true,
             label: `${citation.textbookName}, p. ${citation.pageStart}`,
             src: citation.imageDataUrl,
-            tokens: [
-              citation.inlineAnchor || "",
-              `p. ${citation.pageStart}`,
-              `page ${citation.pageStart}`
-            ].filter(Boolean)
+            tokens: [citation.inlineAnchor || ""].filter(Boolean)
           }]
         : []
     );

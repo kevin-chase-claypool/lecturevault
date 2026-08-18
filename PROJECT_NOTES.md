@@ -1812,3 +1812,10 @@ For archive organization changes, manually verify:
 - Retrieval remains bounded to the most relevant textbook pages so Vercel and model input stay reliable; this is a source-context safety bound, not an arbitrary limit on qualifying inline figures from those pages.
 - Existing generated reconstructions are immutable study artifacts. The improved selection and teaching contract applies when a reconstruction is newly generated or rebuilt.
 - Verification: `node scripts/verify-textbook-visual-contract.mjs`, `pnpm typecheck`, and `pnpm build`.
+
+## 2026-08-18 - Keep source figures inside the lesson flow
+
+- A reconstruction figure now renders only after its exact source-supported teaching anchor. Page labels and provenance text can no longer act as fallback matches, so a figure cannot be appended under `Source Media Used` or `Textbook Context Used`.
+- The visual selector no longer offers provenance sections as possible anchors. Supplied whiteboard/photos and qualifying textbook figures are inline-only; an unanchored visual is omitted rather than placed in an end-of-document gallery.
+- Inline figures also render after a referenced bullet or numbered item, keeping an image next to its explanatory context when the reconstruction uses list-form instruction.
+- Verification: `node scripts/verify-textbook-visual-contract.mjs`, `pnpm typecheck`, and `pnpm build`.
