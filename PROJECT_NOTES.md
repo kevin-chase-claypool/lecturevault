@@ -5,6 +5,7 @@
 - The live repair for **Impulse Invariant Method and Pole-Zero Mapping in Digital Filter Design** correctly re-ran selection but returned no visual because Vercel could not load `@napi-rs/canvas`. The page renderer and embedded-image extractor used webpack-ignored imports, so Next did not trace that declared native dependency into the function.
 - The canvas imports are now traceable, matching the existing `serverExternalPackages` configuration. This restores both rendered-page crops and isolated textbook image extraction in production. No source PDF is reuploaded, copied, or changed.
 - PDF.js is also given an explicit app-level canvas factory. That avoids its internal pnpm-relative `require`, which cannot reliably see the application dependency inside Vercel's traced function bundle.
+- The saved-reconstruction visual refresh now records candidate counts (semantic matches, source pages, rendered pages, embedded assets, selections, and audit approvals) in its production diagnostics. This makes a no-visual result actionable rather than indistinguishable from a renderer failure.
 - The visual contract now explicitly rejects any future return to a webpack-ignored canvas import in either visual extraction or textbook indexing.
 
 ## 2026-08-18 - Preserve Isolated Textbook Figures in Visual Selection

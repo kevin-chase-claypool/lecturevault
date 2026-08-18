@@ -142,6 +142,18 @@ export async function POST(request: Request) {
       embeddedImages: page.images,
       pageImageDataUrl: page.pageImageDataUrl
     }));
+    const visualDiagnostics = {
+      embeddedImageCount: visualPages.reduce((count, page) => count + page.images.length, 0),
+      matchedChunkCount: Array.isArray(data) ? data.length : 0,
+      pageRenderCount: visualPages.filter((page) => Boolean(page.pageImageDataUrl)).length,
+      requestedPageCount: pageRequests.length,
+      retrievedPageCount: visualPages.length,
+      selectionAttempts: [] as Array<{
+        candidateCount: number;
+        selectedCount: number;
+        verifiedCount: number;
+      }>
+    };
     let visualUsage: TokenUsage = {};
     let verifiedCitations: Awaited<ReturnType<typeof verifyTextbookVisualCitations>>["citations"] = [];
 
@@ -180,6 +192,11 @@ export async function POST(request: Request) {
         model: process.env.OPENAI_TEXTBOOK_VISUAL_VERIFICATION_MODEL || DEFAULT_TEXTBOOK_VISUAL_VERIFICATION_MODEL
       });
       visualUsage = addUsage(visualUsage, verification.usage);
+      visualDiagnostics.selectionAttempts.push({
+        candidateCount: textbookCitations.filter((citation) => Boolean(citation.imageDataUrl)).length,
+        selectedCount: selection.citations.length,
+        verifiedCount: verification.citations.length
+      });
 
       if (verification.citations.length) {
         verifiedCitations = verification.citations;
@@ -190,6 +207,7 @@ export async function POST(request: Request) {
       ...citation,
       visualAuditVersion: TEXTBOOK_VISUAL_AUDIT_VERSION
     }));
+    console.info("[reconstruction-visuals] visual diagnostics", visualDiagnostics);
 
     return Response.json({
       evidence: { textbookCitations: usableCitations },
