@@ -32,6 +32,10 @@ import {
 export const runtime = "nodejs";
 
 const DEFAULT_LECTURE_MODEL = "gpt-4.1-mini";
+// A textbook visual needs a strict pixel-level review. Keep that decision
+// independent from the economical lecture-writing model so a weak visual
+// approval cannot publish a page fragment, prose, or cut-off figure.
+const DEFAULT_TEXTBOOK_VISUAL_VERIFICATION_MODEL = "gpt-4.1";
 const DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-transcribe-diarize";
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
 const MAX_IMAGE_INPUTS = 30;
@@ -1161,7 +1165,7 @@ export async function POST(request: Request) {
       const visualVerification = await verifyTextbookVisualCitations({
         candidates: visualCandidates,
         client,
-        model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL
+        model: process.env.OPENAI_TEXTBOOK_VISUAL_VERIFICATION_MODEL || DEFAULT_TEXTBOOK_VISUAL_VERIFICATION_MODEL
       });
       totalUsage = addUsage(totalUsage, usageFromOpenAI(visualVerification.usage));
 

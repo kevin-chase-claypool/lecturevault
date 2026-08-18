@@ -1819,3 +1819,10 @@ For archive organization changes, manually verify:
 - The visual selector no longer offers provenance sections as possible anchors. Supplied whiteboard/photos and qualifying textbook figures are inline-only; an unanchored visual is omitted rather than placed in an end-of-document gallery.
 - Inline figures also render after a referenced bullet or numbered item, keeping an image next to its explanatory context when the reconstruction uses list-form instruction.
 - Verification: `node scripts/verify-textbook-visual-contract.mjs`, `pnpm typecheck`, and `pnpm build`.
+
+## 2026-08-18 - Fail closed on invalid textbook figure crops
+
+- Textbook crop approval is now a structured pixel-level audit, not a single permissive boolean. A visual must be one complete non-KaTeX figure, have no substantial prose/page furniture, no cut-off diagram elements, no unrelated figure fragments, and directly support its exact inline teaching anchor.
+- Table-of-contents regions, exercise text, headers, equations, prose around a figure, and partial diagrams are rejected even when their page is semantically related to the lecture.
+- The visual-verification pass uses `OPENAI_TEXTBOOK_VISUAL_VERIFICATION_MODEL` when configured and otherwise `gpt-4.1`, independently of the economical lecture-generation model. If verification is uncertain or unavailable, no textbook image is displayed.
+- Verification: `node scripts/verify-textbook-visual-contract.mjs`, `pnpm typecheck`, and `pnpm build`.

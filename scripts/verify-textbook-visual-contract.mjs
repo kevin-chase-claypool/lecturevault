@@ -9,6 +9,10 @@ const rendererSource = await readFile(
   new URL("../app/page.tsx", import.meta.url),
   "utf8"
 );
+const lectureRouteSource = await readFile(
+  new URL("../app/api/lecture-ai/route.ts", import.meta.url),
+  "utf8"
+);
 
 assert.equal(
   /maxItems:\s*\d+/.test(selectionSource),
@@ -54,6 +58,31 @@ assert.equal(
   selectionSource.includes("referenceOnlySection"),
   true,
   "The visual selector must not offer provenance sections as figure anchors."
+);
+assert.equal(
+  selectionSource.includes("containsExactlyOneCompleteVisual"),
+  true,
+  "A visual verifier must explicitly audit whether a crop contains one complete visual."
+);
+assert.equal(
+  selectionSource.includes("containsSubstantialProse"),
+  true,
+  "A visual verifier must reject crops dominated by textbook prose or page furniture."
+);
+assert.equal(
+  selectionSource.includes("hasCutOffVisualElements"),
+  true,
+  "A visual verifier must reject truncated diagrams and plots."
+);
+assert.equal(
+  selectionSource.includes("supportsInlineAnchor"),
+  true,
+  "A visual verifier must confirm that each figure supports its exact explanation."
+);
+assert.equal(
+  lectureRouteSource.includes("OPENAI_TEXTBOOK_VISUAL_VERIFICATION_MODEL"),
+  true,
+  "Visual verification must be independently configurable from the lecture-generation model."
 );
 
 console.log("Textbook visual contract passed.");

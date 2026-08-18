@@ -61,6 +61,11 @@ export type TextbookVisualCandidate = TextbookVisualCitation & {
 type VisualVerificationResponse = {
   verdicts?: Array<{
     approved?: unknown;
+    containsExactlyOneCompleteVisual?: unknown;
+    containsSubstantialProse?: unknown;
+    hasCutOffVisualElements?: unknown;
+    hasUnrelatedVisualFragments?: unknown;
+    supportsInlineAnchor?: unknown;
     visualIndex?: unknown;
   }>;
 };
@@ -113,10 +118,23 @@ const TEXTBOOK_VISUAL_VERIFICATION_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["visualIndex", "approved"],
+        required: [
+          "visualIndex",
+          "approved",
+          "containsExactlyOneCompleteVisual",
+          "containsSubstantialProse",
+          "hasCutOffVisualElements",
+          "hasUnrelatedVisualFragments",
+          "supportsInlineAnchor"
+        ],
         properties: {
           visualIndex: { type: "number", minimum: 1 },
-          approved: { type: "boolean" }
+          approved: { type: "boolean" },
+          containsExactlyOneCompleteVisual: { type: "boolean" },
+          containsSubstantialProse: { type: "boolean" },
+          hasCutOffVisualElements: { type: "boolean" },
+          hasUnrelatedVisualFragments: { type: "boolean" },
+          supportsInlineAnchor: { type: "boolean" }
         }
       }
     }
@@ -157,6 +175,19 @@ function parseVisualVerification(value: string): VisualVerificationResponse {
   } catch {
     return {};
   }
+}
+
+function isApprovedVisualVerdict(
+  verdict: NonNullable<VisualVerificationResponse["verdicts"]>[number]
+) {
+  return (
+    verdict.approved === true &&
+    verdict.containsExactlyOneCompleteVisual === true &&
+    verdict.containsSubstantialProse === false &&
+    verdict.hasCutOffVisualElements === false &&
+    verdict.hasUnrelatedVisualFragments === false &&
+    verdict.supportsInlineAnchor === true
+  );
 }
 
 function normalizedCrop(value: NonNullable<VisualSelectionResponse["textbookCitations"]>[number]["imageCrop"]) {
@@ -356,11 +387,12 @@ export async function verifyTextbookVisualCitations({
             type: "input_text",
             text: [
               "Verify each supplied textbook crop before it is displayed inline in a reconstruction.",
-              "Evaluate every candidate independently. Approve every crop whose pixels clearly show one complete, self-contained non-KaTeX visual: a block/signal-flow diagram with connecting structure, schematic, graph or plot with axes/traces, geometry diagram, map/chart, or photo/illustration. Do not impose a numeric approval quota.",
-              "Reject a crop that is prose, a section heading, caption, formula, worked calculation, table of text, book/page furniture, a blank area, or a page fragment. Also reject a crop with any arrow, axis, trace, label, connection, or diagram body cut off by a crop edge; with more than one partial figure; or with unrelated figure fragments. A heading that says 'system block diagram' is not a diagram and must be rejected. Do not infer a figure from surrounding text that is not visible in the crop.",
-              "Figure 8.5's actual Direct Form II block diagram is approvable; a crop of the sentence or heading referring to that figure is not.",
+              "Audit every candidate independently and set every boolean from the crop pixels, not from its page number or description. approved may be true only when all of these are true: containsExactlyOneCompleteVisual; containsSubstantialProse is false; hasCutOffVisualElements is false; hasUnrelatedVisualFragments is false; and supportsInlineAnchor is true.",
+              "containsExactlyOneCompleteVisual is true only for one self-contained non-KaTeX block/signal-flow diagram with connecting structure, schematic, graph/plot with axes/traces, geometry diagram, map/chart, or photo/illustration. A page heading, figure caption, equation, worked calculation, table of text, list of contents, exercise wording, or prose is never a visual. A short title inseparable from the selected diagram is allowed; axis labels, node labels, and callouts do not count as prose.",
+              "containsSubstantialProse is true when the crop includes any paragraph, exercise question, table of contents, chapter/section heading, page header/footer, or other book furniture. hasCutOffVisualElements is true when any intended arrow, axis, trace, label, connection, or diagram body reaches or is cut by a crop edge. hasUnrelatedVisualFragments is true when the crop includes another partial diagram, graph, or illustration. supportsInlineAnchor is true only when the complete visual directly teaches the exact nearby explanation; general topical similarity is not enough.",
+              "Reject a crop whenever any audit condition is uncertain. Figure 8.5's actual Direct Form II block diagram is approvable only if it is fully present; a crop of the heading, prose referring to it, a partial diagram, or a neighboring figure is not. Do not impose a numeric approval quota.",
               "Candidates:\n" + usableCandidates.map((candidate, index) =>
-                `Visual ${index + 1}: ${candidate.visualKind}; ${candidate.description}; ${candidate.whyNotKaTeX}`
+                `Visual ${index + 1}: ${candidate.visualKind}; teaching anchor: ${candidate.inlineAnchor}; selection rationale: ${candidate.description}; non-KaTeX rationale: ${candidate.whyNotKaTeX}`
               ).join("\n")
             ].join("\n\n")
           },
@@ -384,7 +416,7 @@ export async function verifyTextbookVisualCitations({
     });
     const approvedIndexes = new Set(
       (parseVisualVerification(response.output_text).verdicts || [])
-        .filter((verdict) => verdict.approved === true)
+        .filter(isApprovedVisualVerdict)
         .map((verdict) => Math.floor(Number(verdict.visualIndex)) - 1)
         .filter((index) => index >= 0 && index < usableCandidates.length)
     );
