@@ -4278,6 +4278,7 @@ input[type="range"] {
   padding: 9px 10px;
   cursor: pointer;
   list-style: none;
+  transition: background 140ms ease, box-shadow 140ms ease;
 }
 
 .course-section-allocation > summary::-webkit-details-marker {
@@ -4292,6 +4293,20 @@ input[type="range"] {
 
 .course-section-allocation[open] > summary::before {
   content: "–";
+}
+
+.course-section-allocation > summary:hover {
+  background: #f5f9fc;
+}
+
+.course-section-allocation[open] > summary {
+  background: #f8fbfe;
+}
+
+.course-section-allocation > summary:focus-visible,
+.course-section-reconstruction:focus-visible {
+  outline: 3px solid rgba(31, 95, 145, 0.22);
+  outline-offset: -3px;
 }
 
 .course-section-allocation > summary > span:first-of-type {
@@ -4363,6 +4378,7 @@ input[type="range"] {
   background: transparent;
   color: var(--primary-dark);
   text-align: left;
+  box-shadow: none;
 }
 
 .course-section-reconstruction:last-child {
@@ -4371,6 +4387,7 @@ input[type="range"] {
 
 .course-section-reconstruction:hover {
   background: #edf6fc;
+  box-shadow: none;
 }
 
 .course-section-reconstruction > span:first-child {
@@ -4397,6 +4414,7 @@ input[type="range"] {
   flex: 0 0 auto;
   color: var(--primary);
   font-weight: 800;
+  letter-spacing: 0.01em;
 }
 
 /* Allocation lives with the reconstruction, but is intentionally a compact
@@ -4599,6 +4617,7 @@ input[type="range"] {
 }
 
 :root[data-theme="dark"] .course-exam-sections > summary,
+:root[data-theme="dark"] .course-section-allocation-heading h4,
 :root[data-theme="dark"] .review-scope-selector > legend,
 :root[data-theme="dark"] .reconstruction-exam-allocation h4 {
   color: #b9dafa;
@@ -4626,10 +4645,18 @@ input[type="range"] {
 }
 
 :root[data-theme="dark"] .exam-section-checkboxes > label:hover,
+:root[data-theme="dark"] .course-section-allocation > summary:hover,
+:root[data-theme="dark"] .course-section-allocation[open] > summary,
 :root[data-theme="dark"] .course-section-reconstruction:hover,
 :root[data-theme="dark"] .review-scope-option:hover {
   border-color: #6a98ba;
   background: #233b4b;
+}
+
+:root[data-theme="dark"] .course-section-allocation-state {
+  border-color: #517b9a;
+  background: #203d50;
+  color: #d9edfa;
 }
 
 :root[data-theme="dark"] .exam-section-checkboxes > label:has(input:checked),
@@ -4658,6 +4685,38 @@ input[type="range"] {
   .exam-section-row > .button-row,
   .exam-section-row > div:last-child:not(:first-child) {
     justify-content: flex-start;
+  }
+
+  .course-section-allocation > summary {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .course-section-allocation-state {
+    margin-top: 1px;
+  }
+
+  .course-section-reconstruction-list {
+    max-height: min(42dvh, 300px);
+  }
+
+  .course-section-reconstruction {
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .course-section-reconstruction strong {
+    display: -webkit-box;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .course-section-reconstruction > span:last-child {
+    padding-top: 1px;
+    font-size: 0.7rem;
+    text-align: right;
   }
 }
 

@@ -5,7 +5,8 @@
 - The Courses screen now exposes a browse-only allocation view inside each course's Exam Sections disclosure. Each section shows its allocated reconstruction count and expands into a bounded list of those reconstructions.
 - Every row opens that reconstruction directly in Study View. This lets the owner inspect the precise material assigned to an exam without creating, naming, or modifying a review.
 - Review creation remains a distinct New Review workflow; no review is pre-filled or created from the allocation browser.
-- Verification: `pnpm typecheck`; production build and deployment pending this change set.
+- A focused UI pass strengthened expanded-state, keyboard-focus, dark-theme, and narrow-screen behavior for the section browser.
+- Verification: `pnpm typecheck` and `pnpm build`; production deployment pending this change set.
 
 ## 2026-08-18 - Add Rolling Exam Sections and Fail-Closed Review Scope
 
