@@ -14,8 +14,20 @@ const lectureRouteSource = await readFile(
   new URL("../app/api/lecture-ai/route.ts", import.meta.url),
   "utf8"
 );
+const visualRepairRouteSource = await readFile(
+  new URL("../app/api/reconstruction-visuals/route.ts", import.meta.url),
+  "utf8"
+);
 const visualContractSource = await readFile(
   new URL("../lib/textbook-visual-contract.ts", import.meta.url),
+  "utf8"
+);
+const pageEvidenceSource = await readFile(
+  new URL("../lib/textbook-page-evidence.ts", import.meta.url),
+  "utf8"
+);
+const textbookExtractionSource = await readFile(
+  new URL("../app/api/textbook/extract/route.ts", import.meta.url),
   "utf8"
 );
 const visualContractModule = await import(
@@ -32,9 +44,9 @@ assert.equal(
   "Textbook visual selection must not impose a fixed number of visual aids."
 );
 assert.equal(
-  selectionSource.includes("const seenCrops = new Set<string>();"),
+  selectionSource.includes("const seenSources = new Set<string>();"),
   true,
-  "Textbook visual selection must deduplicate exact crops rather than whole textbook pages."
+  "Textbook visual selection must deduplicate exact source visuals rather than whole textbook pages."
 );
 assert.equal(
   selectionSource.includes("new Set(candidates)].slice"),
@@ -151,6 +163,38 @@ assert.equal(
   rendererSource.includes("citation.visualAuditVersion === TEXTBOOK_VISUAL_AUDIT_VERSION"),
   true,
   "The client must fail closed and hide unversioned textbook crops from older reconstructions."
+);
+assert.equal(
+  selectionSource.includes("embeddedImages") &&
+    lectureRouteSource.includes("embeddedImages: page.images") &&
+    visualRepairRouteSource.includes("embeddedImages: page.images") &&
+    pageEvidenceSource.includes("images: await extractEmbeddedImages"),
+  true,
+  "Isolated textbook image assets must reach visual selection in reconstruction and visual-repair flows instead of being discarded after extraction."
+);
+assert.equal(
+  visualRepairRouteSource.includes("visualAuditVersion: TEXTBOOK_VISUAL_AUDIT_VERSION"),
+  true,
+  "Verified repaired textbook figures must carry the current audit version so the fail-closed renderer can display them."
+);
+assert.equal(
+  visualRepairRouteSource.includes("MAX_TEXTBOOK_VISUAL_SELECTION_ATTEMPTS = 2") &&
+    visualRepairRouteSource.includes("retry: attempt === 1"),
+  true,
+  "Refreshing an existing reconstruction must receive the same safe visual-selection retry as a newly generated reconstruction."
+);
+assert.equal(
+  rendererSource.includes("Refresh textbook visual aids") &&
+    rendererSource.includes('fetch("/api/reconstruction-visuals"'),
+  true,
+  "An existing saved reconstruction must expose a source-only visual-aid repair action rather than requiring a duplicate rebuild."
+);
+assert.equal(
+  textbookExtractionSource.includes("OPENAI_TEXTBOOK_VISUAL_INDEX_PAGE_LIMIT || String(MAX_VISUAL_INDEX_PAGES)") &&
+    textbookExtractionSource.includes("alreadyVisuallyIndexedPages") &&
+    textbookExtractionSource.includes("source_kind\", \"visual_index\""),
+  true,
+  "Visual indexing must run by default and a refresh must continue with deferred pages from the existing textbook instead of repeating the first batch."
 );
 
 console.log("Textbook visual contract passed.");

@@ -1,5 +1,14 @@
 # LectureVault Project Notes
 
+## 2026-08-18 - Preserve Isolated Textbook Figures in Visual Selection
+
+- The page-evidence extractor already produced isolated embedded textbook image assets, but the reconstruction and repair routes discarded them before the visual selector ran. This made figure-rich lessons depend entirely on a hard full-page crop path and could return no visual aids.
+- Visual selection now receives both each rendered page (for vector figures that require a tight crop) and each extracted embedded figure. An isolated asset must be selected with no crop and passes the same blind pixel-quality and paragraph-relevance audits as a page crop before it may render inline.
+- This preserves the no-full-page rule: figures still must be a single complete, non-KaTeX visual, contain no substantial prose or unrelated fragments, and directly support their exact instructional paragraph. The visual-repair endpoint now also marks verified evidence with the current audit version so the client can render it.
+- Visual indexing now processes a bounded batch by default and remembers already indexed visual pages. A textbook with deferred visual pages shows **Refresh visual evidence**; each refresh reads the existing Supabase PDF, advances to the next unindexed visual pages, and never creates another storage object.
+- Existing reconstructions now expose **Refresh textbook visual aids** in Study View. It invokes the same source-only selector and audit flow, merges verified inline citations into that saved reconstruction, and never regenerates, uploads, or duplicates its source media.
+- Verification: `node scripts/verify-textbook-visual-contract.mjs`, `pnpm typecheck`, `pnpm build`, and the live Vault regression check for **Impulse Invariant Method and Pole-Zero Mapping in Digital Filter Design**.
+
 ## 2026-08-18 - Recover Source Figures After a Safe-Selection Miss
 
 - Aligned the visual-selector instruction with the server's actual crop contract: a source figure must be an interior crop no larger than 36% of its page. The previous 48% instruction could lead the model to propose a crop that the server then silently discarded.

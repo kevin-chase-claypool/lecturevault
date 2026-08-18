@@ -12,12 +12,21 @@ import {
   selectTextbookVisualCitations,
   verifyTextbookVisualCitations
 } from "../../../lib/textbook-visual-selection";
+import { TEXTBOOK_VISUAL_AUDIT_VERSION } from "../../../lib/textbook-visual-contract";
 
 export const runtime = "nodejs";
 
 const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
 const DEFAULT_LECTURE_MODEL = "gpt-4.1-mini";
+const DEFAULT_TEXTBOOK_VISUAL_VERIFICATION_MODEL = "gpt-4.1";
 const MAX_TEXTBOOK_VISUAL_PAGES = 8;
+const MAX_TEXTBOOK_VISUAL_SELECTION_ATTEMPTS = 2;
+
+type TokenUsage = {
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+};
 
 type MatchTextbookChunk = {
   page_end?: number;
@@ -34,6 +43,14 @@ function cleanString(value: unknown) {
 
 function jsonError(message: string, status: number) {
   return Response.json({ error: message }, { status });
+}
+
+function addUsage(current: TokenUsage, next?: TokenUsage | null): TokenUsage {
+  return {
+    input_tokens: (current.input_tokens || 0) + (next?.input_tokens || 0) || undefined,
+    output_tokens: (current.output_tokens || 0) + (next?.output_tokens || 0) || undefined,
+    total_tokens: (current.total_tokens || 0) + (next?.total_tokens || 0) || undefined
+  };
 }
 
 function validSources(value: unknown): VisualRepairSource[] {
@@ -119,54 +136,70 @@ export async function POST(request: Request) {
       requests: pageRequests.slice(0, MAX_TEXTBOOK_VISUAL_PAGES),
       sources
     });
-    const selection = await selectTextbookVisualCitations({
-      client,
-      model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
-      pages: visualPages.map((page) => ({
-        textbookName: page.textbookName,
-        pageNumber: page.pageNumber,
-        pageImageDataUrl: page.pageImageDataUrl
-      })),
-      transcriptText
-    });
-    const pageByKey = new Map(
-      visualPages.map((page) => [
-        `${page.textbookName.toLowerCase()}:${page.pageNumber}`,
-        page
-      ])
-    );
-    const textbookCitations = await Promise.all(
-      selection.citations.map(async (citation) => {
-        const page = pageByKey.get(`${citation.textbookName.toLowerCase()}:${citation.pageStart}`);
-        const imageDataUrl = page?.pageImageDataUrl && citation.imageCrop
-          ? await cropTextbookFigure({ crop: citation.imageCrop, dataUrl: page.pageImageDataUrl })
-          : undefined;
+    const visualPagesForSelection = visualPages.map((page) => ({
+      textbookName: page.textbookName,
+      pageNumber: page.pageNumber,
+      embeddedImages: page.images,
+      pageImageDataUrl: page.pageImageDataUrl
+    }));
+    let visualUsage: TokenUsage = {};
+    let verifiedCitations: Awaited<ReturnType<typeof verifyTextbookVisualCitations>>["citations"] = [];
 
-        return {
-          ...citation,
-          imageDataUrl: imageDataUrl || undefined,
-          imageFilename: imageDataUrl ? `textbook-figure-p-${citation.pageStart}.jpg` : undefined
-        };
-      })
-    );
-    const verification = await verifyTextbookVisualCitations({
-      candidates: textbookCitations.filter((citation): citation is typeof citation & { imageDataUrl: string } =>
-        Boolean(citation.imageDataUrl)
-      ),
-      client,
-      model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL
-    });
-    const usableCitations = verification.citations;
+    for (let attempt = 0; attempt < MAX_TEXTBOOK_VISUAL_SELECTION_ATTEMPTS; attempt += 1) {
+      const selection = await selectTextbookVisualCitations({
+        client,
+        model: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
+        pages: visualPagesForSelection,
+        retry: attempt === 1,
+        transcriptText
+      });
+      visualUsage = addUsage(visualUsage, selection.usage);
+      const textbookCitations = await Promise.all(
+        selection.citations.map(async (citation) => {
+          const { sourceDataUrl, sourceFilename, sourceKind, ...citationEvidence } = citation;
+          const imageDataUrl = sourceKind === "embedded_image"
+            ? sourceDataUrl
+            : citation.imageCrop
+              ? await cropTextbookFigure({ crop: citation.imageCrop, dataUrl: sourceDataUrl })
+              : undefined;
+
+          return {
+            ...citationEvidence,
+            imageDataUrl: imageDataUrl || undefined,
+            imageFilename: imageDataUrl
+              ? sourceFilename || `textbook-figure-p-${citation.pageStart}.jpg`
+              : undefined
+          };
+        })
+      );
+      const verification = await verifyTextbookVisualCitations({
+        candidates: textbookCitations.filter((citation): citation is typeof citation & { imageDataUrl: string } =>
+          Boolean(citation.imageDataUrl)
+        ),
+        client,
+        model: process.env.OPENAI_TEXTBOOK_VISUAL_VERIFICATION_MODEL || DEFAULT_TEXTBOOK_VISUAL_VERIFICATION_MODEL
+      });
+      visualUsage = addUsage(visualUsage, verification.usage);
+
+      if (verification.citations.length) {
+        verifiedCitations = verification.citations;
+        break;
+      }
+    }
+    const usableCitations = verifiedCitations.map((citation) => ({
+      ...citation,
+      visualAuditVersion: TEXTBOOK_VISUAL_AUDIT_VERSION
+    }));
 
     return Response.json({
       evidence: { textbookCitations: usableCitations },
       transcriptText: ensureTextbookVisualAnchors(transcriptText, usableCitations),
       usage: {
         input_tokens:
-          (embedding.usage?.prompt_tokens || 0) + (selection.usage?.input_tokens || 0) || undefined,
-        output_tokens: (selection.usage?.output_tokens || 0) + (verification.usage?.output_tokens || 0) || undefined,
+          (embedding.usage?.prompt_tokens || 0) + (visualUsage.input_tokens || 0) || undefined,
+        output_tokens: visualUsage.output_tokens,
         total_tokens:
-          (embedding.usage?.total_tokens || 0) + (selection.usage?.total_tokens || 0) + (verification.usage?.total_tokens || 0) || undefined
+          (embedding.usage?.total_tokens || 0) + (visualUsage.total_tokens || 0) || undefined
       }
     });
   } catch (error) {

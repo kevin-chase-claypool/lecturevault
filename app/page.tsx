@@ -2289,6 +2289,7 @@ export default function LectureVaultApp() {
   const [pipelineTitle, setPipelineTitle] = useState("");
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([]);
   const [isLectureGenerating, setIsLectureGenerating] = useState(false);
+  const [isRefreshingTextbookVisuals, setIsRefreshingTextbookVisuals] = useState(false);
   const [isReviewGenerating, setIsReviewGenerating] = useState(false);
   const [isPdfRendering, setIsPdfRendering] = useState(false);
   const [isGptPackageBuilding, setIsGptPackageBuilding] = useState(false);
@@ -3734,6 +3735,173 @@ export default function LectureVaultApp() {
       failPipeline("index", message);
     } finally {
       setTextbookProcessingCourseId("");
+    }
+  }
+
+  async function refreshReconstructionTextbookVisuals(lectureId: string) {
+    const lecture = state.lectures.find((item) => item.id === lectureId);
+    const transcript = state.transcripts.find((item) => item.lectureId === lectureId);
+    const storedTextbooks = state.textbooks
+      .filter(
+        (textbook) =>
+          textbook.courseId === lecture?.courseId &&
+          Boolean(textbook.storageBucket && textbook.storagePath)
+      )
+      .map((textbook) => ({
+        textbookId: textbook.id,
+        name: textbook.name,
+        storageBucket: textbook.storageBucket as string,
+        storagePath: textbook.storagePath as string
+      }));
+    const transcriptText = transcript?.text.trim() || lecture?.summary.trim() || "";
+
+    if (!lecture || !transcriptText) {
+      setStatus("This reconstruction needs saved text before textbook visual aids can be refreshed.");
+      return;
+    }
+
+    if (!storedTextbooks.length) {
+      setStatus("Attach a stored PDF textbook to this course before refreshing visual aids.");
+      return;
+    }
+
+    setIsRefreshingTextbookVisuals(true);
+    startPipeline("Textbook visual aids", [
+      {
+        id: "retrieve",
+        label: "Reading stored textbook evidence",
+        detail: "Using the PDF already attached to this course"
+      },
+      {
+        id: "select",
+        label: "Selecting explanatory figures",
+        detail: "Auditing visuals that cannot be expressed clearly in KaTeX"
+      },
+      {
+        id: "save",
+        label: "Saving reconstruction evidence",
+        detail: "Updating this reconstruction without uploading a file"
+      }
+    ]);
+
+    try {
+      activatePipelineStep("retrieve", `Searching ${storedTextbooks.length} stored textbook${storedTextbooks.length === 1 ? "" : "s"}`);
+      const response = await fetch("/api/reconstruction-visuals", {
+        body: JSON.stringify({
+          courseId: lecture.courseId,
+          textbookSources: storedTextbooks,
+          title: lecture.title,
+          transcriptText
+        }),
+        credentials: "include",
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      });
+      const data = await readApiJson<{
+        evidence?: ReconstructionEvidence;
+        error?: string;
+        transcriptText?: string;
+        usage?: TokenUsage | null;
+      }>(response, "Could not refresh textbook visual aids.");
+      const refreshedCitations = data.evidence?.textbookCitations || [];
+      const refreshedText = data.transcriptText?.trim();
+
+      if (!refreshedText) {
+        throw new Error("The textbook visual service did not return an updated reconstruction.");
+      }
+
+      updatePipelineStep("retrieve", "done", "Stored textbook context searched");
+      activatePipelineStep(
+        "select",
+        refreshedCitations.length
+          ? `${refreshedCitations.length} audited textbook visual${refreshedCitations.length === 1 ? "" : "s"} selected`
+          : "No non-KaTeX textbook visual was selected"
+      );
+      updatePipelineStep("select", "done");
+      activatePipelineStep("save", "Saving refreshed textbook citations");
+
+      setState((current) => {
+        const existingTranscript = current.transcripts.find((item) => item.lectureId === lectureId);
+        const existingCitations = existingTranscript?.evidence?.textbookCitations || [];
+        const refreshedPageKeys = new Set(
+          refreshedCitations.map((citation) =>
+            [
+              citation.textbookName.trim().toLowerCase(),
+              citation.pageStart,
+              citation.pageEnd || citation.pageStart
+            ].join(":")
+          )
+        );
+        const mergedCitations = [
+          ...existingCitations.filter(
+            (citation) =>
+              !refreshedPageKeys.has(
+                [
+                  citation.textbookName.trim().toLowerCase(),
+                  citation.pageStart,
+                  citation.pageEnd || citation.pageStart
+                ].join(":")
+              )
+          ),
+          ...refreshedCitations
+        ];
+
+        const nextTranscript: Transcript = existingTranscript
+          ? {
+              ...existingTranscript,
+              evidence: {
+                ...existingTranscript.evidence,
+                textbookCitations: mergedCitations
+              },
+              text: refreshedText,
+              usage: addTokenUsage(existingTranscript.usage, data.usage)
+            }
+          : {
+              createdAt: new Date().toISOString(),
+              evidence: { textbookCitations: mergedCitations },
+              generatedBy: "openai",
+              id: uid("transcript"),
+              lectureId,
+              segments: splitTranscript(refreshedText),
+              text: refreshedText,
+              usage: data.usage || null
+            };
+
+        return {
+          ...current,
+          transcripts: existingTranscript
+            ? current.transcripts.map((item) =>
+                item.lectureId === lectureId ? nextTranscript : item
+              )
+            : [nextTranscript, ...current.transcripts]
+        };
+      });
+
+      updatePipelineStep(
+        "save",
+        "done",
+        refreshedCitations.length
+          ? `${refreshedCitations.length} audited visual aid${refreshedCitations.length === 1 ? "" : "s"} saved`
+          : "No visual aid met the source and non-KaTeX checks"
+      );
+      completePipeline(
+        refreshedCitations.length
+          ? "Textbook visual aids are now part of this reconstruction."
+          : "The reconstruction was checked; no qualifying textbook visual was added."
+      );
+      setStatus(
+        refreshedCitations.length
+          ? `Refreshed ${refreshedCitations.length} textbook visual aid${refreshedCitations.length === 1 ? "" : "s"} from the stored PDF.`
+          : "No qualifying textbook visual was found; existing source evidence was preserved."
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not refresh textbook visual aids.";
+      setStatus(message);
+      failPipeline("select", message);
+    } finally {
+      setIsRefreshingTextbookVisuals(false);
     }
   }
 
@@ -6892,6 +7060,8 @@ export default function LectureVaultApp() {
                   : "This reconstruction is unallocated and cannot be used in a scoped review."
               );
             }}
+            isRefreshingTextbookVisuals={isRefreshingTextbookVisuals}
+            onRefreshTextbookVisuals={(lectureId) => void refreshReconstructionTextbookVisuals(lectureId)}
           />
         ) : null}
 
@@ -9402,7 +9572,9 @@ function LectureDetail({
   onOpenLecture,
   onBackToVault,
   onUpdateSyllabusMapping,
-  onUpdateExamSectionIds
+  onUpdateExamSectionIds,
+  isRefreshingTextbookVisuals,
+  onRefreshTextbookVisuals
 }: {
   lecture: Lecture;
   courseLabel: (id: string) => string;
@@ -9419,6 +9591,8 @@ function LectureDetail({
   onBackToVault: () => void;
   onUpdateSyllabusMapping: (lectureId: string, mapping: NonNullable<Lecture["syllabusMapping"]>) => void;
   onUpdateExamSectionIds: (lectureId: string, examSectionIds: string[]) => void;
+  isRefreshingTextbookVisuals: boolean;
+  onRefreshTextbookVisuals: (lectureId: string) => void;
 }) {
   const [explorerQuery, setExplorerQuery] = useState("");
   const [explorerSortKey, setExplorerSortKey] = useState<ArchiveSortKey>("date");
@@ -9449,6 +9623,9 @@ function LectureDetail({
     : "";
   const displayedLectureTitle = recoveredTitle || lecture.title;
   const displayedLectureSummary = recoveredSummary || lecture.summary;
+  const storedTextbookCount = textbooks.filter(
+    (textbook) => Boolean(textbook.storageBucket && textbook.storagePath)
+  ).length;
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 1120px)");
@@ -9906,6 +10083,30 @@ function LectureDetail({
             examRelevance: mappingRelevanceDraft,
             rationale: mappingRationaleDraft.trim()
           })}>Save mapping</button>
+        </section>
+
+        <section className="usage-panel reconstruction-textbook-visuals" aria-label="Textbook visual aids">
+          <div>
+            <span className="pill">Textbook visuals</span>
+            <h4>Refresh textbook visual aids</h4>
+            <p>
+              {storedTextbookCount
+                ? `Finds and audits helpful figures from ${storedTextbookCount} PDF textbook${storedTextbookCount === 1 ? "" : "s"} already stored for this course. It never uploads or duplicates a file.`
+                : "Attach a stored PDF textbook to this course to add source-grounded visual aids here."}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={!storedTextbookCount || isRefreshingTextbookVisuals}
+            title={
+              storedTextbookCount
+                ? "Refreshes visual evidence from the textbook PDF already stored in Supabase."
+                : "No stored textbook is attached to this course."
+            }
+            onClick={() => onRefreshTextbookVisuals(lecture.id)}
+          >
+            {isRefreshingTextbookVisuals ? "Refreshing visual aids..." : "Refresh textbook visual aids"}
+          </button>
         </section>
 
         <section className="usage-panel" aria-label="Transcription usage">

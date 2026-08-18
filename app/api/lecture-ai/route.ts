@@ -26,7 +26,7 @@ import {
   isTextbookVisualKind,
   selectTextbookVisualCitations,
   verifyTextbookVisualCitations,
-  type TextbookVisualCitation
+  type TextbookVisualPage
 } from "../../../lib/textbook-visual-selection";
 import {
   TEXTBOOK_VISUAL_AUDIT_VERSION,
@@ -718,18 +718,8 @@ async function selectAndVerifyTextbookVisuals({
   selectionModel: string;
   transcriptText: string;
   verificationModel: string;
-  pages: Array<{
-    textbookName: string;
-    pageNumber: number;
-    pageImageDataUrl?: string;
-  }>;
+  pages: TextbookVisualPage[];
 }) {
-  const visualPageByKey = new Map(
-    pages.map((page) => [
-      `${page.textbookName.toLowerCase()}:${page.pageNumber}`,
-      page
-    ])
-  );
   let usage: TokenUsage = {};
 
   for (let attempt = 0; attempt < MAX_TEXTBOOK_VISUAL_SELECTION_ATTEMPTS; attempt += 1) {
@@ -744,24 +734,22 @@ async function selectAndVerifyTextbookVisuals({
 
     const visualCandidates = (await Promise.all(
       visualSelection.citations.map(async (citation) => {
-        const page = visualPageByKey.get(
-          `${citation.textbookName.toLowerCase()}:${citation.pageStart}`
-        );
-        const imageDataUrl = page?.pageImageDataUrl && citation.imageCrop
-          ? await cropTextbookFigure({ crop: citation.imageCrop, dataUrl: page.pageImageDataUrl })
-          : null;
+        const { sourceDataUrl, sourceFilename, sourceKind, ...citationEvidence } = citation;
+        const imageDataUrl = sourceKind === "embedded_image"
+          ? sourceDataUrl
+          : citation.imageCrop
+            ? await cropTextbookFigure({ crop: citation.imageCrop, dataUrl: sourceDataUrl })
+            : "";
 
         return imageDataUrl
           ? {
-              ...citation,
+              ...citationEvidence,
               imageDataUrl,
-              imageFilename: `textbook-figure-p-${citation.pageStart}.jpg`
+              imageFilename: sourceFilename || `textbook-figure-p-${citation.pageStart}.jpg`
             }
           : null;
       })
-    )).filter((citation): citation is TextbookVisualCitation & { imageDataUrl: string; imageFilename: string } =>
-      Boolean(citation?.imageDataUrl)
-    );
+    )).filter((citation): citation is NonNullable<typeof citation> => Boolean(citation?.imageDataUrl));
     const visualVerification = await verifyTextbookVisualCitations({
       candidates: visualCandidates,
       client,
@@ -1188,13 +1176,14 @@ export async function POST(request: Request) {
     // A dedicated visual pass is the only path that may create a textbook
     // image. It is intentionally selective: no qualifying diagram means no
     // embedded visual, rather than a page crop.
-    if (textbookVisualPages.some((page) => page.pageImageDataUrl)) {
+    if (textbookVisualPages.some((page) => page.pageImageDataUrl || page.images.length)) {
       const textbookVisuals = await selectAndVerifyTextbookVisuals({
         client,
         selectionModel: process.env.OPENAI_LECTURE_MODEL || DEFAULT_LECTURE_MODEL,
         pages: textbookVisualPages.map((page) => ({
           textbookName: page.textbookName,
           pageNumber: page.pageNumber,
+          embeddedImages: page.images,
           pageImageDataUrl: page.pageImageDataUrl
         })),
         transcriptText: artifactTranscriptText,

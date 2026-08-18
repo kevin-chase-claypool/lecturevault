@@ -252,7 +252,7 @@ export async function POST(request: Request) {
       return nativePageText.length < 80 || hasMathVisualRisk(nativePageText);
     }).length;
     const configuredVisualIndexPageLimit = Number.parseInt(
-      process.env.OPENAI_TEXTBOOK_VISUAL_INDEX_PAGE_LIMIT || "0",
+      process.env.OPENAI_TEXTBOOK_VISUAL_INDEX_PAGE_LIMIT || String(MAX_VISUAL_INDEX_PAGES),
       10
     );
     const visualIndexPageLimit = Math.max(
@@ -268,11 +268,9 @@ export async function POST(request: Request) {
       const nativePageText = normalizeText(page.text || "");
       return nativePageText.length < 80 || hasMathVisualRisk(nativePageText);
     });
-    const pagesForVisualIndex = visualCandidates.slice(0, visualIndexPageLimit);
-    const visualIndexDeferredPageCount = Math.max(
-      0,
-      visuallyDependentPageCount - pagesForVisualIndex.length
-    );
+    let pagesForVisualIndex: typeof visualCandidates = [];
+    let visualIndexDeferredPageCount = visuallyDependentPageCount;
+    let alreadyVisuallyIndexedPageCount = 0;
     const wholeDocumentText = parsed.text;
 
     for (const page of pages) {
@@ -348,6 +346,30 @@ export async function POST(request: Request) {
       }
 
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      // A visual index is durable page evidence. On a refresh, continue from
+      // the remaining visual pages instead of rescanning the same first batch.
+      // This lets a large book complete in bounded passes while reusing its one
+      // existing Supabase object.
+      const { data: existingVisualEvidence } = await supabase
+        .from("textbook_page_evidence")
+        .select("page_number")
+        .eq("course_id", courseId)
+        .eq("textbook_id", textbookId)
+        .eq("source_kind", "visual_index");
+      const alreadyVisuallyIndexedPages = new Set(
+        (Array.isArray(existingVisualEvidence) ? existingVisualEvidence : [])
+          .map((record) => Number(record.page_number))
+          .filter(Number.isInteger)
+      );
+      alreadyVisuallyIndexedPageCount = alreadyVisuallyIndexedPages.size;
+      pagesForVisualIndex = visualCandidates
+        .filter((page) => !alreadyVisuallyIndexedPages.has(page.num))
+        .slice(0, visualIndexPageLimit);
+      visualIndexDeferredPageCount = Math.max(
+        0,
+        visuallyDependentPageCount - alreadyVisuallyIndexedPageCount - pagesForVisualIndex.length
+      );
 
       if (pagesForVisualIndex.length) {
         const sourcePdf = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
@@ -475,7 +497,7 @@ export async function POST(request: Request) {
       ).length,
       visualAnalysisUsage,
       visualIndexDeferredPageCount,
-      visuallyIndexedPageCount,
+      visuallyIndexedPageCount: alreadyVisuallyIndexedPageCount + visuallyIndexedPageCount,
       visuallyDependentPageCount
     });
   } catch (error) {

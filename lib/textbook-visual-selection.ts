@@ -6,10 +6,18 @@ import {
 } from "./textbook-visual-contract";
 
 export type TextbookVisualPage = {
+  embeddedImages?: Array<{
+    dataUrl?: string;
+    filename?: string;
+    height?: number;
+    width?: number;
+  }>;
   pageImageDataUrl?: string;
   pageNumber: number;
   textbookName: string;
 };
+
+export type TextbookVisualSourceKind = "page_crop" | "embedded_image";
 
 export type TextbookVisualCitation = {
   description: string;
@@ -20,6 +28,12 @@ export type TextbookVisualCitation = {
   textbookName: string;
   visualKind: TextbookVisualKind;
   whyNotKaTeX: string;
+};
+
+export type TextbookVisualSelectionCitation = TextbookVisualCitation & {
+  sourceDataUrl: string;
+  sourceFilename?: string;
+  sourceKind: TextbookVisualSourceKind;
 };
 
 // These are intentionally limited to visuals that KaTeX cannot usefully
@@ -53,7 +67,7 @@ type VisualSelectionResponse = {
       y?: unknown;
     } | null;
     anchorIndex?: unknown;
-    imageIndex?: unknown;
+    sourceIndex?: unknown;
   }>;
 };
 
@@ -96,23 +110,28 @@ const TEXTBOOK_VISUAL_SELECTION_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["imageIndex", "anchorIndex", "description", "visualKind", "whyNotKaTeX", "imageCrop"],
+        required: ["sourceIndex", "anchorIndex", "description", "visualKind", "whyNotKaTeX", "imageCrop"],
         properties: {
-          imageIndex: { type: "number", minimum: 1 },
+          sourceIndex: { type: "number", minimum: 1 },
           anchorIndex: { type: "number", minimum: 1 },
           description: { type: "string" },
           visualKind: { type: "string", enum: TEXTBOOK_VISUAL_KINDS },
           whyNotKaTeX: { type: "string" },
           imageCrop: {
-            type: "object",
-            additionalProperties: false,
-            required: ["x", "y", "width", "height"],
-            properties: {
-              x: { type: "number", minimum: 0, maximum: 1000 },
-              y: { type: "number", minimum: 0, maximum: 1000 },
-              width: { type: "number", minimum: 90, maximum: 920 },
-              height: { type: "number", minimum: 90, maximum: 920 }
-            }
+            anyOf: [
+              {
+                type: "object",
+                additionalProperties: false,
+                required: ["x", "y", "width", "height"],
+                properties: {
+                  x: { type: "number", minimum: 0, maximum: 1000 },
+                  y: { type: "number", minimum: 0, maximum: 1000 },
+                  width: { type: "number", minimum: 90, maximum: 920 },
+                  height: { type: "number", minimum: 90, maximum: 920 }
+                }
+              },
+              { type: "null" }
+            ]
           }
         }
       }
@@ -179,6 +198,63 @@ const TEXTBOOK_VISUAL_RELEVANCE_SCHEMA = {
 
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+type TextbookVisualSource = {
+  dataUrl: string;
+  filename?: string;
+  pageNumber: number;
+  sourceKey: string;
+  sourceKind: TextbookVisualSourceKind;
+  textbookName: string;
+};
+
+// PDF extraction can expose a figure as an isolated bitmap in addition to a
+// rendered page. Keep both representations: vector diagrams still need a
+// tight page crop, while isolated textbook figures can bypass the fragile crop
+// step and then face the same independent pixel and relevance audits.
+export function textbookVisualSources(pages: TextbookVisualPage[]): TextbookVisualSource[] {
+  return pages.flatMap((page) => {
+    const textbookName = cleanString(page.textbookName);
+    const pageNumber = Number(page.pageNumber);
+
+    if (!textbookName || !Number.isInteger(pageNumber)) {
+      return [];
+    }
+
+    const pageKey = `${textbookName.toLowerCase()}:${pageNumber}`;
+    const sources: TextbookVisualSource[] = [];
+    const pageImageDataUrl = cleanString(page.pageImageDataUrl);
+
+    if (pageImageDataUrl) {
+      sources.push({
+        dataUrl: pageImageDataUrl,
+        pageNumber,
+        sourceKey: `${pageKey}:page`,
+        sourceKind: "page_crop",
+        textbookName
+      });
+    }
+
+    for (const [imageIndex, image] of (page.embeddedImages || []).entries()) {
+      const dataUrl = cleanString(image.dataUrl);
+
+      if (!dataUrl) {
+        continue;
+      }
+
+      sources.push({
+        dataUrl,
+        filename: cleanString(image.filename) || undefined,
+        pageNumber,
+        sourceKey: `${pageKey}:embedded:${imageIndex + 1}`,
+        sourceKind: "embedded_image",
+        textbookName
+      });
+    }
+
+    return sources;
+  });
 }
 
 function parseVisualSelection(value: string): VisualSelectionResponse {
@@ -306,22 +382,24 @@ export async function selectTextbookVisualCitations({
   retry?: boolean;
   transcriptText: string;
 }) {
-  const usablePages = pages.filter(
-    (page) => Boolean(cleanString(page.textbookName)) && Number.isInteger(page.pageNumber) && Boolean(page.pageImageDataUrl)
-  );
+  const usableSources = textbookVisualSources(pages);
 
-  if (!usablePages.length || !cleanString(transcriptText)) {
-    return { citations: [] as TextbookVisualCitation[], usage: undefined };
+  if (!usableSources.length || !cleanString(transcriptText)) {
+    return { citations: [] as TextbookVisualSelectionCitation[], usage: undefined };
   }
 
   const anchors = inlineAnchorCandidates(transcriptText);
 
   if (!anchors.length) {
-    return { citations: [] as TextbookVisualCitation[], usage: undefined };
+    return { citations: [] as TextbookVisualSelectionCitation[], usage: undefined };
   }
 
-  const pageManifest = usablePages
-    .map((page, index) => `Image ${index + 1}: ${page.textbookName}, p. ${page.pageNumber}.`)
+  const sourceManifest = usableSources
+    .map((source, index) =>
+      source.sourceKind === "embedded_image"
+        ? `Source ${index + 1}: isolated embedded textbook figure from ${source.textbookName}, p. ${source.pageNumber}. Use imageCrop: null.`
+        : `Source ${index + 1}: rendered textbook page ${source.textbookName}, p. ${source.pageNumber}. Use a tight imageCrop.`
+    )
     .join("\n");
   const content: ResponseInputMessageContentList = [
     {
@@ -329,21 +407,21 @@ export async function selectTextbookVisualCitations({
       text: [
         "You select only non-KaTeX textbook visuals for a saved engineering/math reconstruction.",
         retry
-          ? "A prior visual pass did not produce any safely displayable figure. Reinspect every supplied page carefully for complete source diagrams, schematics, plots, or illustrations that directly teach the lesson. Do not reuse a broad region: choose a smaller, complete figure crop or return an empty array if none exists."
-          : "Inspect every supplied page carefully before deciding that no visual qualifies.",
-        "Return [] only when no supplied page contains a self-contained block diagram, signal-flow diagram, schematic, graph/plot, geometry diagram, map/chart, or photo/illustration that directly improves intuition. It is correct to return [] for pages containing only prose, equations, worked algebra, tables, or page layouts.",
+          ? "A prior visual pass did not produce any safely displayable figure. Reinspect every supplied source carefully for complete source diagrams, schematics, plots, or illustrations that directly teach the lesson. Do not reuse a broad region: choose a smaller, complete figure crop or return an empty array if none exists."
+          : "Inspect every supplied source carefully before deciding that no visual qualifies.",
+        "Return [] only when no supplied source contains a self-contained block diagram, signal-flow diagram, schematic, graph/plot, geometry diagram, map/chart, or photo/illustration that directly improves intuition. It is correct to return [] for sources containing only prose, equations, worked algebra, tables, or page layouts.",
         "Be comprehensive rather than minimal: inspect every supplied page and select every distinct qualifying visual that materially supports a different beginner-facing explanation, process, or worked step. There is no numeric visual quota. Dense source material can legitimately need several visuals. You may select multiple figures from one page only when they are separate complete visual elements with distinct instructional value; do not repeat a figure or select a merely decorative visual.",
         "A valid benchmark is Figure 8.5 in Roberts: crop the system-realization block diagram itself, not the textbook page around it. A valid crop must tightly bound one complete figure element with no surrounding explanatory paragraphs, no unrelated equations, no book/page header or footer, and no page margins. Include every arrow, curve, axis, label, and connection that belongs to that figure; leave a small whitespace rim on all four sides so no visual element is cut off. Reject a crop that would show only part of a figure, multiple partial figures, or any diagram element running into a crop edge. Keep a short figure label only if it is inseparable from the diagram.",
-        "Never select a book cover, whole page, cropped page, equation, worked calculation, table of text, or paragraph. If the diagram can be written clearly as ordinary KaTeX, do not select it. The crop may cover no more than 36% of the page and must leave at least 24 page-coordinate units of whitespace on every side.",
+        "Never select a book cover, whole page, cropped page, equation, worked calculation, table of text, or paragraph. If the diagram can be written clearly as ordinary KaTeX, do not select it. A rendered-page crop may cover no more than 36% of the page and must leave at least 24 page-coordinate units of whitespace on every side. For an isolated embedded textbook figure, select it only when the asset itself is exactly one complete visual and set imageCrop to null.",
         "Choose the anchorIndex for the exact Structured Notes, Guided Lesson, Worked Problems, or Common Mistakes paragraph that this visual should appear after. Never choose Source Media Used or Textbook Context Used: those are provenance sections, not explanation.",
-        "Use the imageIndex from this manifest. The server, not you, will bind that index to the exact textbook and page:\n" + pageManifest,
+        "Use the sourceIndex from this manifest. The server, not you, will bind that index to the exact textbook asset and page:\n" + sourceManifest,
         "Use the anchorIndex from this exact paragraph manifest:\n" + anchors.map((anchor, index) => `Anchor ${index + 1}: ${anchor}`).join("\n"),
         "Reconstruction:\n" + transcriptText.slice(0, 18000)
       ].join("\n\n")
     },
-    ...usablePages.map((page) => ({
+    ...usableSources.map((source) => ({
       type: "input_image" as const,
-      image_url: page.pageImageDataUrl as string,
+      image_url: source.dataUrl,
       detail: "high" as const
     }))
   ];
@@ -362,29 +440,34 @@ export async function selectTextbookVisualCitations({
     }
   });
   const selected = parseVisualSelection(response.output_text).textbookCitations || [];
-  const seenCrops = new Set<string>();
+  const seenSources = new Set<string>();
   const citations = selected.flatMap((citation) => {
-    const page = usablePages[Math.floor(Number(citation.imageIndex)) - 1];
+    const source = usableSources[Math.floor(Number(citation.sourceIndex)) - 1];
     const inlineAnchor = anchors[Math.floor(Number(citation.anchorIndex)) - 1] || "";
-    const crop = normalizedCrop(citation.imageCrop);
+    const crop = source?.sourceKind === "page_crop" ? normalizedCrop(citation.imageCrop) : null;
     const visualKind = isTextbookVisualKind(citation.visualKind) ? citation.visualKind : null;
     const whyNotKaTeX = cleanString(citation.whyNotKaTeX);
-    const cropKey = page && crop
-      ? `${page.textbookName.toLowerCase()}:${page.pageNumber}:${crop.x}:${crop.y}:${crop.width}:${crop.height}`
-      : "";
+    const isValidSourceSelection = Boolean(source) && (
+      source?.sourceKind === "page_crop"
+        ? Boolean(crop)
+        : citation.imageCrop === null
+    );
 
-    if (!page || !crop || !inlineAnchor || !visualKind || !whyNotKaTeX || seenCrops.has(cropKey)) {
+    if (!source || !isValidSourceSelection || !inlineAnchor || !visualKind || !whyNotKaTeX || seenSources.has(source.sourceKey)) {
       return [];
     }
 
-    seenCrops.add(cropKey);
+    seenSources.add(source.sourceKey);
     return [{
       description: cleanString(citation.description) || "Textbook visual selected to clarify the nearby explanation.",
       imageCrop: crop,
       inlineAnchor,
-      pageEnd: page.pageNumber,
-      pageStart: page.pageNumber,
-      textbookName: page.textbookName,
+      pageEnd: source.pageNumber,
+      pageStart: source.pageNumber,
+      sourceDataUrl: source.dataUrl,
+      sourceFilename: source.filename,
+      sourceKind: source.sourceKind,
+      textbookName: source.textbookName,
       visualKind,
       whyNotKaTeX
     }];
