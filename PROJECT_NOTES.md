@@ -1803,3 +1803,12 @@ For archive organization changes, manually verify:
 - Added an inline textbook-visual section beneath the rendered reconstruction. Each cited page can be expanded in an embedded PDF viewer at the cited page number, making pole-zero plots and other diagrams visible beside the LaTeX explanation instead of only appearing as a text citation.
 - Added targeted generation guidance for pole-zero, stability, frequency-response, transfer-function, and realization topics so the model actively uses relevant supplied diagrams and explains their geometric meaning.
 - Verification: typecheck and production build pass locally.
+
+## 2026-08-18 - Remove artificial reconstruction visual caps
+
+- Reconstruction visual selection now evaluates every qualifying non-KaTeX visual among the retrieved textbook pages. It no longer limits the selector or verifier to three candidates, treats an entire textbook page as a duplicate after one figure, limits possible inline anchors, or stops after two visuals beside one explanatory passage.
+- Repeated or decorative visuals are still rejected. Each displayed image must be a tightly bounded, complete diagram, plot, schematic, illustration, or other visual that KaTeX cannot express clearly; whole pages, broad page crops, prose, equations, and tables remain ineligible.
+- The reconstruction contract now requires beginner-first teaching proportional to source density: mental model, formalism, assumptions, steps, interpretation, edge cases, and source-grounded checks. It explicitly permits every genuinely helpful supplied visual rather than a one-figure default.
+- Retrieval remains bounded to the most relevant textbook pages so Vercel and model input stay reliable; this is a source-context safety bound, not an arbitrary limit on qualifying inline figures from those pages.
+- Existing generated reconstructions are immutable study artifacts. The improved selection and teaching contract applies when a reconstruction is newly generated or rebuilt.
+- Verification: `node scripts/verify-textbook-visual-contract.mjs`, `pnpm typecheck`, and `pnpm build`.

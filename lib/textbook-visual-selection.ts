@@ -75,7 +75,6 @@ const TEXTBOOK_VISUAL_SELECTION_SCHEMA = {
       // Returning no visual is correct whenever the retrieved pages contain
       // only prose, equations, tables, or other content KaTeX already handles.
       minItems: 0,
-      maxItems: 3,
       items: {
         type: "object",
         additionalProperties: false,
@@ -111,7 +110,6 @@ const TEXTBOOK_VISUAL_VERIFICATION_SCHEMA = {
     verdicts: {
       type: "array",
       minItems: 0,
-      maxItems: 3,
       items: {
         type: "object",
         additionalProperties: false,
@@ -224,7 +222,7 @@ function inlineAnchorCandidates(transcriptText: string) {
     candidates.push(line.slice(0, 140).trim());
   }
 
-  return [...new Set(candidates)].slice(0, 24);
+  return [...new Set(candidates)];
 }
 
 export async function selectTextbookVisualCitations({
@@ -260,7 +258,8 @@ export async function selectTextbookVisualCitations({
       type: "input_text",
       text: [
         "You select only non-KaTeX textbook visuals for a saved engineering/math reconstruction.",
-        "Return [] unless a supplied page contains a self-contained block diagram, signal-flow diagram, schematic, graph/plot, geometry diagram, map/chart, or photo/illustration that directly improves intuition. It is correct, and preferred, to return [] for pages containing only prose, equations, worked algebra, tables, or page layouts.",
+        "Return [] only when no supplied page contains a self-contained block diagram, signal-flow diagram, schematic, graph/plot, geometry diagram, map/chart, or photo/illustration that directly improves intuition. It is correct to return [] for pages containing only prose, equations, worked algebra, tables, or page layouts.",
+        "Be comprehensive rather than minimal: inspect every supplied page and select every distinct qualifying visual that materially supports a different beginner-facing explanation, process, or worked step. There is no numeric visual quota. Dense source material can legitimately need several visuals. You may select multiple figures from one page only when they are separate complete visual elements with distinct instructional value; do not repeat a figure or select a merely decorative visual.",
         "A valid benchmark is Figure 8.5 in Roberts: crop the system-realization block diagram itself, not the textbook page around it. A valid crop must tightly bound one complete figure element with no surrounding explanatory paragraphs, no unrelated equations, no book/page header or footer, and no page margins. Include every arrow, curve, axis, label, and connection that belongs to that figure; leave a small whitespace rim on all four sides so no visual element is cut off. Reject a crop that would show only part of a figure, multiple partial figures, or any diagram element running into a crop edge. Keep a short figure label only if it is inseparable from the diagram.",
         "Never select a book cover, whole page, cropped page, equation, worked calculation, table of text, or paragraph. If the diagram can be written clearly as ordinary KaTeX, do not select it. The crop may cover no more than 48% of the page.",
         "Choose the anchorIndex for the exact reconstruction paragraph that this visual should appear after. Do not invent anchor text.",
@@ -290,20 +289,22 @@ export async function selectTextbookVisualCitations({
     }
   });
   const selected = parseVisualSelection(response.output_text).textbookCitations || [];
-  const seen = new Set<string>();
+  const seenCrops = new Set<string>();
   const citations = selected.flatMap((citation) => {
     const page = usablePages[Math.floor(Number(citation.imageIndex)) - 1];
     const inlineAnchor = anchors[Math.floor(Number(citation.anchorIndex)) - 1] || "";
-    const key = page ? `${page.textbookName.toLowerCase()}:${page.pageNumber}` : "";
     const crop = normalizedCrop(citation.imageCrop);
     const visualKind = isTextbookVisualKind(citation.visualKind) ? citation.visualKind : null;
     const whyNotKaTeX = cleanString(citation.whyNotKaTeX);
+    const cropKey = page && crop
+      ? `${page.textbookName.toLowerCase()}:${page.pageNumber}:${crop.x}:${crop.y}:${crop.width}:${crop.height}`
+      : "";
 
-    if (!page || !crop || !inlineAnchor || !visualKind || !whyNotKaTeX || seen.has(key)) {
+    if (!page || !crop || !inlineAnchor || !visualKind || !whyNotKaTeX || seenCrops.has(cropKey)) {
       return [];
     }
 
-    seen.add(key);
+    seenCrops.add(cropKey);
     return [{
       description: cleanString(citation.description) || "Textbook visual selected to clarify the nearby explanation.",
       imageCrop: crop,
@@ -346,7 +347,7 @@ export async function verifyTextbookVisualCitations({
             type: "input_text",
             text: [
               "Verify each supplied textbook crop before it is displayed inline in a reconstruction.",
-              "Approve only when the crop pixels themselves clearly show one complete, self-contained non-KaTeX visual: a block/signal-flow diagram with connecting structure, schematic, graph or plot with axes/traces, geometry diagram, map/chart, or photo/illustration.",
+              "Evaluate every candidate independently. Approve every crop whose pixels clearly show one complete, self-contained non-KaTeX visual: a block/signal-flow diagram with connecting structure, schematic, graph or plot with axes/traces, geometry diagram, map/chart, or photo/illustration. Do not impose a numeric approval quota.",
               "Reject a crop that is prose, a section heading, caption, formula, worked calculation, table of text, book/page furniture, a blank area, or a page fragment. Also reject a crop with any arrow, axis, trace, label, connection, or diagram body cut off by a crop edge; with more than one partial figure; or with unrelated figure fragments. A heading that says 'system block diagram' is not a diagram and must be rejected. Do not infer a figure from surrounding text that is not visible in the crop.",
               "Figure 8.5's actual Direct Form II block diagram is approvable; a crop of the sentence or heading referring to that figure is not.",
               "Candidates:\n" + usableCandidates.map((candidate, index) =>

@@ -1112,7 +1112,7 @@ function ReviewMarkdownPreview({
       !usedVisualLabels.has(aid.label) &&
       aid.tokens.some((token) => sourceText.toLowerCase().includes(token.toLowerCase()))
     );
-    for (const aid of matches.slice(0, 2)) {
+    for (const aid of matches) {
       usedVisualLabels.add(aid.label);
       nodes.push(
         <figure className="inline-visual-aid" key={`visual-${aid.label}-${nodes.length}`}>
