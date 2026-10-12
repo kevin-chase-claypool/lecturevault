@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { completedReviewText, reviewInstructions, validateReviewPlan, withLessonSources } from "../../../lib/exam-review-context";
+import { completedReviewText, reviewInstructions, completeReviewPlan, withLessonSources } from "../../../lib/exam-review-context";
 import type { ResponseInputMessageContentList } from "openai/resources/responses/responses";
 import { requireAuthenticatedRequest } from "../../../lib/auth";
 import {
@@ -406,7 +406,7 @@ export async function POST(request: Request) {
       topics?: unknown;
       missingInstructorEvidence?: unknown;
     };
-    const topics = validateReviewPlan(planned, lectures.map(lecture => cleanString(lecture.id)));
+    const topics = completeReviewPlan(planned, lectures);
     const lessons: string[] = new Array(topics.length);
     let nextTopic = 0;
     await Promise.all(Array.from({ length: Math.min(3, topics.length) }, async () => {

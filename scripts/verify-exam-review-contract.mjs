@@ -26,6 +26,11 @@ const guided = context.reviewInstructions('Exam1', 'ENGR-4176', 'Study');
 assert.equal(context.reviewInstructions('Exam1', 'ENGR-4176', guided), guided);
 assert.throws(() => context.validateReviewPlan({ topics: [{ title: 'PMF', lectureIds: ['a'] }] }, ['a', 'b']), /omitted/);
 assert.throws(() => context.validateReviewPlan({ topics: [{ title: 'PMF', lectureIds: ['outside'] }] }, ['a']), /invalid/);
+const sources = Array.from({ length: 16 }, (_, i) => ({ id: `source-${i}`, title: `Lecture ${i}` }));
+const repaired = context.completeReviewPlan({ topics: [{ title: 'Planned topic', lectureIds: ['source-0', 'outside'] }] }, sources);
+assert.equal(new Set(repaired.flatMap(topic => topic.lectureIds)).size, 16);
+assert.equal(repaired.some(topic => topic.lectureIds.includes('outside')), false);
+assert.equal(context.completeReviewPlan({ topics: [] }, sources).length, 16);
 assert.throws(() => context.completedReviewText({ status: 'incomplete', output_text: 'Partial' }), /No partial/);
 const attributed = context.withLessonSources('## Topic: PMF\nExplanation with a differently formatted citation.', [{ title: 'Saved PMF Lecture', date: '2026-09-01' }]);
 assert.match(attributed, /\[Lecture: Saved PMF Lecture, 2026-09-01\]/);
@@ -55,7 +60,7 @@ class FakeOpenAI {
       assert.match(JSON.stringify(options.input), /json/i, 'JSON mode requires JSON in an input message, not only separate instructions');
     }
     const output_text = options.text
-      ? JSON.stringify({ topics: [{ title: 'Counting', lectureIds: ['a'] }, { title: 'PMF', lectureIds: ['b'] }], missingInstructorEvidence: ['Example 3.37 statement missing'] })
+      ? JSON.stringify({ topics: [{ title: 'Counting', lectureIds: ['a'] }], missingInstructorEvidence: ['Example 3.37 statement missing'] })
       : '## Topic lesson\n### Meaning and method\nExplanation with alternate source formatting.\n### Formulas and assumptions\nAssumptions.\n### Worked walkthrough\n1. Substitute.\n2. Calculate.\n### Common mistakes\nMistake.\n### Practice with solution\nQuestion and worked answer.';
     return { status: incomplete && !options.text ? 'incomplete' : 'completed', output_text, usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 } };
   }};

@@ -38,6 +38,30 @@ export function validateReviewPlan(value: unknown, lectureIds: string[]): Review
   return plan;
 }
 
+export function completeReviewPlan(value: unknown, sources: Array<{ id?: string; title?: string }>): ReviewTopic[] {
+  const sourceIds = sources.map(source => source.id?.trim() || '');
+  if (sourceIds.some(id => !id) || new Set(sourceIds).size !== sourceIds.length) {
+    throw new Error('Selected reconstructions have missing or duplicate source IDs.');
+  }
+  const allowed = new Set(sourceIds);
+  const proposed = (value as { topics?: unknown })?.topics;
+  const topics: ReviewTopic[] = Array.isArray(proposed) ? proposed.flatMap(item => {
+    if (!item || typeof item.title !== 'string' || !item.title.trim() || !Array.isArray(item.lectureIds)) return [];
+    const ids = [...new Set<string>(item.lectureIds.filter((id: unknown): id is string => typeof id === 'string' && allowed.has(id)))];
+    return ids.length ? [{ title: item.title.trim(), lectureIds: ids }] : [];
+  }) : [];
+  const covered = new Set(topics.flatMap(topic => topic.lectureIds));
+  for (const source of sources) {
+    const id = source.id!.trim();
+    if (!covered.has(id)) topics.push({
+      title: `${source.title?.trim() || 'Reconstruction'} — all topics and problem methods`,
+      lectureIds: [id]
+    });
+  }
+  // Validate the repaired plan against the authoritative selected source set.
+  return validateReviewPlan({ topics }, sourceIds);
+}
+
 export function completedReviewText(response: { status?: string; output_text: string }) {
   if (response.status !== 'completed' || !response.output_text.trim()) {
     throw new Error('AI review output was incomplete or reached its output limit. No partial review was saved. Retry or narrow the review scope.');

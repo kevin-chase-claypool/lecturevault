@@ -1,5 +1,11 @@
 # LectureVault Project Notes
 
+## 2026-10-12 - Repair Omitted Reconstruction Coverage Automatically
+
+- Review planning is advisory: the application filters proposed source IDs against the selected, allocated records and adds a full-coverage lesson for every omitted reconstruction. Empty plans fall back to one lesson per saved reconstruction instead of asking the owner to rerun generation.
+- The repaired plan is validated against the authoritative source set before lesson generation. Out-of-scope IDs never become lesson inputs, and complete-output/teaching checks remain in place.
+- Regression checks cover a 16-source plan with omissions and an invented source ID, plus end-to-end generation where the mock planner omits one of two selected reconstructions.
+
 ## 2026-10-12 - Preserve Source Attribution Across Citation Formats
 
 - Removed the exact `[Lecture:` substring gate that rejected complete topic lessons when the model used other citation formatting. Each lesson now receives explicit attribution built from its validated reconstruction IDs, titles, and dates; generated inline citations remain intact.
