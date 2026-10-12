@@ -1,5 +1,11 @@
 # LectureVault Project Notes
 
+## 2026-10-12 - Preserve Source Attribution Across Citation Formats
+
+- Removed the exact `[Lecture:` substring gate that rejected complete topic lessons when the model used other citation formatting. Each lesson now receives explicit attribution built from its validated reconstruction IDs, titles, and dates; generated inline citations remain intact.
+- Attribution explicitly identifies the source reconstructions supplied for a lesson without pretending to verify individual claims. Complete-output and required-teaching-section checks still prevent partial reviews from replacing saved content.
+- Regression coverage includes a completed lesson without the formerly required citation prefix and verifies that its actual source titles appear in the saved packet.
+
 ## 2026-10-12 - Fix Review Planner JSON Mode Input
 
 - Added the JSON output requirement directly to the review planner's user input message. OpenAI JSON mode rejected the request when JSON appeared only in the separate instructions field.

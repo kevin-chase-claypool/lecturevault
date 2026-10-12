@@ -44,3 +44,12 @@ export function completedReviewText(response: { status?: string; output_text: st
   }
   return response.output_text.trim();
 }
+
+export function withLessonSources(text: string, sources: Array<{ title?: string; date?: string }>) {
+  const citations = sources.map(source => `[Lecture: ${source.title?.trim() || 'Untitled lecture'}${source.date?.trim() ? `, ${source.date.trim()}` : ''}]`);
+  const attribution = `Source reconstructions provided for this lesson: ${citations.join('; ')}.`;
+  const lines = text.split('\n');
+  const heading = lines.findIndex(line => /^##\s/.test(line));
+  lines.splice(heading >= 0 ? heading + 1 : 0, 0, '', attribution, '');
+  return lines.join('\n');
+}

@@ -27,6 +27,9 @@ assert.equal(context.reviewInstructions('Exam1', 'ENGR-4176', guided), guided);
 assert.throws(() => context.validateReviewPlan({ topics: [{ title: 'PMF', lectureIds: ['a'] }] }, ['a', 'b']), /omitted/);
 assert.throws(() => context.validateReviewPlan({ topics: [{ title: 'PMF', lectureIds: ['outside'] }] }, ['a']), /invalid/);
 assert.throws(() => context.completedReviewText({ status: 'incomplete', output_text: 'Partial' }), /No partial/);
+const attributed = context.withLessonSources('## Topic: PMF\nExplanation with a differently formatted citation.', [{ title: 'Saved PMF Lecture', date: '2026-09-01' }]);
+assert.match(attributed, /\[Lecture: Saved PMF Lecture, 2026-09-01\]/);
+assert.ok(attributed.indexOf('[Lecture:') < attributed.indexOf('Explanation'));
 
 const pdf = load('app/api/exam-review/pdf/route.ts', {
   '../../../../lib/exam-review-context': context,
@@ -53,7 +56,7 @@ class FakeOpenAI {
     }
     const output_text = options.text
       ? JSON.stringify({ topics: [{ title: 'Counting', lectureIds: ['a'] }, { title: 'PMF', lectureIds: ['b'] }], missingInstructorEvidence: ['Example 3.37 statement missing'] })
-      : '## Topic lesson\n### Meaning and method\nExplanation [Lecture: source, date].\n### Formulas and assumptions\nAssumptions.\n### Worked walkthrough\n1. Substitute.\n2. Calculate.\n### Common mistakes\nMistake.\n### Practice with solution\nQuestion and worked answer.';
+      : '## Topic lesson\n### Meaning and method\nExplanation with alternate source formatting.\n### Formulas and assumptions\nAssumptions.\n### Worked walkthrough\n1. Substitute.\n2. Calculate.\n### Common mistakes\nMistake.\n### Practice with solution\nQuestion and worked answer.';
     return { status: incomplete && !options.text ? 'incomplete' : 'completed', output_text, usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 } };
   }};
 }
@@ -80,6 +83,8 @@ assert.equal(calls.length, 3);
 assert.equal(data.usage.total_tokens, 90);
 assert.match(data.text, /Source gaps to verify/);
 assert.match(data.instructions, /Assignment 3/);
+assert.match(data.text, /\[Lecture: Counting\]/);
+assert.match(data.text, /\[Lecture: PMF\]/);
 assert.doesNotMatch(JSON.stringify(calls), /OUTSIDE_SCOPE/);
 const imageCall = calls.find(call => JSON.stringify(call.input).includes('input_image'));
 assert.ok(imageCall);

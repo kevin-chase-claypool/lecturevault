@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { completedReviewText, reviewInstructions, validateReviewPlan } from "../../../lib/exam-review-context";
+import { completedReviewText, reviewInstructions, validateReviewPlan, withLessonSources } from "../../../lib/exam-review-context";
 import type { ResponseInputMessageContentList } from "openai/resources/responses/responses";
 import { requireAuthenticatedRequest } from "../../../lib/auth";
 import {
@@ -466,8 +466,9 @@ export async function POST(request: Request) {
         for (const heading of ["Meaning and method", "Formulas and assumptions", "Worked walkthrough", "Common mistakes", "Practice with solution"]) {
           if (!lesson.includes(`### ${heading}`)) throw new Error(`Review topic "${topic.title}" is missing ${heading}. No partial review was saved.`);
         }
-        if (!lesson.includes("[Lecture:")) throw new Error(`Review topic "${topic.title}" is missing source citations. No partial review was saved.`);
-        lessons[index] = lesson;
+        // Source attribution comes from validated source IDs, not a brittle
+        // substring check against the model's choice of citation formatting.
+        lessons[index] = withLessonSources(lesson, topicLectures);
       }
     }));
     const gaps = Array.isArray(planned.missingInstructorEvidence)
