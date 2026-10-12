@@ -13,7 +13,8 @@ import {
 } from "../../../lib/textbook-page-evidence";
 import {
   canonicalTextbookEvidenceText,
-  canonicalTextbookPageEvidence
+  canonicalTextbookPageEvidence,
+  courseAssignmentReviewEvidence
 } from "../../../lib/textbook-canonical-evidence";
 
 export const runtime = "nodejs";
@@ -362,8 +363,11 @@ export async function POST(request: Request) {
       courseId: cleanString(body.courseId),
       requests: textbookCitations
     });
+    const assignments = await courseAssignmentReviewEvidence({ courseId: cleanString(body.courseId), sources: textbookSources });
+    const evidenceByPage = new Map(canonicalTextbookEvidence.evidence.map(page => [`${page.textbookId}:${page.pageNumber}`, page]));
+    for (const page of assignments.evidence) evidenceByPage.set(`${page.textbookId}:${page.pageNumber}`, page);
     const textbookVisualPages = await textbookPageEvidence({
-      requests: canonicalTextbookEvidence.pageRequestsNeedingSource,
+      requests: [...canonicalTextbookEvidence.pageRequestsNeedingSource, ...assignments.pageRequestsNeedingSource],
       sources: textbookSources
     });
     const textbookPageManifest = textbookVisualPages
@@ -384,7 +388,8 @@ export async function POST(request: Request) {
       `Exam: ${examName}\nCourse: ${courseName}`,
       `Instructor and user priorities:\n${instructions}`,
       courseStudyProfile ? `Course study profile:\n${courseStudyProfile}` : "",
-      canonicalTextbookEvidenceText(canonicalTextbookEvidence.evidence)
+      canonicalTextbookEvidenceText([...evidenceByPage.values()]),
+      "Course assignments stored in textbook slots are supplied as canonical page evidence. Check their actual problem statements and cross-referenced prerequisite exercises before declaring an instructor exercise missing. Separate printed questions from handwritten solutions; verify the mathematics independently and flag any contradiction. Use assignment filename and PDF page citations. Supplement only topics within the selected reconstruction/exam scope."
     ].filter(Boolean).join("\n\n");
     let planned: { topics?: unknown; missingInstructorEvidence?: unknown };
     if (body.phase === "topic") {

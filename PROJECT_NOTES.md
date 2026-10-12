@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-10-12 - Retrieve Assignments Stored in Course Textbook Slots
+
+- Review planning and every topic request now load all indexed pages from course textbook-slot files named as assignments, homework, worksheets, or problem sets. Previously reviews fetched only pages already cited by selected reconstructions, so uncited assignment problem statements were incorrectly reported missing.
+- Retrieval is restricted by course and supplied textbook IDs, paginates the page index, preserves native/visual records and PDF-page citations, and rechecks pages already marked unclear. Unavailable assignment indexes stop generation with an explicit index message rather than an invented absence claim. Lesson instructions distinguish printed statements from handwritten solutions and require mathematical verification.
+- Live read-only verification found Assignment 3 exercises 3.21 and 3.37 on PDF pages 6 and 9, and Assignment 2's nonsymmetric communication-channel problem on page 8. No assignment files were reuploaded or altered.
+- The review checkpoint version is advanced so old lessons/plans generated without assignment context are not reused. Regression checks require assignment evidence in both planning and lesson inputs; typechecking and deployment builds validate the integration.
+
 ## 2026-10-12 - Resume Review Generation After Connection Interruptions
 
 - New review generation uses a planning request followed by one request per topic, instead of keeping a mobile browser connection open while every topic is generated. Topic requests do not repeat planning or generate other lessons. The existing single-request API remains compatible.

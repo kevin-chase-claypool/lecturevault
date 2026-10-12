@@ -15,6 +15,30 @@ function load(path, mocks = {}, extra = '') {
   return module.exports;
 }
 const context = load('lib/exam-review-context.ts');
+const indexFilters = [];
+const indexRows = [
+  { course_id: 'course', textbook_id: 'assignment3', textbook_name: 'Assignment 3', page_number: 6, source_kind: 'native_text', evidence_text: 'Printed problem 3.21' },
+  { course_id: 'course', textbook_id: 'assignment3', textbook_name: 'Assignment 3', page_number: 6, source_kind: 'visual_index', evidence_text: 'Handwritten solution' },
+  { course_id: 'course', textbook_id: 'assignment3', textbook_name: 'Assignment 3', page_number: 9, source_kind: 'visual_index', evidence_text: 'Printed problem 3.37', requires_visual_verification: true }
+];
+const indexBuilder = {
+  select() { return this; },
+  eq(key, value) { indexFilters.push([key, value]); return this; },
+  in(key, value) { indexFilters.push([key, value]); return this; },
+  order() { return this; },
+  async range(start, end) { return { data: indexRows.slice(start, end + 1), error: null }; }
+};
+const canonical = load('lib/textbook-canonical-evidence.ts', {
+  './supabase-server': { supabaseServerClient: () => ({ from: () => indexBuilder }) }
+});
+const assignmentEvidence = await canonical.courseAssignmentReviewEvidence({ courseId: 'course', sources: [
+  { textbookId: 'assignment3', name: 'Assignment 3.pdf' }, { textbookId: 'largebook', name: 'Probability textbook.pdf' }
+] });
+assert.equal(assignmentEvidence.evidence.length, 2);
+assert.match(assignmentEvidence.evidence[0].evidenceText, /Printed problem 3.21/);
+assert.match(assignmentEvidence.evidence[0].evidenceText, /Handwritten solution/);
+assert.equal(assignmentEvidence.pageRequestsNeedingSource[0].pageStart, 9);
+assert.deepEqual(JSON.parse(JSON.stringify(indexFilters)), [['course_id', 'course'], ['textbook_id', ['assignment3']]]);
 assert.equal(context.referencesFigure('See Fig. 1.', 'Fig. 1'), true);
 assert.equal(context.referencesFigure('Fig. 10', 'Fig. 1'), false);
 assert.equal(context.referencesFigure('Textbook Fig. 1.2', 'Fig. 1'), false);
@@ -70,7 +94,11 @@ const route = load('app/api/exam-review/route.ts', {
   '../../../lib/exam-review-context': context,
   '../../../lib/auth': { requireAuthenticatedRequest: () => null },
   '../../../lib/supabase-server': { storageObjectToSignedUrl: async () => 'https://example.com/figure.png' },
-  '../../../lib/textbook-canonical-evidence': { canonicalTextbookPageEvidence: async () => ({ evidence: [], pageRequestsNeedingSource: [] }), canonicalTextbookEvidenceText: () => '' },
+  '../../../lib/textbook-canonical-evidence': {
+    canonicalTextbookPageEvidence: async () => ({ evidence: [], pageRequestsNeedingSource: [] }),
+    courseAssignmentReviewEvidence: async () => ({ evidence: [{ textbookId: 'assignment3', textbookName: 'Assignment 3', pageNumber: 6, evidenceText: 'ASSIGNMENT_EXERCISE_3_21' }], pageRequestsNeedingSource: [] }),
+    canonicalTextbookEvidenceText: evidence => evidence.map(page => page.evidenceText).join('\n')
+  },
   '../../../lib/textbook-page-evidence': { textbookPageEvidence: async () => [] }
 });
 function request() {
@@ -91,6 +119,8 @@ assert.match(data.instructions, /Assignment 3/);
 assert.match(data.text, /\[Lecture: Counting\]/);
 assert.match(data.text, /\[Lecture: PMF\]/);
 assert.doesNotMatch(JSON.stringify(calls), /OUTSIDE_SCOPE/);
+assert.match(JSON.stringify(calls[0].input), /ASSIGNMENT_EXERCISE_3_21/);
+assert.match(JSON.stringify(calls[1].input), /ASSIGNMENT_EXERCISE_3_21/);
 const imageCall = calls.find(call => JSON.stringify(call.input).includes('input_image'));
 assert.ok(imageCall);
 assert.match(JSON.stringify(imageCall.input), /Review-wide image label: Fig\. 1/);
