@@ -292,6 +292,9 @@ export async function POST(request: Request) {
       courseName?: string;
       courseStudyProfile?: string;
       instructions?: string;
+      phase?: "plan" | "topic";
+      topic?: { title?: string; lectureIds?: string[] };
+      topicIndex?: number;
       reviewSectionIds?: string[];
       lectures?: ExamReviewLecture[];
       transcripts?: ExamReviewTranscript[];
@@ -383,6 +386,15 @@ export async function POST(request: Request) {
       courseStudyProfile ? `Course study profile:\n${courseStudyProfile}` : "",
       canonicalTextbookEvidenceText(canonicalTextbookEvidence.evidence)
     ].filter(Boolean).join("\n\n");
+    let planned: { topics?: unknown; missingInstructorEvidence?: unknown };
+    if (body.phase === "topic") {
+      const requested = body.topic;
+      const ids = requested?.lectureIds;
+      if (!cleanString(requested?.title) || !Array.isArray(ids) || !ids.length || ids.some(id => !selectedLectureIds.has(id))) {
+        return jsonError("The requested review topic has an invalid source scope.", 400);
+      }
+      planned = { topics: [{ title: requested!.title, lectureIds: ids }] };
+    } else {
     const planResponse = await client.responses.create({
       model,
       max_output_tokens: 8000,
@@ -402,11 +414,20 @@ export async function POST(request: Request) {
       }]
     });
     addUsage(planResponse.usage);
-    const planned = JSON.parse(completedReviewText(planResponse)) as {
+    planned = JSON.parse(completedReviewText(planResponse)) as {
       topics?: unknown;
       missingInstructorEvidence?: unknown;
     };
-    const topics = completeReviewPlan(planned, lectures);
+    }
+    const topics = body.phase === "topic"
+      ? planned.topics as Array<{ title: string; lectureIds: string[] }>
+      : completeReviewPlan(planned, lectures);
+    const gaps = Array.isArray(planned.missingInstructorEvidence)
+      ? planned.missingInstructorEvidence.filter((item): item is string => typeof item === "string")
+      : [];
+    if (body.phase === "plan") {
+      return Response.json({ topics, gaps, figures, usage, instructions });
+    }
     const lessons: string[] = new Array(topics.length);
     let nextTopic = 0;
     await Promise.all(Array.from({ length: Math.min(3, topics.length) }, async () => {
@@ -421,7 +442,7 @@ export async function POST(request: Request) {
           type: "input_text",
           text: [
             sourceContext,
-            `Write topic ${index + 1}: ${topic.title}.`,
+            `Write topic ${body.phase === "topic" ? cleanNumber(body.topicIndex) + 1 : index + 1}: ${topic.title}.`,
             `Full packet plan:\n${topics.map((item, i) => `${i + 1}. ${item.title}`).join("\n")}`,
             textbookPageManifest,
             buildLectureBundle({
@@ -471,9 +492,9 @@ export async function POST(request: Request) {
         lessons[index] = withLessonSources(lesson, topicLectures);
       }
     }));
-    const gaps = Array.isArray(planned.missingInstructorEvidence)
-      ? planned.missingInstructorEvidence.filter((item): item is string => typeof item === "string")
-      : [];
+    if (body.phase === "topic") {
+      return Response.json({ lesson: lessons[0], usage });
+    }
     const text = [
       `# ${examName} Exam Review`,
       `Course: ${courseName}`,
@@ -487,6 +508,7 @@ export async function POST(request: Request) {
     ].join("\n\n");
     return Response.json({ text, figures, usage, instructions, generatedBy: "openai" });
   } catch (error) {
+    console.error("exam_review_request_failed", { name: error instanceof Error ? error.name : "UnknownError" });
     const message =
       error instanceof Error ? error.message : "Could not generate exam review.";
     return jsonError(message, 500);

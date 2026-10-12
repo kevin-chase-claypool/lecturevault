@@ -11,7 +11,7 @@ function load(path, mocks = {}, extra = '') {
   }).outputText;
   const module = { exports: {} };
   vm.runInNewContext(code, { module, exports: module.exports, require: id => mocks[id] || require(id),
-    Response, Request, URL, Error, process: { env: { OPENAI_API_KEY: 'test-only' } }, console });
+    Response, Request, URL, Error, TextEncoder, Uint8Array, crypto: require('node:crypto').webcrypto, process: { env: { OPENAI_API_KEY: 'test-only' } }, console });
   return module.exports;
 }
 const context = load('lib/exam-review-context.ts');
@@ -98,4 +98,39 @@ incomplete = true;
 const failed = await route.POST(request());
 assert.equal(failed.status, 500);
 assert.match((await failed.json()).error, /No partial review/);
+incomplete = false;
+const phased = await route.POST(new Request('https://example.com/api/exam-review', {
+  method: 'POST', headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ ...await request().json(), phase: 'plan' })
+}));
+const planData = await phased.json();
+assert.equal(planData.topics.length, 2);
+const beforeTopic = calls.length;
+const topicResponse = await route.POST(new Request('https://example.com/api/exam-review', {
+  method: 'POST', headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ ...await request().json(), phase: 'topic', topic: planData.topics[0], topicIndex: 0 })
+}));
+assert.equal(topicResponse.status, 200);
+assert.equal(calls.length, beforeTopic + 1, 'A topic request must never regenerate the plan or other lessons');
+assert.ok((await topicResponse.json()).lesson);
+const client = load('lib/review-generation-client.ts');
+const saved = new Map();
+const storage = { getItem: key => saved.get(key), setItem: (key, value) => saved.set(key, value), removeItem: key => saved.delete(key) };
+const payload = { examName: 'Exam1', courseName: 'Math', lectures: [{ id: 'a', title: 'Counting' }, { id: 'b', title: 'PMF' }] };
+const attempts = [];
+let disconnect = true;
+const fetcher = async (_url, options) => {
+  const body = JSON.parse(options.body);
+  attempts.push(body.phase === 'plan' ? 'plan' : body.topicIndex);
+  if (body.phase === 'plan') return Response.json(planData);
+  if (body.topicIndex === 1 && disconnect) throw new TypeError('Failed to fetch');
+  return Response.json({ lesson: `Completed topic ${body.topicIndex}`, usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 } });
+};
+await assert.rejects(client.generateReviewInSteps({ payload, key: 'exam1', storage, fetcher, onProgress: () => {} }), /connection was interrupted/);
+disconnect = false;
+const resumed = await client.generateReviewInSteps({ payload, key: 'exam1', storage, fetcher, onProgress: () => {} });
+assert.deepEqual(attempts, ['plan', 0, 1, 1]);
+assert.match(resumed.text, /Completed topic 0/);
+assert.match(resumed.text, /Completed topic 1/);
+assert.equal(resumed.usage.total_tokens, 90);
 console.log('Exam review contracts passed: scope, coverage, completion, token aggregation, instructor outline, inline figures, ordered walkthroughs.');

@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-10-12 - Resume Review Generation After Connection Interruptions
+
+- New review generation uses a planning request followed by one request per topic, instead of keeping a mobile browser connection open while every topic is generated. Topic requests do not repeat planning or generate other lessons. The existing single-request API remains compatible.
+- Completed lesson text, topic plans, figure metadata, and cumulative usage are checkpointed in browser storage under the review ID and a SHA-256 source/instruction fingerprint. Rebuild resumes completed lessons when inputs match; changed sources or instructions create a fresh plan. Successful assembly replaces the saved review and clears the checkpoint.
+- The UI shows the current topic and total count. Connection and unreadable-response failures include a resume instruction. App storage can be unavailable/full; the active run still works, but persistence across interruptions then cannot be guaranteed.
+- Regression tests cover phase isolation and a disconnect after the first lesson, followed by a resumed run that does not repeat planning or that lesson. Added safe error-name logging for production diagnosis without printing prompts, source text, or credentials.
+
 ## 2026-10-12 - Repair Omitted Reconstruction Coverage Automatically
 
 - Review planning is advisory: the application filters proposed source IDs against the selected, allocated records and adds a full-coverage lesson for every omitted reconstruction. Empty plans fall back to one lesson per saved reconstruction instead of asking the owner to rerun generation.

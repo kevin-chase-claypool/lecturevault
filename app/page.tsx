@@ -38,6 +38,7 @@ import {
 import { TEXTBOOK_VISUAL_AUDIT_VERSION } from "../lib/textbook-visual-contract";
 import { mergeCollectionState, stableSerialize } from "../lib/state-sync";
 import { ENGINEERING_MATH_EXAM_1_OUTLINE, referencesFigure, reviewInstructions } from "../lib/exam-review-context";
+import { generateReviewInSteps } from "../lib/review-generation-client";
 
 type Screen =
   | "dashboard"
@@ -5095,12 +5096,14 @@ export default function LectureVaultApp() {
     try {
       updatePipelineStep("prepare", "done", "Context package ready");
       activatePipelineStep("generate", "Sending review context to AI");
-      const response = await fetch("/api/exam-review", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({
+      const checkpointKey = `lecturevault-review-progress-v1:${exam.id}`;
+      let progressStorage: Storage | undefined;
+      try { progressStorage = window.localStorage; } catch { /* Browser storage may be disabled. */ }
+      const data = await generateReviewInSteps({
+        key: checkpointKey,
+        storage: progressStorage,
+        onProgress: message => activatePipelineStep("generate", message),
+        payload: {
           courseId: exam.courseId,
           examName: exam.name,
           courseName: courseLabel(exam.courseId),
@@ -5118,21 +5121,8 @@ export default function LectureVaultApp() {
             storageBucket: textbook.storageBucket,
             storagePath: textbook.storagePath
           }))
-        })
+        }
       });
-      const data = (await response.json()) as {
-        text?: string;
-        instructions?: string;
-        figures?: ReviewFigure[];
-        usage?: TokenUsage | null;
-        generatedBy?: "openai" | "local-fallback";
-        error?: string;
-      };
-
-      if (!response.ok || !data.text) {
-        throw new Error(data.error || "Could not generate exam review.");
-      }
-
       updatePipelineStep(
         "generate",
         "done",
@@ -5163,13 +5153,10 @@ export default function LectureVaultApp() {
           )
         ]
       }));
-      setStatus(
-        data.generatedBy === "local-fallback"
-          ? "Review generated locally because OPENAI_API_KEY is not configured."
-          : `AI review generated from selected review-set materials${
+      try { progressStorage?.removeItem(checkpointKey); } catch { /* Saving the review does not depend on checkpoint cleanup. */ }
+      setStatus(`AI review generated from selected review-set materials${
               formatTokenUsage(data.usage) ? ` (${formatTokenUsage(data.usage)})` : ""
-            }.`
-      );
+            }.`);
       completePipeline("Review output saved.");
     } catch (error) {
       const message =
