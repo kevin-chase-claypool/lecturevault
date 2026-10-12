@@ -1,10 +1,12 @@
 import katex from "katex";
+import { referencesFigure } from "../../../../lib/exam-review-context";
 import { requireAuthenticatedRequest } from "../../../../lib/auth";
 import { storageObjectToDataUrl } from "../../../../lib/supabase-server";
 
 export const runtime = "nodejs";
 
 type ReviewFigure = {
+  sourceCaption?: string;
   label?: string;
   lectureTitle?: string;
   name?: string;
@@ -80,12 +82,26 @@ function renderDisplayMath(math: string) {
   }
 }
 
-function renderReviewMarkdown(markdown: string) {
+function renderReviewMarkdown(markdown: string, figures: ReviewFigure[] = []) {
   const lines = normalizeLatexEscapes(markdown).trim().split(/\r?\n/);
   const html: string[] = [];
   let listItems: string[] = [];
+  let listKind: "ul" | "ol" = "ul";
+  const usedFigures = new Set<string>();
+  let canPlaceFigures = true;
   let displayMath: string[] = [];
   let inDisplayMath = false;
+
+  function appendFigures(text: string) {
+    if (!canPlaceFigures) return;
+    for (const figure of figures) {
+      const label = cleanString(figure.label);
+      if (label && !usedFigures.has(label) && referencesFigure(text, label)) {
+        usedFigures.add(label);
+        html.push(figureHtml([figure]));
+      }
+    }
+  }
 
   function flushList() {
     if (!listItems.length) {
@@ -93,10 +109,11 @@ function renderReviewMarkdown(markdown: string) {
     }
 
     html.push(
-      `<ul>${listItems
+      `<${listKind}>${listItems
         .map((item) => `<li>${renderInlineMath(stripMarkdownMarks(item))}</li>`)
-        .join("")}</ul>`
+        .join("")}</${listKind}>`
     );
+    appendFigures(listItems.join("\n"));
     listItems = [];
   }
 
@@ -137,18 +154,32 @@ function renderReviewMarkdown(markdown: string) {
     if (heading) {
       flushList();
       const level = Math.min(heading[1].length + 1, 5);
+      if (heading[1].length <= 2) {
+        canPlaceFigures = !/^(?:Exam Blueprint|Source Map|Figure References|Figure-Guided Review)$/i.test(stripMarkdownMarks(heading[2]));
+      }
       html.push(`<h${level}>${renderInlineMath(stripMarkdownMarks(heading[2]))}</h${level}>`);
       continue;
     }
 
     const bullet = line.match(/^[-*]\s+(.+)$/);
     if (bullet) {
+      if (listKind !== "ul") flushList();
+      listKind = "ul";
       listItems.push(bullet[1]);
+      continue;
+    }
+
+    const numbered = line.match(/^\d+[.)]\s+(.+)$/);
+    if (numbered) {
+      if (listKind !== "ol") flushList();
+      listKind = "ol";
+      listItems.push(numbered[1]);
       continue;
     }
 
     flushList();
     html.push(`<p>${renderInlineMath(stripMarkdownMarks(line))}</p>`);
+    appendFigures(line);
   }
 
   flushList();
@@ -160,12 +191,10 @@ function figureHtml(figures: ReviewFigure[]) {
     return "";
   }
 
-  return `<section class="figures">
-    <h2>Figure References</h2>
-    ${figures
+  return figures
       .map((figure) => {
         const caption = `${cleanString(figure.label) || "Fig."}: ${
-          cleanString(figure.name) || "Board image"
+          cleanString(figure.sourceCaption) || cleanString(figure.name) || "Board image"
         }${
           cleanString(figure.lectureTitle)
             ? ` from ${cleanString(figure.lectureTitle)}`
@@ -181,8 +210,7 @@ function figureHtml(figures: ReviewFigure[]) {
           <figcaption>${escapeHtml(caption)}</figcaption>
         </figure>`;
       })
-      .join("\n")}
-  </section>`;
+      .join("\n");
 }
 
 function sourceLinksHtml(sourceLinks: ReviewSourceLink[]) {
@@ -266,7 +294,7 @@ function buildHtml({
     body {
       color: #142033;
       font-family: Arial, Helvetica, sans-serif;
-      font-size: 8pt;
+      font-size: 10pt;
       line-height: 1.5;
       margin: 0;
     }
@@ -286,11 +314,11 @@ function buildHtml({
     h3, h4, h5 {
       break-after: avoid;
       color: #344054;
-      font-size: 9pt;
+      font-size: 11pt;
       margin: 0.2in 0 0.05in;
     }
     p { margin: 0 0 0.1in; }
-    ul { margin: 0.04in 0 0.14in 0.22in; padding-left: 0.18in; }
+    ul, ol { margin: 0.04in 0 0.14in 0.22in; padding-left: 0.18in; }
     li { margin: 0.04in 0; }
     .meta { color: #526071; font-size: 7pt; margin: -0.1in 0 0.22in; }
     .math-block { margin: 0.14in 0; overflow-wrap: anywhere; }
@@ -298,7 +326,7 @@ function buildHtml({
     figure img {
       border: 1px solid #d0d5dd;
       display: block;
-      max-height: 8in;
+      max-height: 4.5in;
       max-width: 100%;
       object-fit: contain;
     }
@@ -318,8 +346,7 @@ function buildHtml({
 <body>
   <h1>${escapeHtml(title)}</h1>
   <div class="meta">${escapeHtml(courseName)}</div>
-  <main>${renderReviewMarkdown(review)}</main>
-  ${figureHtml(figures)}
+  <main>${renderReviewMarkdown(review, figures)}</main>
   ${sourceLinksHtml(sourceLinks)}
 </body>
 </html>`;

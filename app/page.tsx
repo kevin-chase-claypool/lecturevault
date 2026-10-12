@@ -37,6 +37,7 @@ import {
 } from "../lib/lecture-ai-context";
 import { TEXTBOOK_VISUAL_AUDIT_VERSION } from "../lib/textbook-visual-contract";
 import { mergeCollectionState, stableSerialize } from "../lib/state-sync";
+import { ENGINEERING_MATH_EXAM_1_OUTLINE, referencesFigure, reviewInstructions } from "../lib/exam-review-context";
 
 type Screen =
   | "dashboard"
@@ -326,6 +327,7 @@ type PipelineStep = {
 };
 
 type ReviewFigure = {
+  sourceCaption?: string;
   label: string;
   lectureId: string;
   lectureTitle: string;
@@ -438,7 +440,7 @@ const LEGACY_UNFILED_FOLDER_NAME = "Unfiled";
 const PRO_MEDIA_STORAGE_QUOTA_BYTES = 100 * 1024 * 1024 * 1024;
 const LEGACY_DEMO_COURSE_IDS = new Set(["course-calculus", "course-physics"]);
 const DEFAULT_REVIEW_CONTEXT =
-  "Prioritize high-yield concepts, formulas, worked problem patterns, common mistakes, and a practice checklist.";
+  "Teach every topic in the selected reconstructions concisely but thoroughly: explain methods and assumptions, give step-by-step worked problems with source citations and inline figures, and include practice with explained solutions and common mistakes.";
 const MAX_INLINE_IMAGE_DIMENSION = 1600;
 const INLINE_IMAGE_QUALITY = 0.78;
 const SAMPLE_GAUSS_BOARD_DATA_URL =
@@ -1065,6 +1067,7 @@ type EvidenceTextLink = {
 };
 
 type InlineVisualAid = {
+  exactLabel?: boolean;
   alt: string;
   inlineOnly?: boolean;
   label: string;
@@ -1160,7 +1163,9 @@ function ReviewMarkdownPreview({
 
     const matches = visualAids.filter((aid) =>
       !usedVisualLabels.has(aid.label) &&
-      aid.tokens.some((token) => sourceText.toLowerCase().includes(token.toLowerCase()))
+      aid.tokens.some((token) => aid.exactLabel
+        ? referencesFigure(sourceText, token)
+        : sourceText.toLowerCase().includes(token.toLowerCase()))
     );
     for (const aid of matches) {
       usedVisualLabels.add(aid.label);
@@ -1254,7 +1259,7 @@ function ReviewMarkdownPreview({
       flushBullets();
       flushNumberedItems();
       const headingText = stripInlineMarkdown(heading[2]).trim();
-      canPlaceVisualAids = !REFERENCE_ONLY_VISUAL_SECTIONS.test(headingText);
+      canPlaceVisualAids = !REFERENCE_ONLY_VISUAL_SECTIONS.test(headingText) && !/^(?:Exam Blueprint|Source Map|Figure References|Figure-Guided Review)$/i.test(headingText);
       const HeadingTag = `h${Math.min(heading[1].length + 2, 5)}` as
         | "h3"
         | "h4"
@@ -1427,6 +1432,7 @@ function buildReviewFigures(lectures: Lecture[], mediaItems: MediaItem[]) {
         lectureId: item.lectureId,
         lectureTitle: lecture?.title || "Untitled lecture",
         name: item.name || `Board image ${index}`,
+        sourceCaption: item.sourceCaption,
         dataUrl: embeddedDataUrlForMedia(item),
         mimeType: item.mimeType,
         storageBucket: item.storageBucket,
@@ -5048,7 +5054,7 @@ export default function LectureVaultApp() {
       }
     ]);
     setStatus("Generating AI review from selected review-set materials...");
-    const submittedContext = context.trim();
+    const submittedContext = reviewInstructions(exam.name, courseLabel(exam.courseId), context.trim());
 
     const selectedConcepts = state.concepts.filter((concept) =>
       sourceLectureIds.includes(concept.lectureId)
@@ -5116,6 +5122,7 @@ export default function LectureVaultApp() {
       });
       const data = (await response.json()) as {
         text?: string;
+        instructions?: string;
         figures?: ReviewFigure[];
         usage?: TokenUsage | null;
         generatedBy?: "openai" | "local-fallback";
@@ -5141,7 +5148,7 @@ export default function LectureVaultApp() {
         figures: data.figures?.length
           ? data.figures
           : buildReviewFigures(selectedLectures, reviewMediaItems),
-        instructions: submittedContext,
+        instructions: data.instructions || submittedContext,
         generatedBy: data.generatedBy || "openai",
         usage: data.usage || null,
         createdAt: new Date().toISOString()
@@ -5195,7 +5202,7 @@ export default function LectureVaultApp() {
         selectedMediaItems
       );
       const figures = stripLargeFigureDataUrls(
-        currentFigures.length ? currentFigures : guide.figures || []
+        guide.figures?.length ? guide.figures : currentFigures
       );
       const selectedTranscripts = state.transcripts.filter((transcript) =>
         sourceLectureIds.includes(transcript.lectureId)
@@ -5224,16 +5231,14 @@ export default function LectureVaultApp() {
       for (const transcript of selectedTranscripts) {
         const evidence = evidenceForTranscript(transcript, selectedMediaItems);
 
-        for (const figure of evidence.figures) {
-          const media = selectedMediaItems.find((item) => item.id === figure.mediaItemId);
-          if (media?.storagePath) {
-            addSourceLink(
-              figure.label,
-              { bucket: media.storageBucket, path: media.storagePath },
-              figure.description || media.name
-            );
-          }
+        for (const figure of figures.filter(item => item.lectureId === transcript.lectureId)) {
+          if (figure.storagePath) addSourceLink(
+            figure.label,
+            { bucket: figure.storageBucket, path: figure.storagePath },
+            `${figure.sourceCaption || figure.name} — ${figure.lectureTitle}`
+          );
         }
+
 
         for (const clip of evidence.audioClips) {
           const media = selectedMediaItems.find((item) => item.id === clip.mediaItemId);
@@ -7695,6 +7700,14 @@ export default function LectureVaultApp() {
                       placeholder="Prioritize high-yield concepts, formulas, worked problem patterns, common mistakes, and a practice checklist."
                     />
                   </label>
+                  <button type="button" onClick={() => setExamForm((current) => ({
+                    ...current,
+                    context: current.context.includes("Instructor Exam 1 outline")
+                      ? current.context
+                      : `${current.context}\n\n${ENGINEERING_MATH_EXAM_1_OUTLINE}`.trim()
+                  }))}>
+                    Add engineering math Exam 1 outline
+                  </button>
                   <div className="review-draft-source-list" aria-label="Selected reconstructions">
                     <div className="review-draft-source-heading">
                       <strong>Selected reconstructions</strong>
@@ -8066,6 +8079,12 @@ export default function LectureVaultApp() {
             selectedGuide={selectedExamGuide}
             isRenderingPdf={isPdfRendering}
             isBuildingGptPackage={isGptPackageBuilding}
+            isRegenerating={isReviewGenerating}
+            onRegenerate={() => generateGuideFor(
+              selectedExam,
+              selectedExamLectures.filter(lecture => (lecture.examSectionIds || []).some(id => selectedExam.examSectionIds?.includes(id))),
+              selectedExamGuide?.instructions || selectedExam.context || DEFAULT_REVIEW_CONTEXT
+            )}
             pdfStatus={reviewPdfStatus}
             courseLabel={courseLabel}
             onDownloadPdf={downloadExamReviewPdf}
@@ -9488,6 +9507,30 @@ function EvidenceReferencePanel({
   );
 }
 
+function ReviewStudyPreview({ text, figures }: { text: string; figures: ReviewFigure[] }) {
+  const references = useMemo(() => figures.filter(figure => figure.storagePath).map(figure => ({
+    bucket: figure.storageBucket, path: figure.storagePath
+  })), [figures]);
+  const signedUrls = useSignedStorageUrls(references);
+  const teachingText = text.split(/\n## Source Map\b/i)[0];
+  const visualAids: InlineVisualAid[] = figures.flatMap(figure => {
+    const src = figure.storagePath
+      ? signedUrls.get(storageReferenceKey({ bucket: figure.storageBucket, path: figure.storagePath }))
+      : figure.dataUrl;
+    return src ? [{
+      src,
+      exactLabel: true,
+      tokens: [figure.label],
+      label: `${figure.label}: ${figure.sourceCaption || figure.name} — ${figure.lectureTitle}`,
+      alt: `${figure.label}: ${figure.sourceCaption || figure.name}`
+    }] : [];
+  });
+  return <>
+    <ReviewMarkdownPreview className="review-generated-output" text={text} visualAids={visualAids} />
+    <ReviewFigureReferences figures={figures.filter(figure => !referencesFigure(teachingText, figure.label))} />
+  </>;
+}
+
 function ReviewFigureReferences({ figures }: { figures: ReviewFigure[] }) {
   const storageReferences = useMemo(
     () =>
@@ -10404,6 +10447,8 @@ function ExamDetail({
   selectedGuide,
   isRenderingPdf,
   isBuildingGptPackage,
+  isRegenerating,
+  onRegenerate,
   pdfStatus,
   courseLabel,
   onDownloadPdf,
@@ -10421,6 +10466,8 @@ function ExamDetail({
   selectedGuide?: StudyGuide;
   isRenderingPdf: boolean;
   isBuildingGptPackage: boolean;
+  isRegenerating: boolean;
+  onRegenerate: () => Promise<void>;
   pdfStatus: string;
   courseLabel: (id: string) => string;
   onDownloadPdf: () => void | Promise<void>;
@@ -10634,8 +10681,7 @@ function ExamDetail({
               </div>
               <span>{new Date(selectedGuide.createdAt).toLocaleString()}</span>
             </div>
-            <ReviewMarkdownPreview className="review-generated-output" text={selectedGuide.content} />
-            <ReviewFigureReferences figures={selectedGuide.figures || []} />
+            <ReviewStudyPreview text={selectedGuide.content} figures={selectedGuide.figures || []} />
           </section>
         ) : (
           <section className="review-preview empty-review-preview" aria-label="No generated review">
@@ -10645,6 +10691,16 @@ function ExamDetail({
         )}
 
         <section className="review-actions" aria-label="Review exports and management">
+          <div className="review-action-card">
+            <div>
+              <strong>Rebuild with topic lessons</strong>
+              <span>Runs AI again using this review's allocated sources and saved instructions. Exam 1 engineering math includes the instructor outline. Replaces the saved review only after every topic completes.</span>
+            </div>
+            <button type="button" onClick={() => void onRegenerate()}
+              disabled={isRegenerating || isRenderingPdf || isBuildingGptPackage || !exam.examSectionIds?.length || !lectures.length}>
+              {isRegenerating ? "Building topic lessons..." : "Rebuild Review"}
+            </button>
+          </div>
           <div className="section-heading">
             <div>
               <span className="pill">Saved review</span>

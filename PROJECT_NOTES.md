@@ -1,5 +1,14 @@
 # LectureVault Project Notes
 
+## 2026-10-12 - Teach Every Review Topic and Place Figures Inline
+
+- Review AI now plans topic coverage across every selected, allocated reconstruction, then writes topic lessons with three concurrent requests. Each topic has its own 8,000-token output allowance rather than sharing one packet-wide response. Incomplete outputs, omitted source IDs, missing lesson sections, missing citations, and missing reconstruction text fail without replacing a saved review. Token usage sums planning and all lesson calls.
+- Lessons require meanings/methods, formulas/assumptions, source-cited worked walkthroughs with intermediate calculations and checks, common mistakes, and practice with explained solutions. The planner groups overlap and flags missing instructor exercise statements instead of inventing them. It uses every saved reconstruction and audio passage; available image evidence is labeled immediately before its model input.
+- Transcribed the supplied OneNote instructor outline into a reusable engineering-math Exam 1 preset: Chapters 1–3, replacement/independence, counting/components, conditional probability and the Assignment 2 communication tree, PMFs, expected value/variance, examples 3.21 and 3.37, and Assignment 3. It automatically accompanies ENGR-4176/Advanced Engineering Math Exam 1, is saved with the generated instructions, and can be added explicitly in New Review.
+- Review viewer and PDF embed each cited review-wide figure once beside its first teaching reference, distinguish Fig. 1 from Fig. 10 and textbook Fig. 1.2, and avoid inserting images into source maps. PDF no longer appends a full image gallery. Unreferenced images remain browsable in the viewer. PDF walkthroughs render ordered lists, use larger readable type, and preserve original image proportions.
+- Past Reviews exposes Rebuild Review using its allocated saved sources and instructions. Regeneration uses AI again; existing saved content survives any failed run. PDF export retains the generated figure numbering rather than assigning new labels from current media.
+- Verification: mocked-provider exam-review regression checks, TypeScript typecheck, and Next.js production build in an ephemeral Vercel Sandbox. Real model output quality still requires rebuilding the saved exam review and inspecting the resulting packet.
+
 ## 2026-10-12 - Widen the Reconstruction Study View
 
 - Desktop and tablet study views now stack study navigation above a full-width reconstruction. Collapsing navigation no longer leaves an empty column beside the reading material. Media, extracted concepts, and Add to Review Draft remain available below the reconstruction instead of taking its reading width.
@@ -1883,4 +1892,3 @@ For archive organization changes, manually verify:
 
 - A whole-set selector is efficient but can confuse textbook prose with a nearby graph when several dense, related pages are shown together. If both normal selection passes fail their pixel audits, the system now inspects each retrieved source independently using the coordinate guide, then attaches only the precisely discovered figures to exact lesson paragraphs.
 - This is a precision fallback, not a source gallery: it still rejects prose, equations, cropped pages, incomplete figures, and irrelevant images through the same blind pixel and relevance audits. There is no output quota; distinct helpful figures on any of the retrieved pages remain eligible.
-
