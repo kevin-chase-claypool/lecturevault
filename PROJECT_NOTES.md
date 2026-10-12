@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-10-12 - Widen the Reconstruction Study View
+
+- Desktop and tablet study views now stack study navigation above a full-width reconstruction. Collapsing navigation no longer leaves an empty column beside the reading material. Media, extracted concepts, and Add to Review Draft remain available below the reconstruction instead of taking its reading width.
+- Existing navigation disclosures, search, sorting, source links, audio, exam allocation, and review actions are unchanged.
+- Added comfortable reading padding, a 60dvh minimum reading surface, and 1rem text with 1.8 line spacing. Long reconstructions continue in normal page flow; equations retain horizontal overflow handling.
+- Verification: Responsive stylesheet review. Browser verification and full application typecheck/build are limited by workspace sandbox restrictions, unavailable network proxy, and missing project dependencies.
+
 ## 2026-08-18 - Package Textbook Pixels in Vercel Functions
 
 - The live repair for **Impulse Invariant Method and Pole-Zero Mapping in Digital Filter Design** correctly re-ran selection but returned no visual because Vercel could not load `@napi-rs/canvas`. The page renderer and embedded-image extractor used webpack-ignored imports, so Next did not trace that declared native dependency into the function.
@@ -1876,3 +1883,4 @@ For archive organization changes, manually verify:
 
 - A whole-set selector is efficient but can confuse textbook prose with a nearby graph when several dense, related pages are shown together. If both normal selection passes fail their pixel audits, the system now inspects each retrieved source independently using the coordinate guide, then attaches only the precisely discovered figures to exact lesson paragraphs.
 - This is a precision fallback, not a source gallery: it still rejects prose, equations, cropped pages, incomplete figures, and irrelevant images through the same blind pixel and relevance audits. There is no output quota; distinct helpful figures on any of the retrieved pages remain eligible.
+

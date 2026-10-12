@@ -9291,15 +9291,37 @@ button.primary:hover:not(:disabled),
 
 .lecture-study-layout {
   display: grid;
-  grid-template-columns: minmax(240px, 0.34fr) minmax(0, 1fr) minmax(300px, 0.42fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
 
+.lecture-study-layout > .detail-main,
+.lecture-study-layout > .side-panel {
+  grid-column: 1;
+  min-width: 0;
+}
+
+.lecture-study-layout .study-document > .math-preview-panel {
+  min-width: 0;
+  min-height: 60dvh;
+  padding: clamp(16px, 2vw, 28px);
+}
+
+.lecture-study-layout .study-document .math-document-preview {
+  font-size: 1rem;
+  line-height: 1.8;
+}
+
+.lecture-study-layout .study-document .math-document-preview p,
+.lecture-study-layout .study-document .math-document-preview li {
+  line-height: 1.8;
+}
+
 .lecture-study-explorer {
-  position: sticky;
-  top: 18px;
-  max-height: calc(100dvh - 36px);
+  position: static;
+  top: auto;
+  max-height: none;
 }
 
 .study-browser {
@@ -9530,16 +9552,6 @@ button.primary:hover:not(:disabled),
 .lecture-study-list .empty {
   padding: 12px;
   font-size: 0.82rem;
-}
-
-@media (max-width: 1240px) {
-  .lecture-study-layout {
-    grid-template-columns: minmax(230px, 0.34fr) minmax(0, 1fr);
-  }
-
-  .lecture-study-layout > .side-panel {
-    grid-column: 1 / -1;
-  }
 }
 
 @media (max-width: 1120px) {
@@ -12359,3 +12371,4 @@ input[type="range"] {
     white-space: nowrap !important;
   }
 }
+
