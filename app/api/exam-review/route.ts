@@ -398,7 +398,7 @@ export async function POST(request: Request) {
       ].join(" "),
       input: [{
         role: "user",
-        content: `${sourceContext}\n\n${buildLectureBundle({ lectures, transcripts, concepts, figures })}`
+        content: `Return the coverage plan as JSON with topics and missingInstructorEvidence.\n\n${sourceContext}\n\n${buildLectureBundle({ lectures, transcripts, concepts, figures })}`
       }]
     });
     addUsage(planResponse.usage);

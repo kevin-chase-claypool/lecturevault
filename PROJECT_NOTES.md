@@ -1,5 +1,10 @@
 # LectureVault Project Notes
 
+## 2026-10-12 - Fix Review Planner JSON Mode Input
+
+- Added the JSON output requirement directly to the review planner's user input message. OpenAI JSON mode rejected the request when JSON appeared only in the separate instructions field.
+- Added a mocked-provider regression check enforcing JSON in planner input messages. Failed generations continue to preserve the existing saved review.
+
 ## 2026-10-12 - Teach Every Review Topic and Place Figures Inline
 
 - Review AI now plans topic coverage across every selected, allocated reconstruction, then writes topic lessons with three concurrent requests. Each topic has its own 8,000-token output allowance rather than sharing one packet-wide response. Incomplete outputs, omitted source IDs, missing lesson sections, missing citations, and missing reconstruction text fail without replacing a saved review. Token usage sums planning and all lesson calls.

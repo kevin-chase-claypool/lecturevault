@@ -48,6 +48,9 @@ const calls = [];
 class FakeOpenAI {
   responses = { create: async options => {
     calls.push(options);
+    if (options.text?.format?.type === 'json_object') {
+      assert.match(JSON.stringify(options.input), /json/i, 'JSON mode requires JSON in an input message, not only separate instructions');
+    }
     const output_text = options.text
       ? JSON.stringify({ topics: [{ title: 'Counting', lectureIds: ['a'] }, { title: 'PMF', lectureIds: ['b'] }], missingInstructorEvidence: ['Example 3.37 statement missing'] })
       : '## Topic lesson\n### Meaning and method\nExplanation [Lecture: source, date].\n### Formulas and assumptions\nAssumptions.\n### Worked walkthrough\n1. Substitute.\n2. Calculate.\n### Common mistakes\nMistake.\n### Practice with solution\nQuestion and worked answer.';
