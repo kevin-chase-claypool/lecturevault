@@ -15,6 +15,22 @@ function load(path, mocks = {}, extra = '') {
   return module.exports;
 }
 const context = load('lib/exam-review-context.ts');
+const unordered = [
+  { title: 'Conditional Probability', lectureIds: ['a'] },
+  { title: 'Expected Value', lectureIds: ['a'] },
+  { title: 'Communication Channel Problem (Assignment 2)', lectureIds: ['a'] },
+  { title: 'Mathematical Probability Models in Engineering — all topics and problem methods', lectureIds: ['b'] },
+  { title: 'Variance: Exercise 3.21', lectureIds: ['a'] },
+  { title: 'Conditional PMF: Exercise 3.37', lectureIds: ['a'] }
+];
+const ordered = context.orderReviewTopics(unordered, [{ id: 'b', title: 'Probability Models' }, { id: 'a', title: 'Expectation' }], 'Exam1', 'ENGR-4176');
+assert.match(ordered[0].title, /Probability Models/);
+assert.match(ordered[1].title, /Conditional Probability/);
+assert.match(ordered[2].title, /Communication Channel/);
+assert.match(ordered[3].title, /Expected Value/);
+assert.match(ordered[4].title, /3\.21/);
+assert.match(ordered[5].title, /3\.37/);
+assert.equal(context.orderReviewTopics(unordered, [], 'Exam2', 'Other'), unordered);
 const tutor = load('lib/review-lesson.ts', { './exam-review-context': context });
 const problemFixture = { problem: 'Two fair coin tosses: find the probability of two heads.', givens: 'Independent tosses; P(H)=1/2.', find: 'P(HH).', method: 'Multiply independent probabilities.', steps: ['P(HH) = (1/2)(1/2).'], answer: '1/4.', check: 'Four equally likely outcomes.', citation: 'Assignment 1, p. 3', figures: [{ label: 'Figure 1', explanation: 'Follow the two branches to HH.' }] };
 const lessonFixture = { meaning: 'Multiply independent event probabilities.', formulas: 'Independence assumption.', conceptFigures: [], walkthroughs: [problemFixture], mistakes: ['Do not assume independence without evidence.'], practice: [problemFixture], unusedFigureReason: '' };
@@ -83,6 +99,8 @@ assert.ok(html.indexOf('Image 1</figcaption>') > html.indexOf('Normalize.'));
 assert.equal((html.match(/<figure>/g) || []).length, 2);
 assert.match(html, /<ol><li>Condition\.<\/li><li>Normalize\.<\/li><\/ol>/);
 assert.doesNotMatch(html, /<h2>Figure References/);
+assert.match(html, /class="topic-start"/);
+assert.match(html, /\.topic-start \{ break-before: page; page-break-before: always;/);
 
 let incomplete = false;
 const calls = [];

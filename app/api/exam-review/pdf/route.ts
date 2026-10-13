@@ -157,7 +157,8 @@ function renderReviewMarkdown(markdown: string, figures: ReviewFigure[] = []) {
       if (heading[1].length <= 2) {
         canPlaceFigures = !/^(?:Exam Blueprint|Source Map|Figure References|Figure-Guided Review)$/i.test(stripMarkdownMarks(heading[2]));
       }
-      html.push(`<h${level}>${renderInlineMath(stripMarkdownMarks(heading[2]))}</h${level}>`);
+      const topicClass = /^Topic\s+\d+\s*:/i.test(stripMarkdownMarks(heading[2])) ? ' class="topic-start"' : '';
+      html.push(`<h${level}${topicClass}>${renderInlineMath(stripMarkdownMarks(heading[2]))}</h${level}>`);
       continue;
     }
 
@@ -318,6 +319,7 @@ function buildHtml({
       margin: 0.2in 0 0.05in;
     }
     p { margin: 0 0 0.1in; }
+    .topic-start { break-before: page; page-break-before: always; margin-top: 0; }
     ul, ol { margin: 0.04in 0 0.14in 0.22in; padding-left: 0.18in; }
     li { margin: 0.04in 0; }
     .meta { color: #526071; font-size: 7pt; margin: -0.1in 0 0.22in; }

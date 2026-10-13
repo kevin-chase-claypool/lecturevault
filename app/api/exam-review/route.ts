@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { renderTutorLesson, TUTOR_LESSON_SCHEMA, type TutorLesson } from "../../../lib/review-lesson";
-import { completedReviewText, reviewInstructions, completeReviewPlan, withLessonSources } from "../../../lib/exam-review-context";
+import { completedReviewText, reviewInstructions, completeReviewPlan, orderReviewTopics, withLessonSources } from "../../../lib/exam-review-context";
 import type { ResponseInputMessageContentList } from "openai/resources/responses/responses";
 import { requireAuthenticatedRequest } from "../../../lib/auth";
 import {
@@ -410,6 +410,7 @@ export async function POST(request: Request) {
         "Return JSON with topics: [{title, lectureIds}], and missingInstructorEvidence: [string].",
         "Inventory EVERY substantive topic, subtopic, theorem, distribution, and distinct problem method in EVERY reconstruction and its extracted concepts.",
         "Group duplicates across lectures, but do not let instructor priorities erase other selected material. Order prerequisites before dependent topics.",
+        "When an instructor chapter outline is supplied, follow that chapter order. Keep each assignment application immediately beside its underlying concept. Do not group replacement/sampling with Chapter 2 counting, or combine different exercise methods into a detached assignment chapter: give 3.21 with expectation/variance, 3.37 with conditional PMFs, and the communication channel with conditional probability/trees.",
         "Each topic needs its own teaching and fully worked example. Use exact Source IDs as lectureIds. Every selected Source ID must appear in at least one topic.",
         "Compare the instructor outline to available evidence. In missingInstructorEvidence identify any named exercise or priority without a usable statement or supporting evidence. Never infer a problem statement from its number.",
         "Do not generate the lessons yet."
@@ -427,7 +428,7 @@ export async function POST(request: Request) {
     }
     const topics = body.phase === "topic"
       ? planned.topics as Array<{ title: string; lectureIds: string[] }>
-      : completeReviewPlan(planned, lectures);
+      : orderReviewTopics(completeReviewPlan(planned, lectures), lectures, examName, courseName);
     const gaps = Array.isArray(planned.missingInstructorEvidence)
       ? planned.missingInstructorEvidence.filter((item): item is string => typeof item === "string")
       : [];

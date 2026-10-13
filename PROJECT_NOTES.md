@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-10-13 - Order Exam 1 Topics by the Instructor Outline
+
+- PDF export starts every numbered topic on a new page, keeping the heading with its first content. Existing reviews can receive this pagination by downloading a fresh PDF without regenerating their content.
+- ENGR-4176/Advanced Engineering Math Exam 1 plans are now ordered after coverage repair: foundational probability/sample-space topics, sets/axioms, replacement/sampling, counting, independence/conditional probability and its communication-channel application, then random-variable PMFs, expectation, variance, conditional PMFs, and total/conditional moments.
+- Added source-title fallback ordering for repaired lessons so a missed foundational reconstruction is inserted near its prerequisites instead of appended to the packet. The planner is instructed to keep assignment applications alongside their underlying methods and separate cross-chapter combinations.
+- Ordering happens before lesson generation, so the blueprint and lesson numbering share the same sequence. Advanced the checkpoint version to avoid reusing an old unordered plan. Regression tests include an appended probability-model lesson and a detached communication-channel application.
+
 ## 2026-10-13 - Preface Every Walkthrough and Place Tutor Figure Guides
 
 - Topic generation now uses a strict structured tutor-lesson schema. Every worked and practice problem has a complete problem statement, source citation, givens, target, method rationale, numbered reasoning steps, answer, and sanity check. The app renders these in that order, so solutions no longer begin without the question being taught.

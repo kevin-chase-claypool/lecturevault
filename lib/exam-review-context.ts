@@ -64,6 +64,35 @@ export function completeReviewPlan(value: unknown, sources: Array<{ id?: string;
   return validateReviewPlan({ topics }, sourceIds);
 }
 
+export function orderReviewTopics(topics: ReviewTopic[], sources: Array<{ id?: string; title?: string; date?: string }>, examName: string, courseName: string) {
+  const instructorOrder = /\bexam\s*1\b/i.test(examName) &&
+    (/ENGR\s*-?\s*4176/i.test(courseName) || /advanced engineering math/i.test(courseName));
+  if (!instructorOrder) return topics;
+  function rank(title: string): number | undefined {
+    const text = title.toLowerCase().replace(/[-–—]/g, ' ');
+    // Check specific RV/conditional topics before broad probability terms.
+    if (/conditional expectation|conditional variance|total expectation|total variance/.test(text) && !/pmf|mass function/.test(text)) return 12;
+    if (/3\.37|conditional pmf|conditional.*mass function/.test(text)) return 11;
+    if (/3\.21|variance|moments/.test(text)) return 10;
+    if (/expected value|expectation|functions of random/.test(text)) return 9;
+    if (/random variable|\bpmf\b|mass function/.test(text)) return 8;
+    if (/binomial|geometric|bernoulli/.test(text)) return 7;
+    if (/communication.*channel|probability tree|conditional probability/.test(text)) return 6;
+    if (/independence of events|test for independence/.test(text)) return 5;
+    if (/counting|permutation|combination|damaged|defective/.test(text) && !/replacement/.test(text)) return 4;
+    if (/replacement|sampling|independent experiment/.test(text)) return 3;
+    if (/set operation|inclusion.*exclusion|probability axiom/.test(text) && !/sample space/.test(text)) return 2;
+    if (/sample space|relative frequency|probability model|introduction to probability/.test(text)) return 1;
+    return undefined;
+  }
+  const sourceById = new Map(sources.map((source, index) => [source.id, { ...source, index }]));
+  const position = (topic: ReviewTopic) => Math.min(...topic.lectureIds.map(id => sourceById.get(id)?.index ?? sources.length));
+  const score = (topic: ReviewTopic) => rank(topic.title) ?? Math.min(...topic.lectureIds.map(id => rank(sourceById.get(id)?.title || '') ?? 13));
+  return topics.map((topic, index) => ({ topic, index })).sort((a, b) =>
+    score(a.topic) - score(b.topic) || position(a.topic) - position(b.topic) || a.index - b.index
+  ).map(item => item.topic);
+}
+
 export function completedReviewText(response: { status?: string; output_text: string }) {
   if (response.status !== 'completed' || !response.output_text.trim()) {
     throw new Error('AI review output was incomplete or reached its output limit. No partial review was saved. Retry or narrow the review scope.');
