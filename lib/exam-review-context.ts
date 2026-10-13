@@ -13,6 +13,8 @@ export function reviewInstructions(examName: string, courseName: string, instruc
 }
 
 export function referencesFigure(text: string, label: string) {
+  const numbered = label.match(/^fig(?:ure)?\.?\s*(\d+)$/i);
+  if (numbered) return new RegExp(`(?<![\\w.])fig(?:ure)?\\.?\\s*${numbered[1]}(?!\\w|\\.\\d|\\s*\\d)`, 'i').test(text);
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   // A review-wide Fig. 1 is distinct from Fig. 10 and textbook Fig. 1.2.
   return new RegExp(`(?<![\\w.])${escaped}(?!\\w|\\.\\d|\\s*\\d)`, 'i').test(text);

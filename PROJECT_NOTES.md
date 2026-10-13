@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-10-13 - Preface Every Walkthrough and Place Tutor Figure Guides
+
+- Topic generation now uses a strict structured tutor-lesson schema. Every worked and practice problem has a complete problem statement, source citation, givens, target, method rationale, numbered reasoning steps, answer, and sanity check. The app renders these in that order, so solutions no longer begin without the question being taught.
+- Relevant concept/problem figures are selected explicitly by review-wide source label with a teaching explanation. The app emits canonical figure-guide references beside their related concept or walkthrough; unavailable/out-of-topic labels are excluded rather than replaced with unrelated images. Lessons explain when no supplied image supports their topic.
+- Figure matching accepts Fig. 1, Fig 1, and Figure 1 while preserving separation from Fig. 10 and textbook Figure 1.2. This fixes legitimate prose references that the viewer/PDF previously failed to recognize.
+- Advanced the generation checkpoint version to regenerate old lessons under the new teaching format. Regression checks cover problem/givens-before-steps ordering, figure selection/canonicalization, phase isolation, and resumable generation. Typechecking and production builds validate the integration; the generated exam packet still needs pedagogical inspection after rebuilding.
+
 ## 2026-10-12 - Retrieve Assignments Stored in Course Textbook Slots
 
 - Review planning and every topic request now load all indexed pages from course textbook-slot files named as assignments, homework, worksheets, or problem sets. Previously reviews fetched only pages already cited by selected reconstructions, so uncited assignment problem statements were incorrectly reported missing.

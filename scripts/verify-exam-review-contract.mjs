@@ -15,6 +15,15 @@ function load(path, mocks = {}, extra = '') {
   return module.exports;
 }
 const context = load('lib/exam-review-context.ts');
+const tutor = load('lib/review-lesson.ts', { './exam-review-context': context });
+const problemFixture = { problem: 'Two fair coin tosses: find the probability of two heads.', givens: 'Independent tosses; P(H)=1/2.', find: 'P(HH).', method: 'Multiply independent probabilities.', steps: ['P(HH) = (1/2)(1/2).'], answer: '1/4.', check: 'Four equally likely outcomes.', citation: 'Assignment 1, p. 3', figures: [{ label: 'Figure 1', explanation: 'Follow the two branches to HH.' }] };
+const lessonFixture = { meaning: 'Multiply independent event probabilities.', formulas: 'Independence assumption.', conceptFigures: [], walkthroughs: [problemFixture], mistakes: ['Do not assume independence without evidence.'], practice: [problemFixture], unusedFigureReason: '' };
+const renderedTutor = tutor.renderTutorLesson(lessonFixture, 'Independence', 1, [{ label: 'Fig. 1' }]);
+assert.ok(renderedTutor.indexOf('Problem statement:') < renderedTutor.indexOf('1. P(HH)'));
+assert.ok(renderedTutor.indexOf('Given:') < renderedTutor.indexOf('1. P(HH)'));
+assert.match(renderedTutor, /Figure guide — Fig\. 1/);
+assert.equal(context.referencesFigure('Figure 1 supports this.', 'Fig. 1'), true);
+assert.equal(context.referencesFigure('Fig 1 supports this.', 'Fig. 1'), true);
 const indexFilters = [];
 const indexRows = [
   { course_id: 'course', textbook_id: 'assignment3', textbook_name: 'Assignment 3', page_number: 6, source_kind: 'native_text', evidence_text: 'Printed problem 3.21' },
@@ -83,15 +92,16 @@ class FakeOpenAI {
     if (options.text?.format?.type === 'json_object') {
       assert.match(JSON.stringify(options.input), /json/i, 'JSON mode requires JSON in an input message, not only separate instructions');
     }
-    const output_text = options.text
+    const output_text = options.text?.format?.type === 'json_object'
       ? JSON.stringify({ topics: [{ title: 'Counting', lectureIds: ['a'] }], missingInstructorEvidence: ['Example 3.37 statement missing'] })
-      : '## Topic lesson\n### Meaning and method\nExplanation with alternate source formatting.\n### Formulas and assumptions\nAssumptions.\n### Worked walkthrough\n1. Substitute.\n2. Calculate.\n### Common mistakes\nMistake.\n### Practice with solution\nQuestion and worked answer.';
-    return { status: incomplete && !options.text ? 'incomplete' : 'completed', output_text, usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 } };
+      : JSON.stringify(lessonFixture);
+    return { status: incomplete && options.text?.format?.type !== 'json_object' ? 'incomplete' : 'completed', output_text, usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 } };
   }};
 }
 const route = load('app/api/exam-review/route.ts', {
   openai: FakeOpenAI,
   '../../../lib/exam-review-context': context,
+  '../../../lib/review-lesson': tutor,
   '../../../lib/auth': { requireAuthenticatedRequest: () => null },
   '../../../lib/supabase-server': { storageObjectToSignedUrl: async () => 'https://example.com/figure.png' },
   '../../../lib/textbook-canonical-evidence': {

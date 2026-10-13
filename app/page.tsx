@@ -5096,7 +5096,7 @@ export default function LectureVaultApp() {
     try {
       updatePipelineStep("prepare", "done", "Context package ready");
       activatePipelineStep("generate", "Sending review context to AI");
-      const checkpointKey = `lecturevault-review-progress-v2:${exam.id}`;
+      const checkpointKey = `lecturevault-review-progress-v3:${exam.id}`;
       let progressStorage: Storage | undefined;
       try { progressStorage = window.localStorage; } catch { /* Browser storage may be disabled. */ }
       const data = await generateReviewInSteps({

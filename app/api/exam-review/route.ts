@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { renderTutorLesson, TUTOR_LESSON_SCHEMA, type TutorLesson } from "../../../lib/review-lesson";
 import { completedReviewText, reviewInstructions, completeReviewPlan, withLessonSources } from "../../../lib/exam-review-context";
 import type { ResponseInputMessageContentList } from "openai/resources/responses/responses";
 import { requireAuthenticatedRequest } from "../../../lib/auth";
@@ -468,11 +469,14 @@ export async function POST(request: Request) {
         const response = await client.responses.create({
           model,
           max_output_tokens: 8000,
+          text: { format: { type: "json_schema", name: "tutor_lesson", strict: true, schema: TUTOR_LESSON_SCHEMA } },
           instructions: [
+            "Return a structured tutor lesson as JSON matching the schema. Each walkthrough and each practice solution MUST begin with a self-contained problem field: the complete question in faithful words, including every subpart being solved. Follow with givens, what to find, why this method, numbered steps that explain the reasoning, final answer, and a sanity check. Never start halfway through an unstated exercise.",
+            "Inspect every attached source image. Select relevant diagrams, probability trees, PMF tables, and worked board calculations in conceptFigures or the related problem's figures, using the provided review-wide label and explaining exactly what to notice. Do not leave figures empty by default. If no provided image supports this topic, explain why in unusedFigureReason; never force an unrelated image into a lesson.",
+            "Write like an excellent tutor: connect notation to plain-language meaning, identify the problem-recognition cue, explain why each step follows, and keep paragraphs short. Prioritize understanding and exam use over repetitive summaries. Include precise source/page citations in each problem's citation field. Clearly label illustrative variants; never pass chosen numbers off as an assigned exercise.",
             "Teach this one planned topic for an engineering/math exam: concise wording, complete reasoning, not a summary or a list of prompts.",
             "Use only the supplied reconstructions, concepts, instructor guidance, and visible evidence. Do not re-transcribe or invent instructor examples.",
-            "Begin with ## Topic N: Title, using the supplied topic number.",
-            "Include these exact subsections: ### Meaning and method, ### Formulas and assumptions, ### Worked walkthrough, ### Common mistakes, ### Practice with solution.",
+            "The app renders topic and section headings. Return content in meaning, formulas, walkthroughs, mistakes, practice, and figure fields without repeating section headings.",
             "Explain every subtopic and distinct method belonging to this topic, when to choose each method, notation, assumptions, and why each step works.",
             "For each distinct problem method give a worked walkthrough: usable given values, question, numbered calculation steps with substitutions, intermediate results, final answer, and a sanity check. Prefer saved instructor/assignment problems.",
             "If a source example lacks its statement or values, explicitly flag that gap. A clearly labeled illustrative practice variant may use chosen values, but its method must be supported by the sources; never present it as the instructor's problem.",
@@ -488,7 +492,9 @@ export async function POST(request: Request) {
           input: [{ role: "user", content }]
         });
         addUsage(response.usage);
-        const lesson = completedReviewText(response);
+        const structured = JSON.parse(completedReviewText(response)) as TutorLesson;
+        const lesson = renderTutorLesson(structured, topic.title,
+          body.phase === "topic" ? cleanNumber(body.topicIndex) + 1 : index + 1, topicFigures);
         for (const heading of ["Meaning and method", "Formulas and assumptions", "Worked walkthrough", "Common mistakes", "Practice with solution"]) {
           if (!lesson.includes(`### ${heading}`)) throw new Error(`Review topic "${topic.title}" is missing ${heading}. No partial review was saved.`);
         }
