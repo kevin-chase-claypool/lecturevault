@@ -2305,6 +2305,7 @@ export default function LectureVaultApp() {
   const [activeDraftId, setActiveDraftId] = useState("");
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [oneNoteSources, setOneNoteSources] = useState<OneNoteSource[]>([]);
+  const [oneNoteLink, setOneNoteLink] = useState("");
   const [oneNoteStatus, setOneNoteStatus] = useState<{
     configured?: boolean;
     connected?: boolean;
@@ -5799,10 +5800,12 @@ export default function LectureVaultApp() {
     }
   }
 
-  async function importOneNotePage(page: OneNoteLibraryItem) {
+  async function importOneNotePage(page: OneNoteLibraryItem, pageLink?: string) {
     setOneNoteLoading(true);
+    setOneNoteExplorerError("");
     try {
-      const response = await fetch(`/api/onenote/page?pageId=${encodeURIComponent(page.id)}`, { credentials: "include" });
+      const query = new URLSearchParams(pageLink ? { pageLink } : { pageId: page.id });
+      const response = await fetch(`/api/onenote/page?${query}`, { credentials: "include" });
       const data = (await response.json()) as { error?: string; pageId?: string; text?: string; title?: string; webUrl?: string };
       if (!response.ok) throw new Error(data.error || "Could not import OneNote page.");
       if (!data.text?.trim()) throw new Error("That OneNote page did not contain readable text.");
@@ -5818,8 +5821,10 @@ export default function LectureVaultApp() {
         importedAt: new Date().toISOString()
       };
       setOneNoteSources((current) => current.some((item) => item.pageId === source.pageId) ? current : [...current, source]);
+      if (pageLink) setOneNoteLink("");
       setStatus(`Imported OneNote page: ${source.title}`);
     } catch (error) {
+      setOneNoteExplorerError(error instanceof Error ? error.message : "Could not import OneNote page.");
       setStatus(error instanceof Error ? error.message : "Could not import OneNote page.");
     } finally {
       setOneNoteLoading(false);
@@ -6072,6 +6077,7 @@ export default function LectureVaultApp() {
     ].filter(Boolean).join("\n"))
     .join("\n\n---\n\n");
   const reconstructionNotesReady = Boolean(
+    oneNoteContext ||
     captureForm.transcript.trim() ||
       captureForm.objective.trim() ||
       captureForm.emphasis.trim() ||
@@ -7330,6 +7336,48 @@ export default function LectureVaultApp() {
                   for this class day; at least one meaningful source is needed.
                 </small>
               </label>
+
+              <div className="capture-media-panel" aria-labelledby="onenote-link-heading">
+                <h3 id="onenote-link-heading">OneNote notes</h3>
+                <label>
+                  OneNote page link
+                  <input
+                    type="text"
+                    inputMode="url"
+                    value={oneNoteLink}
+                    onChange={(event) => setOneNoteLink(event.target.value)}
+                    placeholder="Paste a OneNote page link"
+                    aria-describedby="onenote-link-help"
+                  />
+                </label>
+                <p id="onenote-link-help">Copy a link to a specific page in OneNote, then import its readable text. For handwritten ink, diagrams, and page images, also attach a PDF or image export.</p>
+                <button type="button" disabled={oneNoteLoading || !oneNoteLink.trim() || !oneNoteStatus.connected} onClick={() => void importOneNotePage({ id: "" }, oneNoteLink.trim())}>
+                  {oneNoteLoading ? "Loading OneNote…" : "Import OneNote page"}
+                </button>
+                {!oneNoteStatus.connected ? (
+                  <p>{oneNoteStatus.reason || "Connect your Microsoft account to import OneNote pages."}{" "}
+                    {oneNoteStatus.configured ? <a href="/api/onenote/connect">Connect OneNote</a> : "OneNote connection is not configured. You can still attach a PDF or image export."}
+                  </p>
+                ) : <p>OneNote connected{oneNoteStatus.accountLabel ? `: ${oneNoteStatus.accountLabel}` : ""}.</p>}
+                {oneNoteExplorerError ? <p role="alert">{oneNoteExplorerError}</p> : null}
+                {oneNoteStatus.connected ? (
+                  <details className="capture-disclosure">
+                    <summary>Browse OneNote notebooks instead</summary>
+                    <div className="capture-disclosure-body">
+                      <button type="button" disabled={oneNoteLoading} onClick={() => void loadOneNoteExplorer()}>Load notebooks</button>
+                      {oneNoteExplorerFeedback ? <p role="status">{oneNoteExplorerFeedback}</p> : null}
+                      <OneNoteExplorer childrenById={oneNoteExplorer} expandedIds={oneNoteExpandedIds} isLoading={oneNoteLoading} nodes={oneNoteExplorer.root || []} onToggle={(node) => void toggleOneNoteExplorerNode(node)} selectedPageIds={oneNoteSources.map((source) => source.pageId)} />
+                    </div>
+                  </details>
+                ) : null}
+                {oneNoteSources.map((source) => (
+                  <div className="capture-media-item" key={source.id}>
+                    <div><strong>{source.title}</strong><small>{source.text.length.toLocaleString()} characters imported</small></div>
+                    {source.webUrl ? <a href={source.webUrl} target="_blank" rel="noreferrer">Open in OneNote</a> : null}
+                    <button type="button" disabled={oneNoteLoading} onClick={() => setOneNoteSources((current) => current.filter((item) => item.id !== source.id))}>Remove</button>
+                  </div>
+                ))}
+              </div>
 
               <details className="capture-disclosure" aria-label="Android direct share">
                 <summary>

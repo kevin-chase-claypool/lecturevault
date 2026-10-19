@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-10-19 - Restore OneNote Links in New Reconstruction
+
+- Restored a visible OneNote page-link input, Microsoft connection status/action, notebook browser, imported page list, removal, and import errors in the source stage.
+- Page links resolve against the connected account's Microsoft Graph page metadata, including paginated results and desktop/web page IDs. Pasted destinations are never fetched with the Microsoft token. Notebook/short sharing links that cannot identify a page show recovery guidance.
+- Imports reuse the existing readable-text snapshot flow into AI context and saved reconstruction provenance. Imported pages now count toward the source readiness indicator. Handwritten ink and diagrams still require an attached PDF/image export.
+- Added `node scripts/verify-onenote-link.mjs` for web/desktop link matching, pagination, invalid destinations, missing pages, and Microsoft errors. Local typecheck/build require dependency installation; the workspace network proxy was unavailable during this repair.
+
 ## 2026-10-13 - Order Exam 1 Topics by the Instructor Outline
 
 - PDF export starts every numbered topic on a new page, keeping the heading with its first content. Existing reviews can receive this pagination by downloading a fresh PDF without regenerating their content.
