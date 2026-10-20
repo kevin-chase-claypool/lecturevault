@@ -42,3 +42,39 @@ const route = await readFile(new URL("../app/api/lecture-ai/route.ts", import.me
 assert.ok(route.indexOf('if (body.phase === "transcribe") {') < route.indexOf("const imageInputs"), "transcription returns before retrieval and generation");
 assert.ok(route.includes("for (const item of prepared ? [] : usableAudio)"), "prepared generation skips transcription");
 console.log("Audio phase isolation, interruption/resume, identity remapping, cache invalidation, storage failure, and non-JSON error handling passed.");
+
+// Resolve later source parts first, fail another while work is still in flight,
+// and prove a retry retains those out-of-order completions without duplication.
+const concurrentValues = new Map();
+const concurrentStorage = { getItem: (key) => concurrentValues.get(key), setItem: (key, value) => concurrentValues.set(key, value) };
+let active = 0;
+let peak = 0;
+let failOnce = true;
+const concurrentCalls = [];
+const concurrentRequest = async (_url, init) => {
+  const body = JSON.parse(init.body);
+  const index = body.audioChunkIndex;
+  concurrentCalls.push(index);
+  active++;
+  peak = Math.max(peak, active);
+  try {
+    await new Promise((resolve) => setTimeout(resolve, index === 1 ? 30 : 5));
+    if (index === 1 && failOnce) { failOnce = false; return new Response("Timed out", { status: 504 }); }
+    return Response.json({
+      audioTranscripts: [`part ${index}`], audioTranscriptTexts: [`text ${index}`],
+      timedAudioSegments: [{ mediaItemId: source.id, startSeconds: index * 298, endSeconds: index * 298 + 5, text: `part ${index}` }],
+      transcribedMediaIds: [source.id], chunkCount: 6, nextChunkIndex: index < 5 ? index + 1 : null
+    });
+  } finally { active--; }
+};
+await assert.rejects(prepareReconstructionAudio([source], context, { request: concurrentRequest, storage: concurrentStorage }), /server time limit/);
+assert.equal(active, 0, "all in-flight work settles before retry");
+assert.equal(peak, 3, "run up to three transcription requests together");
+const snapshot = JSON.parse([...concurrentValues.values()][0]);
+assert.equal(snapshot.parts[1], null, "preserve missing-part gap");
+assert.ok(snapshot.parts[2], "preserve later completed part");
+const callsBeforeResume = concurrentCalls.length;
+const resumed = await prepareReconstructionAudio([source], context, { request: concurrentRequest, storage: concurrentStorage });
+assert.deepEqual(concurrentCalls.slice(callsBeforeResume), [1], "only retry the missing part");
+assert.deepEqual(resumed.audioTranscriptTexts, Array.from({ length: 6 }, (_, index) => `text ${index}`), "assemble in source order");
+console.log("Bounded three-request concurrency, out-of-order checkpoints, in-flight failure recovery, and ordered assembly passed.");

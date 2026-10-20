@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-10-20 - Transcribe Audio Parts Concurrently
+
+- Live logs showed the first two five-minute transcription parts each taking roughly two minutes. The resumable implementation awaited all ten parts sequentially, creating avoidable wall-clock delay.
+- After discovering the part count, the client now runs up to three transcription requests concurrently. The transcription model, source timestamps, five-minute request boundaries, and reconstruction content are unchanged.
+- Checkpoints retain parts by source index, including out-of-order completions and gaps. Existing sequential checkpoints remain reusable. A failed worker stops scheduling new work, awaits other in-flight requests, and preserves all their successes before reporting the error. Assembly always follows source order.
+- Verification: existing resume/error tests plus three-request concurrency, out-of-order completion, missing-part-only retries, in-flight failure settlement, and ordered transcript assembly. Vercel builds validate types and production compilation; actual speed depends on transcription-provider latency.
+
 ## 2026-10-20 - Resume Transcription Outside the Reconstruction Request
 
 - Production logs confirmed `/api/lecture-ai` was terminated at 300 seconds after transcription and reconstruction were combined into one request. The platform returned plain text, which the client attempted to parse as JSON.

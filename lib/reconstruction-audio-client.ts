@@ -8,7 +8,7 @@ export type PreparedAudio = {
 
 type AudioSource = { id: string; kind: string; name: string; mimeType?: string; storageBucket?: string; storagePath?: string; dataUrl?: string; size?: number };
 type AudioPart = PreparedAudio & { chunkCount: number; nextChunkIndex: number | null };
-type Checkpoint = { mediaId: string; parts: AudioPart[] };
+type Checkpoint = { mediaId: string; parts: Array<AudioPart | null> };
 
 export async function reconstructionResponse<T>(response: Response): Promise<T> {
   const text = await response.text();
@@ -48,21 +48,42 @@ export async function prepareReconstructionAudio(
       const parsed = JSON.parse(storage?.getItem(key) || "null") as Checkpoint | null;
       if (parsed?.mediaId && Array.isArray(parsed.parts)) saved = parsed;
     } catch { /* An unavailable or invalid checkpoint starts a fresh run. */ }
-    let nextIndex = saved.parts.length ? saved.parts[saved.parts.length - 1].nextChunkIndex : 0;
-    while (nextIndex !== null) {
-      options.progress?.(`Transcribing audio ${sourceIndex + 1}/${audio.length}, part ${nextIndex + 1}${saved.parts[0]?.chunkCount ? `/${saved.parts[0].chunkCount}` : ""}`);
+    const reportProgress = () => options.progress?.(`Transcribing audio ${sourceIndex + 1}/${audio.length}: ${saved.parts.filter(Boolean).length}/${saved.parts[0]?.chunkCount || "?"} parts complete`);
+    const transcribePart = async (index: number) => {
+      reportProgress();
       const part = await reconstructionResponse<AudioPart>(await request("/api/lecture-ai", {
         method: "POST", credentials: "include", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...context, phase: "transcribe", audioChunkIndex: nextIndex, mediaItems: [{ ...source, id: saved.mediaId }] })
+        body: JSON.stringify({ ...context, phase: "transcribe", audioChunkIndex: index, mediaItems: [{ ...source, id: saved.mediaId }] })
       }));
-      if (!Array.isArray(part.audioTranscripts) || !Array.isArray(part.audioTranscriptTexts) || !Array.isArray(part.timedAudioSegments) || !Array.isArray(part.transcribedMediaIds) || !Number.isInteger(part.chunkCount) || part.chunkCount <= nextIndex || (part.nextChunkIndex !== null && part.nextChunkIndex !== nextIndex + 1)) {
+      if (!Array.isArray(part.audioTranscripts) || !Array.isArray(part.audioTranscriptTexts) || !Array.isArray(part.timedAudioSegments) || !Array.isArray(part.transcribedMediaIds) || !Number.isInteger(part.chunkCount) || part.chunkCount <= index || part.nextChunkIndex !== (index + 1 < part.chunkCount ? index + 1 : null) || (saved.parts[0] && saved.parts[0].chunkCount !== part.chunkCount)) {
         throw new Error("The transcription service returned an incomplete audio part. Retry Build to resume.");
       }
-      saved.parts.push(part);
+      // Index parts by source position, since concurrent requests can finish
+      // out of order. Persist each completion immediately, including gaps.
+      saved.parts[index] = part;
       try { storage?.setItem(key, JSON.stringify(saved)); } catch { /* Quota/storage failure must not discard the active run. */ }
-      nextIndex = part.nextChunkIndex;
-    }
-    for (const part of saved.parts) {
+      reportProgress();
+    };
+    // The first part discovers the total count. Existing sequential checkpoints
+    // use the same layout and remain reusable after this concurrency change.
+    if (!saved.parts[0]) await transcribePart(0);
+    const count = saved.parts[0]!.chunkCount;
+    const pending = Array.from({ length: count }, (_, index) => index).filter((index) => !saved.parts[index]);
+    let cursor = 0;
+    let failure: unknown;
+    const worker = async () => {
+      while (!failure && cursor < pending.length) {
+        const index = pending[cursor++];
+        try { await transcribePart(index); } catch (error) { failure = error; }
+      }
+    };
+    // Bound provider pressure and wait for all in-flight requests on failure,
+    // so their completed work is checkpointed before offering a retry.
+    await Promise.all(Array.from({ length: Math.min(3, pending.length) }, () => worker()));
+    if (failure) throw failure;
+    for (let index = 0; index < count; index += 1) {
+      const part = saved.parts[index];
+      if (!part) throw new Error("An audio part is missing. Retry Build to resume.");
       result.audioTranscripts.push(...part.audioTranscripts.map((text) => text.replaceAll(saved.mediaId, source.id)));
       result.audioTranscriptTexts.push(...part.audioTranscriptTexts);
       result.timedAudioSegments.push(...part.timedAudioSegments.map((segment) => ({ ...segment, mediaItemId: source.id })));
