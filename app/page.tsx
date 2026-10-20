@@ -1,4 +1,5 @@
 "use client";
+import { buildLessonContext } from "../lib/lesson-context";
 import { prepareReconstructionAudio, reconstructionResponse } from "../lib/reconstruction-audio-client";
 
 import {
@@ -7077,6 +7078,17 @@ export default function LectureVaultApp() {
                       >
                         Delete archive item
                       </button>
+                      <CopyLessonContextButton
+                        key={selectedArchiveLecture.id}
+                        getContext={() => lessonContextForLecture(
+                          selectedArchiveLecture,
+                          courseLabel(selectedArchiveLecture.courseId),
+                          state.courses.find((course) => course.id === selectedArchiveLecture.courseId),
+                          selectedArchiveTranscript,
+                          selectedArchiveConcepts,
+                          selectedArchiveMedia
+                        )}
+                      />
                     </div>
                   </>
                 ) : (
@@ -9722,6 +9734,71 @@ function OneNoteExplorer({
   );
 }
 
+function lessonContextForLecture(
+  lecture: Lecture,
+  courseName: string,
+  course: Course | undefined,
+  transcript: Transcript | undefined,
+  concepts: ExtractedConcept[],
+  mediaItems: MediaItem[]
+) {
+  const artifact = recoverStoredReconstructionArtifact(transcript?.text || lecture.summary);
+  return buildLessonContext({
+    title: typeof artifact?.reconstructionTitle === "string" ? artifact.reconstructionTitle : lecture.title,
+    date: lecture.date,
+    course: courseName,
+    studyProfile: course?.studyProfile,
+    summary: typeof artifact?.summary === "string" ? artifact.summary : lecture.summary,
+    lesson: recoverStoredTranscriptText(transcript?.text || lecture.summary),
+    concepts,
+    media: mediaItems,
+    oneNoteSources: transcript?.oneNoteSources,
+    evidence: {
+      ...transcript?.evidence,
+      textbookCitations: transcript?.evidence?.textbookCitations?.length
+        ? transcript.evidence.textbookCitations
+        : recoveredTextbookCitations(transcript?.text || lecture.summary)
+    }
+  });
+}
+
+function CopyLessonContextButton({ getContext }: { getContext: () => string }) {
+  const [feedback, setFeedback] = useState("");
+  const [manualText, setManualText] = useState("");
+  const [copying, setCopying] = useState(false);
+  const fallbackId = useId();
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  async function copyContext() {
+    const text = getContext();
+    setCopying(true);
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(text);
+      setManualText("");
+      setFeedback("Lesson context copied. Paste it into ChatGPT and add your question.");
+    } catch {
+      setManualText(text);
+      setFeedback("Automatic copying is unavailable. Select and copy the lesson context below.");
+    } finally { setCopying(false); }
+  }
+  return (
+    <div>
+      <button type="button" onClick={() => void copyContext()} disabled={copying} title="Copy the full lesson, course context, concepts, and source references for ChatGPT">
+        {copying ? "Copying…" : "Copy lesson context"}
+      </button>
+      {feedback ? <p role="status">{feedback}</p> : null}
+      {manualText ? (
+        <div>
+          <label htmlFor={fallbackId}>Lesson context for ChatGPT</label>
+          <textarea id={fallbackId} ref={textRef} value={manualText} readOnly rows={8} onFocus={(event) => event.target.select()} style={{ width: "100%", boxSizing: "border-box" }} />
+          <button type="button" onClick={() => { textRef.current?.focus(); textRef.current?.select(); }}>Select all context</button>
+          <button type="button" onClick={() => setManualText("")}>Close</button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function LectureDetail({
   lecture,
   courseLabel,
@@ -10329,7 +10406,7 @@ function LectureDetail({
               <span className="pill">Study artifact</span>
               <h4>Reconstruction</h4>
             </div>
-            <span>Organized for review</span>
+            <CopyLessonContextButton key={lecture.id} getContext={() => lessonContextForLecture(lecture, courseLabel(lecture.courseId), course, transcript, concepts, mediaItems)} />
           </div>
           <div className="math-preview-panel">
             <ReviewMarkdownPreview

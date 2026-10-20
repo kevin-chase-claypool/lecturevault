@@ -1,5 +1,13 @@
 # LectureVault Project Notes
 
+## 2026-10-20 - Copy Lesson Context for ChatGPT
+
+- Added `Copy lesson context` to each selected reconstruction in the Vault and to its study-view reconstruction header.
+- Exports the full original lesson Markdown/LaTeX, title, course/date, saved course study profile, summary, concepts, and textual source references with a tutoring prompt and a place for the user's question. Legacy structured artifacts use the same lesson/citation recovery helpers as the reader.
+- The export does not include original binary media, storage paths, or generated signed URLs. It explains that figure images/audio/PDFs are not attached so pasted context does not imply visual access.
+- Clipboard success is announced accessibly. If the browser blocks copying, the same full text appears in a labelled selectable textarea with a Select all control. No AI request or changes to saved reconstructions are involved.
+- Verification: executable export tests cover mathematical formatting, complete long lessons, course/source context, missing fields, reconstruction scoping, and binary/private-field exclusion; Vercel builds validate types and production compilation. Native clipboard permission behavior requires the user's browser.
+
 ## 2026-10-20 - Transcribe Audio Parts Concurrently
 
 - Live logs showed the first two five-minute transcription parts each taking roughly two minutes. The resumable implementation awaited all ten parts sequentially, creating avoidable wall-clock delay.
