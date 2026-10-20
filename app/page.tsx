@@ -1,4 +1,5 @@
 "use client";
+import { prepareReconstructionAudio, reconstructionResponse } from "../lib/reconstruction-audio-client";
 
 import {
   ChangeEvent,
@@ -4442,8 +4443,15 @@ export default function LectureVaultApp() {
             .join("\n\n"),
           textbooks: courseTextbooks
         });
+        const preparedAudio = await prepareReconstructionAudio(mediaItems, {
+          courseName: courseLabel(captureForm.courseId), title, courseStudyProfile
+        }, { progress: (message) => activatePipelineStep("transcribe", message) });
+        updatePipelineStep("transcribe", "done", `${preparedAudio.transcribedMediaIds.length} audio source(s) transcribed`);
+        activatePipelineStep("generate", "Building reconstruction from completed source transcripts");
         const response = await fetch("/api/lecture-ai", {
           body: JSON.stringify({
+            phase: "generate",
+            preparedAudio,
             courseName: courseLabel(captureForm.courseId),
             courseId: captureForm.courseId,
             date: captureForm.date,
@@ -4474,7 +4482,7 @@ export default function LectureVaultApp() {
           },
           method: "POST"
         });
-        const data = (await response.json()) as {
+        const data = (await reconstructionResponse(response)) as {
           concepts?: Array<{
             title?: string;
             detail?: string;

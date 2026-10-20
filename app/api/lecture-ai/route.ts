@@ -1,5 +1,6 @@
 import OpenAI, { toFile } from "openai";
 import { prepareMp3TranscriptionChunks } from "../../../lib/mp3-transcription";
+import type { PreparedAudio } from "../../../lib/reconstruction-audio-client";
 import type { ResponseInputMessageContentList } from "openai/resources/responses/responses";
 import { requireAuthenticatedRequest } from "../../../lib/auth";
 import {
@@ -38,6 +39,7 @@ import {
 import { rankedTitleTextbookMatches } from "../../../lib/textbook-title-retrieval";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const DEFAULT_LECTURE_MODEL = "gpt-4.1-mini";
 const DEFAULT_TEXTBOOK_VISUAL_SELECTION_MODEL = "gpt-4.1";
@@ -848,6 +850,9 @@ export async function POST(request: Request) {
 
   try {
     const body = (await request.json()) as {
+      phase?: "transcribe" | "generate";
+      audioChunkIndex?: number;
+      preparedAudio?: PreparedAudio;
       title?: string;
       courseId?: string;
       date?: string;
@@ -861,6 +866,10 @@ export async function POST(request: Request) {
       courseSyllabus?: CourseSyllabusSource;
     };
     const mediaItems = Array.isArray(body.mediaItems) ? body.mediaItems : [];
+    if (body.phase && body.phase !== "transcribe" && body.phase !== "generate") return jsonError("Unknown reconstruction phase.", 400);
+    if (body.phase === "transcribe" && (mediaItems.length !== 1 || !Number.isInteger(body.audioChunkIndex) || Number(body.audioChunkIndex) < 0)) return jsonError("Transcribe one audio source and one nonnegative part index per request.", 400);
+    const prepared = body.phase === "generate" ? body.preparedAudio : undefined;
+    if (body.phase === "generate" && (!prepared || !Array.isArray(prepared.audioTranscripts) || !Array.isArray(prepared.audioTranscriptTexts) || !Array.isArray(prepared.timedAudioSegments) || !Array.isArray(prepared.transcribedMediaIds))) return jsonError("Complete audio preparation before generating the reconstruction.", 400);
     const oneNoteSources = Array.isArray(body.oneNoteSources) ? body.oneNoteSources : [];
     const textbookSources = Array.isArray(body.textbookSources) ? body.textbookSources : [];
     const courseSyllabus = body.courseSyllabus;
@@ -868,11 +877,12 @@ export async function POST(request: Request) {
       ? body.textbookContext.slice(0, 8)
       : [];
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    let totalUsage: TokenUsage = {};
-    const audioTranscripts: string[] = [];
-    const audioTranscriptTexts: string[] = [];
-    const timedAudioSegments: TimedAudioSegment[] = [];
-    const transcribedMediaIds: string[] = [];
+    let totalUsage: TokenUsage = prepared?.usage || {};
+    const audioTranscripts: string[] = [...(prepared?.audioTranscripts || [])];
+    const audioTranscriptTexts: string[] = [...(prepared?.audioTranscriptTexts || [])];
+    const timedAudioSegments: TimedAudioSegment[] = [...(prepared?.timedAudioSegments || [])];
+    const transcribedMediaIds: string[] = [...(prepared?.transcribedMediaIds || [])];
+    let audioChunkCount = 0;
     const usableAudio = mediaItems
       .filter(
         (item) =>
@@ -881,8 +891,10 @@ export async function POST(request: Request) {
           audioFormat(item)
       )
       .slice(0, MAX_AUDIO_INPUTS);
+    if (prepared && usableAudio.some((item) => !item.id || !prepared.transcribedMediaIds.includes(item.id))) return jsonError("Some source audio is not transcribed yet. Retry Build to resume audio preparation.", 400);
+    if (body.phase === "transcribe" && !usableAudio.length) return jsonError("This audio source is not a supported MP3 or WAV.", 400);
 
-    for (const item of usableAudio) {
+    for (const item of prepared ? [] : usableAudio) {
       const parsed = parseDataUrl(await mediaDataUrl(item));
       const format = audioFormat(item);
 
@@ -897,11 +909,14 @@ export async function POST(request: Request) {
         format === "mp3"
           ? prepareMp3TranscriptionChunks(parsed.buffer)
           : [{ buffer: parsed.buffer, acceptAfterSeconds: 0, sourceStartSeconds: 0 }];
+      audioChunkCount = chunks.length;
+      if (body.phase === "transcribe" && Number(body.audioChunkIndex) >= chunks.length) return jsonError("Audio part index is outside this source.", 400);
       const itemTimedSegments: TimedAudioSegment[] = [];
       const unsegmentedChunkTexts: Array<{ startSeconds: number; text: string }> = [];
       const sourceName = cleanString(item.name) || item.id || "audio";
 
       for (const [chunkIndex, chunk] of chunks.entries()) {
+        if (body.phase === "transcribe" && chunkIndex !== body.audioChunkIndex) continue;
         const chunkName =
           chunks.length === 1
             ? sourceName
@@ -991,6 +1006,16 @@ export async function POST(request: Request) {
         transcribedMediaIds.push(item.id);
       }
     }
+
+    if (body.phase === "transcribe") {
+      if (!audioChunkCount) return jsonError("Could not read this audio source for transcription.", 400);
+      console.info("[lecture-ai] audio part completed", { part: body.audioChunkIndex, chunkCount: audioChunkCount });
+      return Response.json({ audioTranscripts, audioTranscriptTexts, timedAudioSegments, transcribedMediaIds, usage: totalUsage,
+        chunkCount: audioChunkCount,
+        nextChunkIndex: Number(body.audioChunkIndex) + 1 < audioChunkCount ? Number(body.audioChunkIndex) + 1 : null
+      });
+    }
+    console.info("[lecture-ai] reconstruction phase started", { preparedAudio: Boolean(prepared), audioSourceCount: transcribedMediaIds.length });
 
     const imageInputs = (
       await Promise.all(

@@ -6,7 +6,7 @@ const TRANSCRIPTION_CHUNK_OVERLAP_SECONDS = 2;
 
 // The diarized model also rejects audio longer than 1,400 seconds,
 // even when a low-bitrate recording is well below the upload byte limit.
-const MAX_TRANSCRIPTION_CHUNK_SECONDS = 1200;
+const MAX_TRANSCRIPTION_CHUNK_SECONDS = 300;
 
 type AudioTranscriptionChunk = {
   buffer: Buffer;

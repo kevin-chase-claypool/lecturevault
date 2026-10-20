@@ -1,5 +1,13 @@
 # LectureVault Project Notes
 
+## 2026-10-20 - Resume Transcription Outside the Reconstruction Request
+
+- Production logs confirmed `/api/lecture-ai` was terminated at 300 seconds after transcription and reconstruction were combined into one request. The platform returned plain text, which the client attempted to parse as JSON.
+- New builds transcribe one five-minute MP3 part per authenticated request, then generate from completed source transcripts in a separate request. Original-time offsets and overlap filtering remain intact; the original source upload is unchanged.
+- Completed audio parts are checkpointed in browser storage against a SHA-256 fingerprint of source identity and transcription context. Retrying Build reuses completed parts and remaps their temporary media IDs to the new build IDs. Unavailable/full browser storage does not block an active build.
+- Reconstruction responses are read safely, with explicit timeout/service-error guidance instead of a raw JSON syntax error. Phase logging identifies completed audio parts without logging lecture text.
+- Verification: executable chunk-duration/coverage tests plus interruption/resume, source-change invalidation, timestamp/ID remapping, storage failure, and non-JSON response tests. Vercel deployment builds provide type validation and production compilation. Full private-lecture generation still requires an authenticated build in the app.
+
 ## 2026-10-20 - Split Low-Bitrate Lecture Audio by Duration
 
 - A 2,878-second lecture below the 20 MiB upload threshold reached the diarized transcription model as one request and exceeded its 1,400-second duration limit.

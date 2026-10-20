@@ -20,7 +20,7 @@ function verifyChunks(buffer, frameLength) {
     assert.ok(chunk.buffer.length <= 20 * 1024 * 1024);
     assert.equal(chunk.buffer.length % frameLength, 0, "frame-aligned output");
     const duration = chunk.buffer.length / frameLength * secondsPerFrame;
-    assert.ok(duration <= 1200, `chunk duration ${duration} must fit the model`);
+    assert.ok(duration <= 300, `chunk duration ${duration} must fit a bounded transcription step`);
     assert.ok(Math.abs(chunk.acceptAfterSeconds - coveredUntil) < 1e-5, "no missing source time");
     assert.ok(chunk.sourceStartSeconds <= chunk.acceptAfterSeconds);
     assert.ok(chunk.acceptAfterSeconds - chunk.sourceStartSeconds <= 2.001, "bounded overlap");
@@ -32,7 +32,7 @@ function verifyChunks(buffer, frameLength) {
 
 const lowBitrate = mp3(2878.59, 1, 32);
 assert.ok(lowBitrate.length < 20 * 1024 * 1024, "reproduces the former small-file bypass");
-assert.equal(verifyChunks(lowBitrate, Math.floor(144000 * 32 / sampleRate)).length, 3);
+assert.equal(verifyChunks(lowBitrate, Math.floor(144000 * 32 / sampleRate)).length, 10);
 const short = mp3(90, 9, 128);
 assert.equal(prepareMp3TranscriptionChunks(short)[0].buffer, short, "short audio needs no split");
 assert.ok(verifyChunks(mp3(800, 14, 320), Math.floor(144000 * 320 / sampleRate)).length > 1, "byte limit still enforced");
