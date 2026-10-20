@@ -1,5 +1,12 @@
 # LectureVault Project Notes
 
+## 2026-10-20 - Restore the OneNote Share Link on New Reconstructions
+
+- The new-reconstruction capture flow was missing its optional OneNote page-link control in production, and the shipped client bundle contained no OneNote share-link state.
+- Restored the link field, persisted it with the class-day draft, included it in the AI reconstruction context, and retained it as a clickable source reference on the completed reconstruction.
+- Added `scripts/verify-onenote-share-link-contract.mjs` so the draft, build context, saved source, and visible field cannot silently disappear together again.
+- Verification: `node scripts/verify-onenote-share-link-contract.mjs`, `npm run typecheck`, `npm run build`, and `git diff --check`.
+
 ## 2026-10-13 - Order Exam 1 Topics by the Instructor Outline
 
 - PDF export starts every numbered topic on a new page, keeping the heading with its first content. Existing reviews can receive this pagination by downloading a fresh PDF without regenerating their content.
@@ -60,7 +67,6 @@
 - Existing navigation disclosures, search, sorting, source links, audio, exam allocation, and review actions are unchanged.
 - Added comfortable reading padding, a 60dvh minimum reading surface, and 1rem text with 1.8 line spacing. Long reconstructions continue in normal page flow; equations retain horizontal overflow handling.
 - Verification: Responsive stylesheet review. Browser verification and full application typecheck/build are limited by workspace sandbox restrictions, unavailable network proxy, and missing project dependencies.
-
 ## 2026-08-18 - Package Textbook Pixels in Vercel Functions
 
 - The live repair for **Impulse Invariant Method and Pole-Zero Mapping in Digital Filter Design** correctly re-ran selection but returned no visual because Vercel could not load `@napi-rs/canvas`. The page renderer and embedded-image extractor used webpack-ignored imports, so Next did not trace that declared native dependency into the function.

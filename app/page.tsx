@@ -131,6 +131,7 @@ type ClassDayDraft = {
   objective: string;
   emphasis: string;
   questions: string;
+  oneNoteShareUrl: string;
   sources: Array<{
     id: string;
     name: string;
@@ -2299,7 +2300,8 @@ export default function LectureVaultApp() {
     transcript: "",
     objective: "",
     emphasis: "",
-    questions: ""
+    questions: "",
+    oneNoteShareUrl: ""
   });
   const [captureFiles, setCaptureFiles] = useState<CaptureSource[]>([]);
   const [activeDraftId, setActiveDraftId] = useState("");
@@ -2820,7 +2822,7 @@ export default function LectureVaultApp() {
       !activeDraft.sources.some((saved) => saved.id === source.id)
     );
     suppressDraftSaveRef.current = !hasPendingSource;
-    setCaptureForm({ courseId: activeDraft.courseId, title: activeDraft.title, date: activeDraft.date, transcript: activeDraft.transcript, objective: activeDraft.objective, emphasis: activeDraft.emphasis, questions: activeDraft.questions });
+    setCaptureForm({ courseId: activeDraft.courseId, title: activeDraft.title, date: activeDraft.date, transcript: activeDraft.transcript, objective: activeDraft.objective, emphasis: activeDraft.emphasis, questions: activeDraft.questions, oneNoteShareUrl: activeDraft.oneNoteShareUrl || "" });
     setCaptureFiles((current) => {
       const currentById = new Map(current.map((source) => [source.id, source]));
       const savedIds = new Set(draftFiles.map((source) => source.id));
@@ -4449,6 +4451,11 @@ export default function LectureVaultApp() {
             courseSyllabus: state.courses.find((course) => course.id === captureForm.courseId)?.syllabus,
             mediaItems,
             notes: [reconstructionBrief, pastedTranscript]
+              .concat(
+                captureForm.oneNoteShareUrl.trim()
+                  ? [`OneNote share link for this class day: ${captureForm.oneNoteShareUrl.trim()}`]
+                  : []
+              )
               .filter(Boolean)
               .join("\n\n"),
             oneNoteSources,
@@ -4581,7 +4588,21 @@ export default function LectureVaultApp() {
       ...(sourceTranscriptKind ? { sourceTranscriptKind } : {}),
       generatedBy,
       usage: transcriptUsage,
-      oneNoteSources,
+      oneNoteSources: [
+        ...oneNoteSources,
+        ...(captureForm.oneNoteShareUrl.trim()
+          ? [{
+              id: `onenote-share-${lectureId}`,
+              pageId: "",
+              title: "Shared OneNote page",
+              text: "",
+              notebookName: "Shared link",
+              sectionName: "",
+              webUrl: captureForm.oneNoteShareUrl.trim(),
+              importedAt: createdAt
+            }]
+          : [])
+      ],
       evidence: reconstructionEvidence,
       createdAt
     };
@@ -4638,7 +4659,8 @@ export default function LectureVaultApp() {
       transcript: "",
       objective: "",
       emphasis: "",
-      questions: ""
+      questions: "",
+      oneNoteShareUrl: ""
     }));
     setStatus(`Built and saved ${aiReconstructionTitle || title} as a lecture reconstruction.`);
     completePipeline("Lecture reconstruction saved to the vault.");
@@ -5597,6 +5619,7 @@ export default function LectureVaultApp() {
       objective: captureForm.objective,
       emphasis: captureForm.emphasis,
       questions: captureForm.questions,
+      oneNoteShareUrl: captureForm.oneNoteShareUrl.trim(),
       sources: [],
       createdAt: now,
       updatedAt: now
@@ -5629,7 +5652,8 @@ export default function LectureVaultApp() {
       transcript: "",
       objective: "",
       emphasis: "",
-      questions: ""
+      questions: "",
+      oneNoteShareUrl: ""
     });
     setStatus("Class record discarded. Original uploaded files remain available in Media Library.");
   }
@@ -5649,7 +5673,8 @@ export default function LectureVaultApp() {
       transcript: draft.transcript,
       objective: draft.objective,
       emphasis: draft.emphasis,
-      questions: draft.questions
+      questions: draft.questions,
+      oneNoteShareUrl: draft.oneNoteShareUrl || ""
     });
     const draftFiles = dedupeDraftSources(draft.sources).map((source) => ({
       id: source.id,
@@ -6075,7 +6100,8 @@ export default function LectureVaultApp() {
     captureForm.transcript.trim() ||
       captureForm.objective.trim() ||
       captureForm.emphasis.trim() ||
-      captureForm.questions.trim()
+      captureForm.questions.trim() ||
+      captureForm.oneNoteShareUrl.trim()
   );
   const reconstructionTextbookCount = state.textbooks.filter(
     (textbook) => textbook.courseId === captureForm.courseId
@@ -6095,7 +6121,8 @@ export default function LectureVaultApp() {
   const reconstructionBriefContext = [
     captureForm.objective.trim() && `Class-day objective: ${captureForm.objective.trim()}`,
     captureForm.emphasis.trim() && `Instructor emphasis / board context: ${captureForm.emphasis.trim()}`,
-    captureForm.questions.trim() && `Unresolved question or uncertainty: ${captureForm.questions.trim()}`
+    captureForm.questions.trim() && `Unresolved question or uncertainty: ${captureForm.questions.trim()}`,
+    captureForm.oneNoteShareUrl.trim() && `OneNote share link: ${captureForm.oneNoteShareUrl.trim()}`
   ]
     .filter(Boolean)
     .join("\n");
@@ -7339,6 +7366,30 @@ export default function LectureVaultApp() {
                 <div className="capture-disclosure-body">
                   <p>Install LectureVault once, sign in, then use the Share action in OneNote or your recorder and choose LectureVault. The original PDF, image, or MP3 uploads directly to Supabase and appears in Attached Files.</p>
                   {installPrompt ? <button type="button" onClick={() => void installLectureVault()}>Install app</button> : null}
+                </div>
+              </details>
+
+              <details className="capture-disclosure" aria-label="OneNote page link">
+                <summary>
+                  <span><strong>Add a OneNote page link</strong><small>Keep the original page available beside this reconstruction when a PDF is too large.</small></span>
+                  <span className="disclosure-state">{captureForm.oneNoteShareUrl.trim() ? "Added" : "Optional"}</span>
+                </summary>
+                <div className="capture-disclosure-body">
+                  <label>
+                    OneNote share link
+                    <input
+                      type="url"
+                      value={captureForm.oneNoteShareUrl}
+                      onChange={(event) =>
+                        setCaptureForm((current) => ({
+                          ...current,
+                          oneNoteShareUrl: event.target.value
+                        }))
+                      }
+                      placeholder="https://www.onenote.com/..."
+                    />
+                    <small>This link syncs with the class record, is included in the AI build context, and remains clickable in the saved reconstruction. Attach readable notes, audio, images, or a PDF as well—the link itself is retained as the original reference, not downloaded as note text.</small>
+                  </label>
                 </div>
               </details>
 
