@@ -1,5 +1,11 @@
 # LectureVault Project Notes
 
+## 2026-10-20 - Split Low-Bitrate Lecture Audio by Duration
+
+- A 2,878-second lecture below the 20 MiB upload threshold reached the diarized transcription model as one request and exceeded its 1,400-second duration limit.
+- MP3 preparation now reads frame timing before the small-file fast path and splits when either bytes or duration requires it. Every temporary chunk stays within 1,200 seconds including overlap; frame-aligned cuts, source-time offsets, and overlap filtering are preserved. The original uploaded MP3 is unchanged.
+- Moved the existing MP3 parser/chunker into `lib/mp3-transcription.ts` and added executable regression coverage for a low-bitrate 48-minute lecture, short recordings, byte-limited high-bitrate recordings, overlap, timestamps, and invalid input.
+
 ## 2026-10-20 - Restore the OneNote Share Link on New Reconstructions
 
 - The new-reconstruction capture flow was missing its optional OneNote page-link control in production, and the shipped client bundle contained no OneNote share-link state.
