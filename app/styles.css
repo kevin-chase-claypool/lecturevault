@@ -12372,3 +12372,20 @@ input[type="range"] {
   }
 }
 
+
+
+.capture-device-sync {
+  display: grid;
+  gap: 0.8rem;
+  min-width: 0;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--border, #9ca3af);
+  border-radius: 12px;
+}
+.capture-device-sync legend { padding: 0 0.4rem; font-weight: 700; }
+.capture-device-sync label { display: grid; gap: 0.4rem; }
+.capture-device-sync select { width: 100%; min-width: 0; }
+.capture-device-sync > div { padding: 0.8rem; border: 1px solid var(--border, #9ca3af); border-radius: 8px; }
+.capture-device-sync ul { padding-inline-start: 1.2rem; overflow-wrap: anywhere; }
+.capture-device-sync button { white-space: normal; }

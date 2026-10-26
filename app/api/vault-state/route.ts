@@ -108,6 +108,19 @@ export async function GET(request: Request) {
   try {
     const current = await readCurrentState(client);
 
+    // Device version selection needs only pending records, not every generated
+    // transcript, textbook chunk and review in the owner's archive.
+    if (new URL(request.url).searchParams.get("scope") === "drafts") {
+      return Response.json({
+        configured: true,
+        updatedAt: current.updatedAt,
+        state: {
+          reconstructionDrafts: isRecord(current.state) && Array.isArray(current.state.reconstructionDrafts)
+            ? current.state.reconstructionDrafts : []
+        }
+      });
+    }
+
     return Response.json({ configured: true, ...current });
   } catch (error) {
     return Response.json(
@@ -227,3 +240,4 @@ export async function PUT(request: Request) {
     );
   }
 }
+
