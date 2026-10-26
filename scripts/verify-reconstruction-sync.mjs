@@ -20,4 +20,19 @@ assert.equal(sameDraft(phone, tablet), false); // stale preview detected
 assert.equal(sameDraft(tablet, structuredClone(tablet)), true);
 assert.deepEqual(retireDraft(cloud, 'class'), [older]);
 assert.deepEqual(retireDraft(cloud, 'missing'), cloud);
-console.log('Device version checks passed: phone audio → tablet notes → cloud; explicit replacement, unrelated records, stale snapshots, idempotence, retirement.');
+
+// Exercise the real archive patch builder: editing a draft must not silently
+// publish it, while unrelated archive saves must keep working.
+const page = await readFile(new URL('../app/page.tsx', import.meta.url), 'utf8');
+const collectionStart = page.indexOf('const vaultStateCollections:');
+const collectionEnd = page.indexOf('\nfunction stateHasUserData', collectionStart);
+const patchStart = page.indexOf('function statePatchFrom(');
+const patchEnd = page.indexOf('\nexport default function', patchStart);
+const patchSource = `import { stableSerialize } from ${JSON.stringify(new URL('../lib/state-sync.ts', import.meta.url).href)};\n` +
+  stripTypeScriptTypes(page.slice(collectionStart, collectionEnd) + '\n' + page.slice(patchStart, patchEnd)) +
+  '\nexport { statePatchFrom, vaultStateCollections };';
+const { statePatchFrom, vaultStateCollections } = await import('data:text/javascript;base64,' + Buffer.from(patchSource).toString('base64'));
+const base = Object.fromEntries(vaultStateCollections.map(key => [key, []]));
+assert.deepEqual(statePatchFrom(base, { ...base, reconstructionDrafts: [tablet] }), {});
+assert.deepEqual(statePatchFrom(base, { ...base, reconstructionDrafts: [tablet], lectures: [{ id: 'saved' }] }), { lectures: [{ id: 'saved' }] });
+console.log('Device version checks passed: phone audio → tablet notes → cloud; explicit replacement, unrelated records, stale snapshots, idempotence, retirement, and draft isolation from archive autosaves.');
