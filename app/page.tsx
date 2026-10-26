@@ -39,6 +39,7 @@ import {
 } from "../lib/lecture-ai-context";
 import { TEXTBOOK_VISUAL_AUDIT_VERSION } from "../lib/textbook-visual-contract";
 import { mergeCollectionState, stableSerialize } from "../lib/state-sync";
+import { replaceDraft, retireDraft, sameDraft } from "../lib/reconstruction-sync";
 import { ENGINEERING_MATH_EXAM_1_OUTLINE, referencesFigure, reviewInstructions } from "../lib/exam-review-context";
 import { generateReviewInSteps } from "../lib/review-generation-client";
 
@@ -2253,7 +2254,7 @@ function stateHasUserData(state: VaultState) {
 function statePatchFrom(base: VaultState, current: VaultState) {
   return Object.fromEntries(
     vaultStateCollections
-      .filter((key) => stableSerialize(base[key]) !== stableSerialize(current[key]))
+      .filter((key) => key !== "reconstructionDrafts" && stableSerialize(base[key]) !== stableSerialize(current[key]))
       .map((key) => [key, current[key]])
   ) as Partial<VaultState>;
 }
@@ -2306,7 +2307,7 @@ export default function LectureVaultApp() {
     oneNoteShareUrl: ""
   });
   const [captureFiles, setCaptureFiles] = useState<CaptureSource[]>([]);
-  const [activeDraftId, setActiveDraftId] = useState("");
+  const [activeDraftId, setActiveDraftId] = useState(() => typeof window === "undefined" ? "" : window.localStorage.getItem("lecturevault-active-draft") || "");
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [oneNoteSources, setOneNoteSources] = useState<OneNoteSource[]>([]);
   const [oneNoteStatus, setOneNoteStatus] = useState<{
@@ -2353,6 +2354,12 @@ export default function LectureVaultApp() {
   const [selectedStorageFolderId, setSelectedStorageFolderId] = useState("all");
   const [storageFolderName, setStorageFolderName] = useState("");
   const [isStorageLoading, setIsStorageLoading] = useState(false);
+  const [remoteDrafts, setRemoteDrafts] = useState<ClassDayDraft[]>([]);
+  const [draftSyncRevision, setDraftSyncRevision] = useState<string | null>(null);
+  const [draftSyncId, setDraftSyncId] = useState("");
+  const [draftSyncBusy, setDraftSyncBusy] = useState(false);
+  const [draftSyncMessage, setDraftSyncMessage] = useState("");
+  const draftSyncRequestRef = useRef<AbortController | null>(null);
   const stateRef = useRef(state);
   const stateJsonRef = useRef(stableSerialize(state));
   const cloudBaseStateRef = useRef<VaultState>(state);
@@ -2383,8 +2390,7 @@ export default function LectureVaultApp() {
   }, [theme]);
 
   useEffect(() => {
-    const currentRecordId = state.reconstructionDrafts[0]?.id || "";
-    if (activeDraftId !== currentRecordId) setActiveDraftId(currentRecordId);
+    if (activeDraftId && !state.reconstructionDrafts.some(draft => draft.id === activeDraftId)) setActiveDraftId("");
   }, [activeDraftId, state.reconstructionDrafts]);
 
   useEffect(() => {
@@ -2568,6 +2574,8 @@ export default function LectureVaultApp() {
 
         if (data.state) {
           const remoteState = normalizeState(data.state);
+          setRemoteDrafts(remoteState.reconstructionDrafts);
+          setDraftSyncRevision(data.updatedAt || null);
           const currentLocalState = stateRef.current;
           const localChangedDuringLoad =
             stableSerialize(currentLocalState) !== localStateJsonAtLoadStart;
@@ -2581,12 +2589,12 @@ export default function LectureVaultApp() {
               normalizeState
             );
             cloudBaseStateRef.current = remoteState;
-            setState(mergedState);
+            setState({ ...mergedState, reconstructionDrafts: currentLocalState.reconstructionDrafts });
             setStatus("Archive loaded. Local changes were merged and will sync.");
           } else {
             cloudBaseStateRef.current = remoteState;
             skipNextCloudSaveRef.current = true;
-            setState(remoteState);
+            setState({ ...remoteState, reconstructionDrafts: currentLocalState.reconstructionDrafts });
             setStatus("Archive synced from Supabase.");
           }
         } else if (stateHasUserData(state)) {
@@ -2694,7 +2702,7 @@ export default function LectureVaultApp() {
           );
           cloudBaseStateRef.current = remoteState;
           setCloudUpdatedAt(data.updatedAt || "");
-          setState(mergedState);
+          setState({ ...mergedState, reconstructionDrafts: stateRef.current.reconstructionDrafts });
           setStatus("Archive changed on another device. Local changes were merged.");
           return;
         }
@@ -2724,69 +2732,160 @@ export default function LectureVaultApp() {
     };
   }, [authStatus, cloudStateLoaded, cloudSyncEnabled, state]);
 
-  useEffect(() => {
-    if (authStatus !== "ready" || !cloudStateLoaded || !cloudSyncEnabled) {
-      return;
-    }
+  useEffect(() => () => { draftSyncRequestRef.current?.abort(); }, [authStatus]);
 
-    let active = true;
+  function stopDraftSync() {
+    draftSyncRequestRef.current?.abort();
+    draftSyncRequestRef.current = null;
+    setDraftSyncBusy(false);
+    setDraftSyncMessage("Stopped waiting for sync. Refresh versions to check whether a sent save completed.");
+  }
 
-    async function pullLatestCloudState() {
-      try {
-        if (cloudSaveQueuedRef.current || cloudSaveInFlightRef.current > 0) return;
-        const response = await fetch("/api/vault-state", {
-          credentials: "include",
-          headers: {
-            "cache-control": "no-cache"
-          }
-        });
-        const data = (await response.json()) as {
-          configured?: boolean;
-          state?: unknown;
-          updatedAt?: string | null;
-          error?: string;
-        };
-
-        if (
-          !active ||
-          cloudSaveQueuedRef.current ||
-          cloudSaveInFlightRef.current > 0 ||
-          !response.ok ||
-          !data.configured ||
-          !data.state
-        ) {
-          return;
-        }
-
-        if (data.updatedAt && data.updatedAt === cloudUpdatedAt) {
-          return;
-        }
-
-        const nextState = normalizeState(data.state);
-        const nextJson = stableSerialize(nextState);
-
-        cloudBaseStateRef.current = nextState;
-        setCloudUpdatedAt(data.updatedAt || "");
-
-        if (nextJson !== stateJsonRef.current) {
-          skipNextCloudSaveRef.current = true;
-          setState(nextState);
-          setStatus("Archive updated from Supabase.");
-        }
-      } catch {
-        // Keep the current local view if a background refresh fails.
+  async function refreshDraftVersions() {
+    if (draftSyncRequestRef.current) return;
+    const controller = new AbortController();
+    draftSyncRequestRef.current = controller;
+    setDraftSyncBusy(true);
+    try {
+      const response = await fetch("/api/vault-state?scope=drafts", { credentials: "include", cache: "no-store", signal: controller.signal });
+      const data = await response.json() as { state?: unknown; updatedAt?: string; configured?: boolean; error?: string };
+      if (controller.signal.aborted) return;
+      if (!response.ok || !data.configured) throw new Error(data.error || "Cloud sync is unavailable.");
+      const remote = normalizeState(data.state);
+      setRemoteDrafts(remote.reconstructionDrafts);
+      setDraftSyncRevision(data.updatedAt || null);
+      setDraftSyncMessage("Choose a reconstruction, then choose which version to use. No documents are rebuilt.");
+    } catch (error) {
+      if (!controller.signal.aborted) setDraftSyncMessage(error instanceof Error ? error.message : "Could not refresh versions.");
+    } finally {
+      if (draftSyncRequestRef.current === controller) {
+        draftSyncRequestRef.current = null;
+        setDraftSyncBusy(false);
       }
     }
+  }
 
-    const intervalId = window.setInterval(() => {
-      void pullLatestCloudState();
-    }, 5000);
+  async function chooseDraftVersion(choice: "local" | "cloud") {
+    if (draftSyncRequestRef.current || draftUploadsRef.current.size || isLectureGenerating) return;
+    const local = stateRef.current.reconstructionDrafts.find(draft => draft.id === draftSyncId);
+    const remote = remoteDrafts.find(draft => draft.id === draftSyncId);
+    const chosen = choice === "local" ? local : remote;
+    if (!chosen) return;
+    if (choice === "local" && chosen.sources.some(source => !source.storagePath)) {
+      setDraftSyncMessage("Finish uploading this reconstruction's attached files before sharing its version.");
+      return;
+    }
+    if (choice === "cloud") {
+      const controller = new AbortController();
+      draftSyncRequestRef.current = controller;
+      setDraftSyncBusy(true);
+      const localAtStart = stableSerialize(stateRef.current.reconstructionDrafts);
+      try {
+        const response = await fetch("/api/vault-state?scope=drafts", { credentials: "include", cache: "no-store", signal: controller.signal });
+        const data = await response.json() as { state?: unknown; updatedAt?: string; error?: string };
+        if (controller.signal.aborted) return;
+        if (!response.ok) throw new Error(data.error || "Could not check the cloud version.");
+        const latest = normalizeState(data.state).reconstructionDrafts;
+        setRemoteDrafts(latest);
+        setDraftSyncRevision(data.updatedAt || null);
+        if (!sameDraft(chosen, latest.find(draft => draft.id === chosen.id))) {
+          setDraftSyncMessage("The cloud version changed. Review the refreshed sources and choose again.");
+          return;
+        }
+        if (localAtStart !== stableSerialize(stateRef.current.reconstructionDrafts) || draftUploadsRef.current.size) {
+          setDraftSyncMessage("This device changed while checking. Review the versions and choose again.");
+          return;
+        }
+        // Explicit replacement: no unrelated sources survive hydration.
+        loadedDraftVersionRef.current = "";
+        setCaptureFiles([]);
+        setOneNoteSources([]);
+        suppressDraftSaveRef.current = true;
+        setState(current => ({ ...current, reconstructionDrafts: replaceDraft(current.reconstructionDrafts, chosen) }));
+        setActiveDraftId(chosen.id);
+        setDraftSyncMessage("Using the cloud version on this device. Add this device's sources, then save this device's version to cloud.");
+      } catch (error) {
+        if (!controller.signal.aborted) setDraftSyncMessage(error instanceof Error ? error.message : "Could not use the cloud version.");
+      } finally {
+        if (draftSyncRequestRef.current === controller) {
+          draftSyncRequestRef.current = null;
+          setDraftSyncBusy(false);
+        }
+      }
+      return;
+    }
+    if (cloudSaveQueuedRef.current || cloudSaveInFlightRef.current) {
+      setDraftSyncMessage("Archive changes are still saving. Try again once they finish.");
+      return;
+    }
+    const controller = new AbortController();
+    draftSyncRequestRef.current = controller;
+    setDraftSyncBusy(true);
+    try {
+      const response = await fetch("/api/vault-state", {
+        credentials: "include", method: "PUT", signal: controller.signal,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ expectedUpdatedAt: draftSyncRevision,
+          patch: { reconstructionDrafts: replaceDraft(remoteDrafts, chosen) } })
+      });
+      const data = await response.json() as { state?: unknown; updatedAt?: string; error?: string };
+      if (controller.signal.aborted) return;
+      if (response.status === 409) {
+        setRemoteDrafts(normalizeState(data.state).reconstructionDrafts);
+        setDraftSyncRevision(data.updatedAt || null);
+        setDraftSyncMessage("The cloud changed. Review the refreshed versions and choose again; nothing was overwritten.");
+        return;
+      }
+      if (!response.ok) throw new Error(data.error || "Could not share this reconstruction.");
+      setRemoteDrafts(replaceDraft(remoteDrafts, chosen));
+      setDraftSyncRevision(data.updatedAt || null);
+      setDraftSyncMessage("This device's version is saved. On your other device, refresh versions and choose the cloud version.");
+    } catch (error) {
+      if (!controller.signal.aborted) setDraftSyncMessage(error instanceof Error ? error.message : "Sync failed.");
+    } finally {
+      if (draftSyncRequestRef.current === controller) {
+        draftSyncRequestRef.current = null;
+        setDraftSyncBusy(false);
+      }
+    }
+  }
 
-    return () => {
-      active = false;
-      window.clearInterval(intervalId);
-    };
-  }, [authStatus, cloudStateLoaded, cloudSyncEnabled, cloudUpdatedAt]);
+  async function retireSharedDraft(id: string) {
+    const knownVersion = remoteDrafts.find(draft => draft.id === id);
+    if (!knownVersion) return;
+    try {
+      const response = await fetch("/api/vault-state?scope=drafts", { credentials: "include", cache: "no-store" });
+      const data = await response.json() as { state?: unknown; updatedAt?: string };
+      if (!response.ok) throw new Error("Could not check the shared class record.");
+      const latest = normalizeState(data.state).reconstructionDrafts;
+      const latestVersion = latest.find(draft => draft.id === id);
+      if (!latestVersion) { setRemoteDrafts(latest); return; }
+      if (!sameDraft(knownVersion, latestVersion)) {
+        setDraftSyncMessage("The other device has a newer version. It remains available in the version chooser.");
+        return;
+      }
+      const remaining = retireDraft(latest, id);
+      const saved = await fetch("/api/vault-state", {
+        credentials: "include", method: "PUT", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ expectedUpdatedAt: data.updatedAt, patch: { reconstructionDrafts: remaining } })
+      });
+      if (!saved.ok) throw new Error("Shared records changed. Refresh versions to review the older record.");
+      const result = await saved.json() as { updatedAt?: string };
+      setRemoteDrafts(remaining);
+      setDraftSyncRevision(result.updatedAt || null);
+    } catch (error) {
+      setDraftSyncMessage(error instanceof Error ? error.message : "Could not retire the shared class record.");
+    }
+  }
+
+  function prepareNewClassRecord() {
+    setActiveDraftId("");
+    loadedDraftVersionRef.current = "";
+    suppressDraftSaveRef.current = true;
+    setCaptureFiles([]);
+    setOneNoteSources([]);
+    setCaptureForm(current => ({ ...current, title: "", date: new Date().toISOString().slice(0, 10), transcript: "", objective: "", emphasis: "", questions: "", oneNoteShareUrl: "" }));
+  }
 
   const selectedCourse = state.courses.find(
     (course) => course.id === selectedCourseId
@@ -2833,7 +2932,7 @@ export default function LectureVaultApp() {
           const localSource = currentById.get(source.id);
           return localSource?.file.size ? { ...source, ...localSource } : source;
         }),
-        ...current.filter((source) => !savedIds.has(source.id))
+        ...current.filter((source) => !savedIds.has(source.id) && source.file.size > 0)
       ];
     });
   }, [activeDraft]);
@@ -4655,7 +4754,7 @@ export default function LectureVaultApp() {
         ...(aiConcepts || extractConcepts(lectureId, transcript)),
         ...current.concepts
       ],
-      reconstructionDrafts: []
+      reconstructionDrafts: retireDraft(current.reconstructionDrafts, activeDraftId)
     }));
     setActiveDraftId("");
     loadedDraftVersionRef.current = "";
@@ -4671,6 +4770,7 @@ export default function LectureVaultApp() {
       questions: "",
       oneNoteShareUrl: ""
     }));
+    void retireSharedDraft(activeDraftId);
     setStatus(`Built and saved ${aiReconstructionTitle || title} as a lecture reconstruction.`);
     completePipeline("Lecture reconstruction saved to the vault.");
     setIsLectureGenerating(false);
@@ -5612,12 +5712,6 @@ export default function LectureVaultApp() {
       setStatus("Choose the course for this class record first.");
       return;
     }
-    const currentRecord = state.reconstructionDrafts[0];
-    if (currentRecord) {
-      openClassDayDraft(currentRecord.id);
-      setStatus("Current class record is already open. Add sources from either device, then build it.");
-      return;
-    }
     const now = new Date().toISOString();
     const draft: ClassDayDraft = {
       id: uid("draft"),
@@ -5633,7 +5727,7 @@ export default function LectureVaultApp() {
       createdAt: now,
       updatedAt: now
     };
-    setState((current) => ({ ...current, reconstructionDrafts: [draft] }));
+    setState((current) => ({ ...current, reconstructionDrafts: [draft, ...current.reconstructionDrafts] }));
     setActiveDraftId(draft.id);
     setCaptureFiles([]);
     setStatus("Current class record started. Add audio on your phone and OneNote PDFs on your tablet.");
@@ -5648,7 +5742,8 @@ export default function LectureVaultApp() {
     );
     if (!confirmed) return;
 
-    setState((current) => ({ ...current, reconstructionDrafts: [] }));
+    void retireSharedDraft(record.id);
+    setState((current) => ({ ...current, reconstructionDrafts: retireDraft(current.reconstructionDrafts, record.id) }));
     setActiveDraftId("");
     loadedDraftVersionRef.current = "";
     suppressDraftSaveRef.current = false;
@@ -5670,10 +5765,8 @@ export default function LectureVaultApp() {
   function openClassDayDraft(id: string) {
     const draft = state.reconstructionDrafts.find((item) => item.id === id);
     if (!draft) return;
-    const hasPendingSource = captureFiles.some((source) =>
-      !draft.sources.some((saved) => saved.id === source.id)
-    );
-    suppressDraftSaveRef.current = !hasPendingSource;
+    suppressDraftSaveRef.current = true;
+    loadedDraftVersionRef.current = `${draft.id}:${draft.updatedAt}`;
     setActiveDraftId(id);
     setCaptureForm({
       courseId: draft.courseId,
@@ -5694,17 +5787,8 @@ export default function LectureVaultApp() {
       storageBucket: source.storageBucket,
       storagePath: source.storagePath
     }));
-    setCaptureFiles((current) => {
-      const currentById = new Map(current.map((source) => [source.id, source]));
-      const savedIds = new Set(draftFiles.map((source) => source.id));
-      return [
-        ...draftFiles.map((source) => {
-          const localSource = currentById.get(source.id);
-          return localSource?.file.size ? { ...source, ...localSource } : source;
-        }),
-        ...current.filter((source) => !savedIds.has(source.id))
-      ];
-    });
+    setCaptureFiles(draftFiles);
+    setOneNoteSources([]);
     setScreen("capture");
   }
 
@@ -7295,9 +7379,42 @@ export default function LectureVaultApp() {
                     />
                   </label>
                 </div>
+                <fieldset className="capture-device-sync" disabled={draftSyncBusy || isLectureGenerating}>
+                  <legend>Sync a reconstruction between devices</legend>
+                  <p>On your phone, share its version with audio. On your tablet, use the cloud version, add notes, then share the tablet version back. Saved reconstructions are never rebuilt by sync.</p>
+                  <button type="button" disabled={!cloudSyncEnabled} onClick={() => void refreshDraftVersions()}>Refresh versions from other device</button>
+                  <label>Reconstruction
+                    <select value={draftSyncId} onChange={event => setDraftSyncId(event.target.value)}>
+                      <option value="">Choose a reconstruction</option>
+                      {Array.from(new Map([...remoteDrafts, ...state.reconstructionDrafts].map(draft => [draft.id, draft])).values()).map(draft => (
+                        <option key={draft.id} value={draft.id}>{draft.title || "Untitled class"} · {draft.date}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {(["local", "cloud"] as const).map(choice => {
+                    const draft = (choice === "local" ? state.reconstructionDrafts : remoteDrafts).find(item => item.id === draftSyncId);
+                    return <div key={choice}>
+                      <strong>{choice === "local" ? "This device" : "Cloud / other device"}</strong>
+                      <p>{draft ? `${draft.sources.length} attached source(s) · ${new Date(draft.updatedAt).toLocaleString()}` : "No version available"}</p>
+                      {draft ? <ul>{draft.sources.map(source => <li key={source.id}>{source.name}</li>)}</ul> : null}
+                      <button type="button" disabled={!draft || !cloudSyncEnabled || draftUploadsRef.current.size > 0} onClick={() => void chooseDraftVersion(choice)}>
+                        {choice === "local" ? "Use this device’s version — save to cloud" : "Use cloud version — replace on this device"}
+                      </button>
+                    </div>;
+                  })}
+                  <p role="status">{draftSyncMessage}</p>
+                </fieldset>
+                {draftSyncBusy ? <button type="button" onClick={stopDraftSync}>Stop sync</button> : null}
+                {state.reconstructionDrafts.length ? <label>Open a local class record
+                  <select value={activeDraftId} onChange={event => { if (event.target.value) openClassDayDraft(event.target.value); }} disabled={draftSyncBusy || isLectureGenerating || draftUploadsRef.current.size > 0}>
+                    <option value="">Choose a class record</option>
+                    {state.reconstructionDrafts.map(draft => <option key={draft.id} value={draft.id}>{draft.title || "Untitled class"} · {draft.date}</option>)}
+                  </select>
+                </label> : null}
                 {activeDraft ? (
                   <div className="capture-record-status">
                     <strong>Class record active</strong>
+                    <button type="button" disabled={draftSyncBusy || isLectureGenerating || draftUploadsRef.current.size > 0} onClick={prepareNewClassRecord}>Start another class record</button>
                     <span>{courseLabel(activeDraft.courseId)} · {activeDraft.date}</span>
                     <small>{activeRecordSourceLabel} · shared across devices</small>
                     <button type="button" onClick={discardClassDayRecord}>
@@ -10907,3 +11024,4 @@ function ExamDetail({
     </section>
   );
 }
+
