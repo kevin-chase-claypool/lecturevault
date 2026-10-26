@@ -1972,3 +1972,12 @@ For archive organization changes, manually verify:
 
 - A whole-set selector is efficient but can confuse textbook prose with a nearby graph when several dense, related pages are shown together. If both normal selection passes fail their pixel audits, the system now inspects each retrieved source independently using the coordinate guide, then attaches only the precisely discovered figures to exact lesson paragraphs.
 - This is a precision fallback, not a source gallery: it still rejects prose, equations, cropped pages, incomplete figures, and irrelevant images through the same blind pixel and relevance audits. There is no output quota; distinct helpful figures on any of the retrieved pages remain eligible.
+
+
+## 2026-10-26 — Explicit reconstruction version choice (local patch)
+
+- Pending class records now sync only after choosing this device's version or the cloud version for a selected reconstruction. Ordinary archive autosaves omit pending drafts, and recurring full-state polling is removed.
+- The version chooser shows source filenames and timestamps. Cloud reads validate the preview before replacing local sources; saves use the existing revision compare-and-swap and ask for another choice on conflicts.
+- Opening a different class record replaces its source list. Starting another class preserves previous records; build/discard removes only the selected record. Cloud retirement preserves an unseen newer version.
+- Phone-to-tablet workflow: publish phone audio, load cloud version on tablet, attach notes, publish tablet version, load cloud version on phone.
+- Verification: node --experimental-strip-types scripts/verify-reconstruction-sync.mjs passes. Local dependency installation is unavailable; Vercel validates the production build and TypeScript on the prepared branch before production release. Live two-device acceptance remains a user check after release.
